@@ -325,6 +325,7 @@ class Resampler {
       })
       .filter(route => route !== null);
 
+    Routes.pruneUndergroundHighways(); // the burg set is final here, so a highway never keeps a removed endpoint
     pack.cells.routes = Routes.buildLinks(pack.routes);
   }
 

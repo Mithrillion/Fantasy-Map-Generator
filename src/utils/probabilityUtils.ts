@@ -89,6 +89,36 @@ export const rw = (object: { [key: string]: number }): string => {
 };
 
 /**
+ * Draws items without replacement, each with a probability proportional to its weight. Draws from
+ * the current random source, so a seeded `Math.random` makes the selection reproducible.
+ * @param {Array} items - the pool to draw from
+ * @param {Function} weight - the selection weight of an item; a non-positive weight is never drawn
+ * @param {number} count - how many to draw; fewer are returned when the pool runs out of weight
+ * @return {Array} the drawn items, in draw order
+ */
+export const pickWeighted = <T>(items: readonly T[], weight: (item: T) => number, count: number): T[] => {
+  const pool = items.map(item => ({ item, weight: Math.max(weight(item), 0) }));
+  const picked: T[] = [];
+
+  while (picked.length < count && pool.length) {
+    const total = pool.reduce((sum, entry) => sum + entry.weight, 0);
+    if (total <= 0) break;
+
+    let roll = Math.random() * total;
+    let index = 0;
+    while (index < pool.length - 1 && roll >= pool[index].weight) {
+      roll -= pool[index].weight;
+      index++;
+    }
+
+    picked.push(pool[index].item);
+    pool.splice(index, 1);
+  }
+
+  return picked;
+};
+
+/**
  * Returns a random integer from min to max biased towards one end based on exponent distribution (the bigger ex the higher bias towards min).
  * @param {number} min - minimum value
  * @param {number} max - maximum value

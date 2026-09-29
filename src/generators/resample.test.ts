@@ -115,3 +115,71 @@ describe("restoreJourneys", () => {
     expect((globalThis as any).pack.journeys).toEqual([]);
   });
 });
+
+describe("restoreRoutes keeps the underground plane honest", () => {
+  let Resample: any;
+  const identity = (x: number, y: number): [number, number] => [x, y];
+
+  /** A parent map with one underground highway from cell 0 to cell 1, and a one-cell-wide child */
+  const parentMap = {
+    pack: {
+      routes: [
+        {
+          i: 0,
+          group: "roads",
+          feature: 1,
+          underground: true,
+          points: [
+            [10, 10, 0],
+            [20, 10, 1]
+          ]
+        }
+      ]
+    }
+  };
+
+  const newPack = (burgs: unknown[], burgCells: number[] = [0, 1, 2]) => ({
+    cells: {
+      p: [
+        [0, 0],
+        [10, 0],
+        [20, 0]
+      ],
+      f: [1, 1, 1],
+      burg: burgCells,
+      routes: {}
+    },
+    burgs,
+    routes: []
+  });
+  const twoBurgs = [0, { i: 1, cell: 1, subterranean: true }, { i: 2, cell: 2, underground: true }];
+
+  beforeEach(async () => {
+    globalThis.window = globalThis.window || ({} as any);
+    (globalThis as any).WARN = false;
+    options.map.graph = { width: 100, height: 100, points: 100 };
+    (globalThis as any).Pack = { findCell: (x: number) => (x >= 20 ? 2 : 1) }; // 10 -> cell 1, 20 -> cell 2
+    (globalThis as any).pack = newPack(twoBurgs);
+
+    await import("./routes-generator");
+    Resample = (await import("./resample")).Resample;
+  });
+
+  it("restores a highway whose endpoint burgs survived the transform", () => {
+    Resample.restoreRoutes(parentMap, identity);
+
+    const [route] = (globalThis as any).pack.routes;
+    expect(route.underground).toBe(true);
+    expect(route.points.map((point: number[]) => point[2])).toEqual([1, 2]);
+    expect((globalThis as any).pack.cells.routes[1][2]).toBe(0); // still linked into the cell network
+  });
+
+  it("drops a highway whose endpoint burg the transform removed", () => {
+    (globalThis as any).pack = newPack([0], [0, 0, 0]); // neither burg was inside the new map
+
+    Resample.restoreRoutes(parentMap, identity);
+
+    expect((globalThis as any).pack.routes).toEqual([]);
+    expect((globalThis as any).pack.cells.routes).toEqual({});
+  });
+});

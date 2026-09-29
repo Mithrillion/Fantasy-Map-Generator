@@ -89,6 +89,10 @@ const anchorGroup = z.strictObject({
   options: burgGroup.shape.options.extend({ icon: anchorIcon })
 });
 const emblemGroup = z.strictObject({ options: z.strictObject({ size: z.number() }) });
+const routeGroups = z.record(
+  z.string(),
+  z.strictObject({ attrs: z.strictObject({ opacity, ...strokeAttrs, filter, mask }) })
+);
 
 // One schema per layer; attrs go to the DOM; options are renderer inputs and never do
 export const stylesSchema = z.strictObject({
@@ -202,9 +206,9 @@ export const stylesSchema = z.strictObject({
     stateBorders: z.strictObject({ attrs: z.strictObject({ opacity, ...strokeAttrs, filter }) }),
     provinceBorders: z.strictObject({ attrs: z.strictObject({ opacity, ...strokeAttrs, filter }) })
   }),
-  routes: z.strictObject({
-    groups: z.record(z.string(), z.strictObject({ attrs: z.strictObject({ opacity, ...strokeAttrs, filter, mask }) }))
-  }),
+  routes: z.strictObject({ groups: routeGroups }),
+  // tunnels reconcile into their own container, so they carry their own group styles
+  undergroundRoutes: z.strictObject({ groups: routeGroups }),
   journeys: z.strictObject({
     attrs: z.strictObject({
       opacity,
@@ -265,6 +269,11 @@ export const stylesSchema = z.strictObject({
     anchors: z.strictObject({
       groups: z.record(z.string(), anchorGroup).refine(groups => Object.keys(groups).length > 0)
     })
+  }),
+  // an empty groups record is valid: the renderer falls back to the surface icon groups
+  undergroundBurgs: z.strictObject({
+    attrs: z.strictObject({ opacity, filter }),
+    undergroundIcons: z.strictObject({ groups: z.record(z.string(), burgGroup) })
   }),
   goods: z.strictObject({
     goodsCells: z.strictObject({ attrs: z.strictObject({ opacity, filter }) }),

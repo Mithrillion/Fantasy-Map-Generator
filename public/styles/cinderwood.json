@@ -486,6 +486,21 @@
       }
     }
   },
+  "undergroundRoutes": {
+    "groups": {
+      "tunnels": {
+        "attrs": {
+          "opacity": 0.8,
+          "stroke": "#4d402f",
+          "stroke-width": 0.5,
+          "stroke-dasharray": "1.2 0.9",
+          "stroke-linecap": "butt",
+          "filter": null,
+          "mask": null
+        }
+      }
+    }
+  },
   "journeys": {
     "attrs": {
       "opacity": 1,
@@ -1166,6 +1181,15 @@
           }
         }
       }
+    }
+  },
+  "undergroundBurgs": {
+    "attrs": {
+      "opacity": 1,
+      "filter": "url(#filter-dingy)"
+    },
+    "undergroundIcons": {
+      "groups": {}
     }
   },
   "goods": {

@@ -7,6 +7,7 @@ import { Notes } from "@/components/notes";
 import { normalizeLegacyBurgGroupFilters } from "@/components/options-legacy";
 import type { MapData } from "@/components/options-schema";
 import { RELIEF_SETS } from "@/data/relief-icons";
+import { normalizeClassification } from "@/generators/burg-classification";
 import { Emblems } from "@/generators/emblems-generator";
 import { type Feature, LAKE_SUBTYPES, OCEAN_SUBTYPES } from "@/generators/features-generator";
 import type { GraphOverrides } from "@/generators/graph-override";
@@ -1977,6 +1978,15 @@ export async function resolveVersionConflicts(mapVersion: string, data: string[]
     if (isBroken(record?.ocean?.options?.pattern)) {
       record.ocean.options.pattern = "";
       data[48] = JSON.stringify(record);
+    }
+  }
+
+  if (isOlderThan("1.154.0")) {
+    // v1.154.0 records the underground plane on the burg and route records themselves. A save from
+    // before it carries neither flag, which reads as a surface burg and a surface route; a record
+    // carrying both classifications is repaired here to the single one it resolves to everywhere else
+    for (const burg of pack.burgs ?? []) {
+      if (burg?.i) normalizeClassification(burg);
     }
   }
 }

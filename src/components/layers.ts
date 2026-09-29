@@ -1,7 +1,7 @@
 // Global layers registry: owns layers list, order, and svg skeleton
 import { drawBiomes } from "@/renderers/draw-biomes";
 import { drawBorders } from "@/renderers/draw-borders";
-import { drawBurgIcons } from "@/renderers/draw-burg-icons";
+import { drawBurgIcons, drawUndergroundBurgIcons } from "@/renderers/draw-burg-icons";
 import { drawCells } from "@/renderers/draw-cells";
 import { drawCoastline } from "@/renderers/draw-coastline";
 import { drawCoordinates } from "@/renderers/draw-coordinates";
@@ -26,7 +26,7 @@ import { drawProvinces } from "@/renderers/draw-provinces";
 import { drawRelief, removeRelief } from "@/renderers/draw-relief-icons";
 import { drawReligions } from "@/renderers/draw-religions";
 import { drawRivers, removeRivers } from "@/renderers/draw-rivers";
-import { drawRoutes, removeRoutes } from "@/renderers/draw-routes";
+import { drawRoutes, drawUndergroundRoutes, removeRoutes, removeUndergroundRoutes } from "@/renderers/draw-routes";
 import { drawScaleBar, removeScaleBar } from "@/renderers/draw-scalebar";
 import { drawStates } from "@/renderers/draw-states";
 import { drawTemperature } from "@/renderers/draw-temperature";
@@ -330,6 +330,14 @@ const mapLayers = [
     draw: drawRoutes,
     erase: removeRoutes
   }),
+  new Layer({
+    id: "undergroundRoutes",
+    parent: "viewbox",
+    // a repeated child id would shadow the surface container: renderers resolve containers by id
+    children: [{ id: "tunnels", tag: "g" }],
+    draw: drawUndergroundRoutes,
+    erase: removeUndergroundRoutes
+  }),
   new Layer({ id: "temperature", parent: "viewbox", draw: drawTemperature }),
   new Layer({
     id: "coastline",
@@ -387,6 +395,12 @@ const mapLayers = [
     parent: "viewbox",
     children: ["burgIcons", "anchors"].map(id => ({ id, tag: "g" })),
     draw: drawBurgIcons
+  }),
+  new Layer({
+    id: "undergroundBurgs",
+    parent: "viewbox",
+    children: [{ id: "undergroundIcons", tag: "g" }],
+    draw: drawUndergroundBurgIcons
   }),
   new Layer({
     id: "labels",

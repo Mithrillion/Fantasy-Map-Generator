@@ -6,6 +6,7 @@ import "@/generators/added-labels";
 import "@/generators/features-generator"; // migrations call the Features module through its global
 import { confirmationDialog } from "@/components/dialog/dialog-helpers";
 import { Layers } from "@/components/layers";
+import { getClassification } from "@/generators/burg-classification";
 import { Styles } from "@/generators/styles";
 import * as versioning from "@/services/versioning";
 import { VERSION } from "@/services/versioning";
@@ -595,6 +596,55 @@ describe("v1.61 ocean pattern migration", () => {
 
     expect(JSON.parse(data[48]).ocean.options.pattern).toBe(expected);
     expect(document.getElementById("oceanicPattern")!.getAttribute("href")).toBe(expected);
+  });
+});
+
+describe("v1.154.0 underground records", () => {
+  /** A map saved before the feature: no burg classification and no underground highway exists yet */
+  function loadPreFeatureSave() {
+    const data = readFileSync("tests/fixtures/1.139.4.map", "utf8").split("\r\n");
+    globalThis.pack = {
+      burgs: JSON.parse(data[15]),
+      routes: JSON.parse(data[37])
+    } as unknown as typeof pack;
+    return data;
+  }
+
+  it("reads a save written before the feature as surface burgs and surface routes, unchanged", async () => {
+    const data = loadPreFeatureSave();
+    const burgs = structuredClone(pack.burgs);
+    const routes = structuredClone(pack.routes);
+
+    await resolveVersionConflicts("1.153.1", data);
+
+    expect(pack.burgs).toEqual(burgs); // the migration writes nothing onto a pre-feature record
+    expect(pack.routes).toEqual(routes);
+    expect(pack.burgs.filter(burg => burg.i).every(burg => getClassification(burg) === null)).toBe(true);
+    expect(pack.routes.some(route => route.underground)).toBe(false);
+  });
+
+  it("repairs a stored record carrying both classifications to one", async () => {
+    const data = loadPreFeatureSave();
+    const conflicting = pack.burgs.find(burg => burg.i)!;
+    conflicting.subterranean = true;
+    conflicting.underground = true;
+
+    await resolveVersionConflicts("1.153.1", data);
+
+    expect(getClassification(conflicting)).toBe("underground");
+    expect(conflicting.subterranean).toBeUndefined();
+  });
+
+  it("leaves a current map's own classifications alone", async () => {
+    const data = loadPreFeatureSave();
+    const conflicting = pack.burgs.find(burg => burg.i)!;
+    conflicting.subterranean = true;
+    conflicting.underground = true;
+
+    await resolveVersionConflicts(VERSION, data);
+
+    expect(conflicting.subterranean).toBe(true);
+    expect(conflicting.underground).toBe(true);
   });
 });
 

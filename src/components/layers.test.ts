@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 // The registry is tested against fake layers: ordering, activation and restore are guaranteed without a real map.
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import "@/generators/styles";
+import { drawUndergroundBurgIcons } from "@/renderers/draw-burg-icons";
+import { drawRoutes, drawUndergroundRoutes, removeUndergroundRoutes } from "@/renderers/draw-routes";
+import { ViewportLayers } from "@/renderers/viewport/viewport-renderer";
+import { setContentFocus } from "./content-focus";
 import { Layer, LayersRegistry, type LayersState, Layers as MapLayers } from "./layers";
 
 let Layers: LayersRegistry;
@@ -456,5 +461,99 @@ describe("subscribe", () => {
     unsubscribe();
     Layers.show("a");
     expect(listener).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("the underground layers", () => {
+  const ids = () => MapLayers.all.map(layer => layer.id);
+  const skeleton = () => /* html */ `<svg id="map"><g id="viewbox"></g><g id="icons"></g></svg>`;
+
+  it("are registered right above the surface layer they mirror", () => {
+    expect(ids().indexOf("undergroundRoutes")).toBe(ids().indexOf("routes") + 1);
+    expect(ids().indexOf("undergroundBurgs")).toBe(ids().indexOf("burgIcons") + 1);
+  });
+
+  it("draw only their own content in their own container", () => {
+    const underground = MapLayers.get("undergroundRoutes");
+    const surface = MapLayers.get("routes");
+    expect(underground.params.draw).toBe(drawUndergroundRoutes);
+    expect(underground.params.erase).toBe(removeUndergroundRoutes);
+    expect(underground.params.draw).not.toBe(surface.params.draw);
+    expect(underground.elementId).toBe("undergroundRoutes");
+    expect(surface.elementId).toBe("routes");
+  });
+
+  it("declare children whose ids cannot shadow the surface containers", () => {
+    const childIds = [
+      ...MapLayers.get("undergroundRoutes").children,
+      ...MapLayers.get("undergroundBurgs").children
+    ].map(child => child.id);
+    const surfaceIds = [
+      ...MapLayers.get("routes").children,
+      ...MapLayers.get("burgIcons").children,
+      MapLayers.get("burgIcons").elementId
+    ].map(child => (typeof child === "string" ? child : child.id));
+
+    expect(childIds).toEqual(["tunnels", "undergroundIcons"]);
+    expect(childIds.filter(id => surfaceIds.includes(id))).toEqual([]);
+  });
+
+  it("is the last layer in the viewbox: everything registered above it draws over the substrata", () => {
+    const viewbox = MapLayers.all.filter(layer => layer.params.parent === "viewbox").map(layer => layer.id);
+    expect(viewbox.indexOf("undergroundBurgs")).toBeLessThan(viewbox.indexOf("labels"));
+  });
+
+  it("restores off from a stored state that predates them, and on from one that lists them", () => {
+    const layers = [MapLayers.get("routes"), MapLayers.get("burgIcons")];
+    const off = new LayersRegistry([...layers, MapLayers.get("undergroundRoutes"), MapLayers.get("undergroundBurgs")]);
+    off.init();
+    off.restore({ order: ["burgIcons", "routes"], active: ["routes"] }); // an older map's saved layer state
+    expect(off.isOn("routes")).toBe(true);
+    expect([off.isOn("undergroundRoutes"), off.isOn("undergroundBurgs")]).toEqual([false, false]);
+
+    document.body.innerHTML = skeleton();
+    const on = new LayersRegistry([...layers, MapLayers.get("undergroundRoutes"), MapLayers.get("undergroundBurgs")]);
+    on.init();
+    on.restore({ order: [], active: ["undergroundRoutes", "undergroundBurgs"] });
+    expect([on.isOn("undergroundRoutes"), on.isOn("undergroundBurgs")]).toEqual([true, true]);
+    expect([on.isOn("routes"), on.isOn("burgIcons")]).toEqual([false, false]);
+  });
+
+  it("materializes only the selected plane's content into an export clone", () => {
+    document.body.innerHTML = /* html */ `<svg id="map"><g id="viewbox"></g><g id="icons"></g></svg>`;
+    MapLayers.init();
+    globalThis.pack = {
+      burgs: [
+        { i: 1, group: "town", x: 10, y: 10, subterranean: true },
+        { i: 2, group: "town", x: 20, y: 20, underground: true },
+        { i: 3, group: "town", x: 30, y: 30 }
+      ],
+      routes: [
+        {
+          i: 7,
+          group: "roads",
+          points: [
+            [0, 0],
+            [10, 10]
+          ],
+          underground: true
+        }
+      ]
+    } as never;
+    globalThis.Routes = { getPath: () => "M0,0L10,10" } as never;
+    setContentFocus("underground");
+    drawRoutes();
+    drawUndergroundBurgIcons();
+    expect(document.querySelector("#tunnels path")).not.toBeNull(); // the live container is already reconciled
+    expect(document.querySelectorAll("#undergroundIcons use")).toHaveLength(2);
+
+    const clone = document.getElementById("map")!.cloneNode(true) as SVGSVGElement;
+    ViewportLayers.renderTo(clone);
+
+    expect(clone.querySelectorAll("#undergroundRoutes path")).toHaveLength(1);
+    expect(clone.querySelectorAll("#undergroundIcons use")).toHaveLength(2);
+    expect(clone.querySelectorAll("#routes path")).toHaveLength(0);
+    expect(clone.querySelectorAll("#icons use")).toHaveLength(0);
+    expect(document.querySelectorAll("#routes path")).toHaveLength(0); // the focus already erased the surface plane
   });
 });

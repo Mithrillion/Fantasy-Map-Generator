@@ -20,10 +20,11 @@ import { Pins } from "@/components/pins";
 import { tip } from "@/components/tooltips";
 import { isElectron } from "./platform";
 
-export const VERSION = "1.153.1";
+export const VERSION = "1.154.0";
 
 // new changes on top
 const latestPublicChanges = [
+  "Underground settlements and highways: optional generation, own layers and a content focus",
   "States Editor: option to keep merged states as provinces",
   "Global map search (press Space to open)",
   "New style presets: Ink, Cinderwood and Frostbite",

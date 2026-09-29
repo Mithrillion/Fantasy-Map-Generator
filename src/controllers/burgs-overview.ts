@@ -14,6 +14,7 @@ import {
 import { Layers } from "@/components/layers";
 import { tip } from "@/components/tooltips";
 import { Controllers } from "@/controllers";
+import { getClassification } from "@/generators/burg-classification";
 import type { Burg } from "@/generators/burgs-generator";
 import { removeEmblem } from "@/renderers/draw-emblems";
 import { downloadFile, getFileName, getHeight, getLatitude, getLongitude, uploadFile } from "@/utils";
@@ -301,6 +302,18 @@ function getFilteredBurgs(): Burg[] {
   return filtered;
 }
 
+/** An extra features badge for a classified burg; a surface burg gets none, so its row is unchanged */
+function renderClassification(burg: Burg): string {
+  const classification = getClassification(burg);
+  if (!classification) return "";
+  const tip =
+    classification === "underground"
+      ? "This burg is fully subterranean"
+      : "This burg has subterranean structures: it is above ground and below ground at the same site";
+  const icon = classification === "underground" ? "icon-hammer" : "icon-adjust";
+  return `<span data-tip="${tip}" class="${icon}" style="font-size: .9em; padding: 0 1px;"></span>`;
+}
+
 // totals and footer span the full filtered set, not just the current page
 function renderBurgsPage(view: TableView<Burg>): void {
   const body = ensureEl("burgsBody");
@@ -381,6 +394,7 @@ function renderBurgsPage(view: TableView<Burg>): void {
             class="icon-star-empty${b.capital ? "" : " inactive"}" style="padding: 0 1px;"></span>
           <span data-tip="${b.port ? " This burg is a port" : "This burg is NOT a port"}"
           class="icon-anchor${b.port ? "" : " inactive"}" style="font-size: .9em; padding: 0 1px;"></span>
+          ${renderClassification(b)}
         </div>
         <span data-col="edit" data-tip="Edit burg" class="icon-pencil"></span>
         <span data-col="lock" class="locks pointer ${

@@ -188,6 +188,26 @@ describe("schema reconciliation", () => {
   test("label groups default font-weight to unset", () => {
     expect(Styles.defaults.labels.groups.capital.attrs["font-weight"]).toBeNull();
   });
+
+  test("the underground layers carry their own, visibly distinct style entries", () => {
+    const { tunnels } = Styles.defaults.undergroundRoutes.groups;
+    expect(tunnels).toBeDefined();
+    // distinct from the surface roads they are drawn beside: darker, thinner, a tighter dash
+    expect(tunnels.attrs).not.toEqual(Styles.defaults.routes.groups.roads.attrs);
+    expect(tunnels.attrs["stroke-width"]).toBeLessThan(Styles.defaults.routes.groups.roads.attrs["stroke-width"]!);
+    // underground burgs are drawn with a filter of their own, and their group styles come from the surface set
+    expect(Styles.defaults.undergroundBurgs.attrs.filter).toBe("url(#filter-dingy)");
+    expect(Styles.defaults.undergroundBurgs.undergroundIcons.groups).toEqual({});
+  });
+
+  test("every shipped preset styles the two underground layers", () => {
+    for (const name of ["cinderwood", "ink"]) {
+      const preset = readPreset(name);
+      expect(Object.keys(preset.undergroundRoutes.groups).includes("tunnels")).toBe(true);
+      expect(preset.undergroundBurgs.undergroundIcons.groups).toEqual({});
+      expect(stylesSchema.safeParse(preset).success).toBe(true);
+    }
+  });
 });
 
 describe("per-attribute repair", () => {

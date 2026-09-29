@@ -4,17 +4,27 @@ import { setViewportSize, setViewportTransform } from "@/components/viewport";
 import type { Route } from "@/generators/routes-generator";
 import { ViewportLayers } from "@/renderers/viewport/viewport-renderer";
 
-const mocks = vi.hoisted(() => ({ layerOn: true }));
-vi.mock("@/components/layers", () => ({ Layers: { isOn: () => mocks.layerOn } }));
+const mocks = vi.hoisted(() => ({ layers: { routes: true, undergroundRoutes: true } }));
+vi.mock("@/components/layers", () => ({ Layers: { isOn: (id: keyof (typeof mocks)["layers"]) => mocks.layers[id] } }));
 
 import "@/generators/styles";
-import { drawRoutes, getRouteBox, redrawRoute, removeRoutes, setEditedRoute, setTempRoute } from "./draw-routes";
+import {
+  drawRoutes,
+  drawUndergroundRoutes,
+  getRouteBox,
+  redrawRoute,
+  removeRoutes,
+  removeUndergroundRoutes,
+  setEditedRoute,
+  setTempRoute
+} from "./draw-routes";
 
-function route(i: number, x: number, group = "roads"): Route {
+function route(i: number, x: number, group = "roads", underground = false): Route {
   return {
     i,
     group,
     feature: 1,
+    underground,
     points: [
       [x, 10, 1],
       [x + 40, 50, 2]
@@ -25,9 +35,11 @@ function route(i: number, x: number, group = "roads"): Route {
 const getPath = vi.fn(({ points }: { points: number[][] }) => `M${points.map(([x, y]) => `${x},${y}`).join("L")}`);
 
 beforeEach(() => {
-  mocks.layerOn = true;
+  mocks.layers.routes = true;
+  mocks.layers.undergroundRoutes = true;
   document.body.innerHTML = /* html */ `<svg id="map">
       <g id="routes"><g id="roads"></g><g id="trails"></g><g id="searoutes"></g></g>
+      <g id="undergroundRoutes"><g id="tunnels"></g></g>
     </svg>`;
   globalThis.pack = { routes: [route(1, 0), route(2, 500), route(3, 0, "trails")] } as never;
   globalThis.Routes = { getPath } as never;
@@ -131,12 +143,81 @@ test("erasing the layer keeps the groups, which carry the user's styles", () => 
 
 test("viewport rendering leaves a disabled layer empty", () => {
   drawRoutes();
-  mocks.layerOn = false;
+  mocks.layers.routes = false;
   document.getElementById("roads")!.replaceChildren(); // the layer registry erases the content when hidden
   ViewportLayers.renderNow();
   expect(document.getElementById("route1")).toBeNull();
 
-  mocks.layerOn = true;
+  mocks.layers.routes = true;
   ViewportLayers.renderNow();
   expect(document.getElementById("route1")).not.toBeNull();
+});
+
+test("an underground route lands in the tunnels and never in the surface container", () => {
+  globalThis.pack = { routes: [route(1, 0), route(4, 0, "roads", true)] } as never;
+  drawRoutes();
+
+  const tunnel = document.querySelector<SVGPathElement>("#tunnels > #route4")!;
+  expect(tunnel.getAttribute("d")).toBe("M0,10L40,50");
+  expect(document.getElementById("undergroundRoutes")!.getAttribute("fill")).toBe("none");
+  expect(document.getElementById("tunnels")!.dataset.group).toBe("tunnels");
+  expect(document.querySelector("#roads > #route4")).toBeNull();
+  // the tunnel keeps its own group for the geometry, which is what the curve is read from
+  expect(getPath.mock.calls[1][0]).toMatchObject({ group: "roads", underground: true });
+
+  ViewportLayers.renderNow();
+  expect(document.querySelector("#tunnels > #route4")).toBe(tunnel); // built once, culled per plane
+
+  removeUndergroundRoutes();
+  expect(document.querySelectorAll("#undergroundRoutes path")).toHaveLength(0);
+  expect(document.querySelector("#roads > #route1")).not.toBeNull(); // the shared scene is still valid
+  ViewportLayers.renderNow();
+  expect(document.querySelector("#tunnels > #route4")).not.toBeNull();
+});
+
+test("the underground layer is gated on its own id", () => {
+  globalThis.pack = { routes: [route(1, 0), route(4, 0, "roads", true)] } as never;
+  mocks.layers.undergroundRoutes = false;
+  drawRoutes();
+  expect(document.querySelectorAll("#routes path")).toHaveLength(1);
+  expect(document.querySelectorAll("#undergroundRoutes path")).toHaveLength(0);
+
+  mocks.layers.undergroundRoutes = true;
+  drawUndergroundRoutes();
+  expect(document.querySelector("#tunnels > #route4")).not.toBeNull();
+
+  mocks.layers.routes = false;
+  drawUndergroundRoutes();
+  expect(document.querySelector("#tunnels > #route4")).not.toBeNull(); // the surface gate does not close the tunnels
+});
+
+test("the edited route and the creator's draft stay out of the underground container", () => {
+  globalThis.pack = { routes: [route(4, 0, "roads", true), route(5, 0, "roads")] } as never;
+  drawRoutes();
+  setEditedRoute(4);
+  setTempRoute({
+    group: "roads",
+    points: [
+      [0, 0, 1],
+      [10, 10, 2]
+    ]
+  });
+
+  expect(document.querySelector("#tunnels > #route4")).not.toBeNull(); // the edited route follows its own plane
+  expect(document.querySelector("#routes > #route4")).toBeNull();
+  expect(document.querySelector("#tunnels > #routeTemp")).toBeNull();
+  expect(document.querySelector("#roads > #routeTemp")).not.toBeNull();
+  expect(document.querySelectorAll("#undergroundRoutes path")).toHaveLength(1);
+});
+
+test("padding falls back to the route's own group style", () => {
+  globalThis.pack = { routes: [route(4, 0, "roads", true), route(5, 0, "ridge", true)] } as never;
+  const tunnels = styles.undergroundRoutes.groups.tunnels;
+  delete (styles.undergroundRoutes.groups as Record<string, unknown>).tunnels; // a map styled before the tunnels entry
+  drawRoutes();
+  styles.undergroundRoutes.groups.tunnels = tunnels;
+
+  // the roads entry the tunnel's own group resolves to is 0.7 wide; an unknown group pads by 1
+  expect(getRouteBox(4)!.x).toBe(-0.7);
+  expect(getRouteBox(5)!.x).toBe(-1);
 });

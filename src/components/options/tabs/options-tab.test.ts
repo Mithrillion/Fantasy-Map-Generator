@@ -231,4 +231,18 @@ describe("options tab bindings", () => {
     document.getElementById("lock_statesNumber")!.click();
     expect(Pins.valueOr("statesNumber", 0)).toBe(42);
   });
+
+  it("pairs the underground checkbox with the visible label the stylesheet draws its box from", () => {
+    // the stylesheet hides checkbox inputs and renders the toggle through the adjacent label
+    const input = document.getElementById("undergroundInput") as HTMLInputElement;
+    expect(input.type).toBe("checkbox");
+
+    const label = input.nextElementSibling as HTMLLabelElement;
+    expect(label.classList.contains("checkbox-label")).toBe(true);
+    expect(label.htmlFor).toBe("undergroundInput");
+
+    label.click();
+    expect(input.checked).toBe(true);
+    expect(options.generation.underground).toBe(true); // the change listener persisted the toggle
+  });
 });

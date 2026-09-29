@@ -88,11 +88,14 @@ computed on load. A derived value must stay recomputable, so nothing is lost if 
 dropped.
 
 **`options.generation`** is the requests: the graph to build, entity counts, ratios, rates and
-varieties, culture set and template for the next map. Note the deliberate pair —
+varieties, culture set and template for the next map, and whether to generate underground content.
+Note the deliberate pair —
 `generation.graph.{width,height,density}` is the graph asked for and `map.graph.{width,height,points}`
 is the one that was built. Changing the request does not touch the map on screen. World-position
 requests are nullable: `null` means automatic, a number fixes that input, and the resolved numbers
-land in `map.geography`, which keeps lock handling out of terrain generation.
+land in `map.geography`, which keeps lock handling out of terrain generation. The underground
+request lives here rather than in `map` for the same reason: it asks for content on the *next* map,
+while the classifications it produces are map data and persist with the map.
 
 **`options.app`** is the preferences: they take effect immediately and generate nothing.
 Two rules keep the boundary sharp. **"Show all regardless of zoom" is a preference** —

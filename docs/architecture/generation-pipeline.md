@@ -69,7 +69,7 @@ the pipeline, since it depends only on name bases and the seeded random source.
 | Climate art              | `ice`                                                         | `pack.ice`                                                                      |
 | Goods catalogue          | `goods`                                                       | `pack.goods` (map-independent), `cells.good`                                    |
 | Ranking & cultures       | `rankCells`, `cultures`, `culturesExpand`                     | `cells.s`, `cells.pop`, `pack.cultures`, `cells.culture`                        |
-| Settlement & politics    | `burgs`, `states`, `routes`, `religions`                      | `pack.burgs`, `pack.states`, `pack.routes`, `pack.religions`                    |
+| Settlement & politics    | `burgs`, `states`, `routes`, `religions`                      | `pack.burgs` and the underground classifications, `pack.states`, `pack.routes` (surface and underground), `pack.religions` |
 | Specification            | `burgsSpecify`, `stateStatistics`, `stateForms`               | burg types, state stats and forms                                               |
 | Provinces                | `provinces`, `provincePoles`                                  | `pack.provinces`                                                                |
 | Naming polish            | `riversSpecify`, `featureNames`                               | river and feature (island, ocean, lake) names                                   |
@@ -221,6 +221,42 @@ reaches a phase you change.
 5. Add a version-bump migration in [`auto-update.ts`](../../src/services/io/auto-update.ts) so older
    saves gain the new fields on load.
 6. Update the phase table above.
+
+## Underground settlements and highways
+
+Optional, and gated by the `options.generation.underground` request, which is deliberately not part
+of the map: it asks the *next* map for underground content, while the classifications themselves are
+per-burg and per-route map data that persists like any other field. **Nothing is added to the
+pipeline** — the work is a phase inside two existing steps, because both outputs have to be visible
+to the steps that already read them:
+
+- **`burgs` marks.** After the town pass and port assignment, `Burgs.markUndergroundSettlements()`
+  classifies roughly 5% of the burgs as dual identity and a separate 5% as fully subterranean,
+  weighting high and inhospitable sites, drawing without replacement from the seeded source.
+  Marking belongs inside the step rather than beside it: `states` reads `pack.burgs` next and must
+  not see a burg set that depends on the option. With the option off it draws nothing, so the rest
+  of generation is byte-for-byte what it was.
+- **`routes` builds.** After the surface network, `Routes.generateUndergroundHighways()` runs one
+  Urquhart topology per feature over the subterranean-capable burgs and paths it with
+  `getUndergroundPathCost` — water and uninhabitable cells impassable, high ground cheaper than
+  lowland, the already-connected discount reused. The highways keep the `roads` group, so religion
+  spread, trade animation and the road and crossroad tests need no branch.
+
+The connectivity rule binds **generation only**. The planes are held apart by one predicate pair —
+`hasGroundLevelPresence` for surface routes, `hasBelowLevelPresence` for underground ones — and
+after generation `pack.cells.routes` merges both networks exactly as it always merged roads, trails
+and sea routes, so traversal needs no knowledge of the marker at all.
+
+| Path     | What happens to the underground content                                                                                                                                    |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Erase    | Free: `ErasePipeline` runs the same `burgs` and `routes` steps, so marking and the builder run again for the new burgs                                                      |
+| Keep     | Untouched: the path copies grid heights into `pack.cells.g` and touches nothing else                                                                                       |
+| Risk     | Preserved: burg records are re-attached rather than rebuilt, and the link map is snapshotted and restored per grid cell. A burg the path removes prunes its own highways   |
+| Resample | Restored with the burgs, then pruned: `restoreRoutes` drops a highway whose endpoint is no longer a subterranean-capable burg                                              |
+
+Regenerating burgs or routes re-runs marking and the builder; locked burgs and locked routes carry
+their flags through, and `Routes.pruneUndergroundHighways()` drops any highway that outlives the
+burg it ends at.
 
 ## The grid modules
 

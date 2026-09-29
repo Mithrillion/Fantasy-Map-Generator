@@ -9,6 +9,7 @@ import { removeEmblem } from "@/renderers/draw-emblems";
 import { EmblemRenderer } from "@/renderers/emblems/renderer";
 import { getHeight, openURL, speak } from "@/utils";
 import { MAX_ZOOM, PAN_ZOOM_IDENTITY, type PanZoom, panBy, zoomAt } from "@/utils/panZoomUtils";
+import { getClassification } from "../generators/burg-classification";
 import type { Burg } from "../generators/burgs-generator";
 import type { Market } from "../generators/markets-generator";
 import { convertTemperature, ensureEl, escapeHtml, getPointer, getTemperatureLikeness, rand, rn } from "../utils";
@@ -118,6 +119,10 @@ function renderDialog(): void {
             <div data-tip="Burg height above mean sea level">
               <div class="label">Elevation:</div>
               <span id="burgElevation"></span> above sea level
+            </div>
+            <div id="burgUndergroundRow" data-tip="How the burg relates to the surface" style="display: none">
+              <div class="label">Underground:</div>
+              <span id="burgUnderground"></span>
             </div>
             <div>
               <div class="label">Features:</div>
@@ -321,6 +326,16 @@ function updateBurgValues(): void {
   ensureEl("burgTemperatureLikeIn").dataset.tip =
     `Average yearly temperature is like in ${getTemperatureLikeness(temperature)}`;
   ensureEl("burgElevation").innerHTML = getHeight(pack.cells.h[b.cell]);
+
+  // shown for a classified burg only, so an ordinary burg keeps the editor it always had
+  const classification = getClassification(b);
+  ensureEl("burgUndergroundRow").style.display = classification ? "block" : "none";
+  ensureEl("burgUnderground").innerHTML =
+    classification === "underground"
+      ? "fully subterranean"
+      : classification === "subterranean"
+        ? "above and below ground at once"
+        : "";
 
   ensureEl("burgCapital").classList.toggle("inactive", !b.capital);
   ensureEl("burgPort").classList.toggle("inactive", !b.port);

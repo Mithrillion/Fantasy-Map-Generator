@@ -73,6 +73,16 @@ describe("the schema describes the value, not merely its type", () => {
     expect(parsed.generation.graph.width).toBe(800); // the step alone was wrong
   });
 
+  it("keeps the underground request optional and boolean, disabled by default", () => {
+    const { generation } = Options.getDefaultOptions();
+    const { underground, ...withoutUnderground } = generation;
+
+    expect(underground).toBe(false); // a map is generated without underground content unless asked
+    expect(repair("generation", withoutUnderground).generation.underground).toBe(false);
+    expect(repair("generation", { ...generation, underground: "yes" }).generation.underground).toBe(false);
+    expect(repair("generation", { ...generation, underground: true }).generation.underground).toBe(true);
+  });
+
   it("repairs an extent nothing could be generated on", () => {
     const generation = { ...Options.getDefaultOptions().generation, graph: { width: 0, height: -5, density: 4 } };
     const parsed = repair("generation", generation);

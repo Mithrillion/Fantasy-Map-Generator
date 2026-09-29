@@ -4,7 +4,8 @@ import { Emblems } from "@/generators/emblems-generator";
 import type { BurgGroup } from "@/types/burg-groups";
 import type { Emblem } from "@/types/emblems";
 import { safeParseJSON } from "@/utils/stringUtils";
-import { each, gauss, minmax, normalize, P, rn } from "../utils";
+import { each, gauss, minmax, normalize, P, pickWeighted, rn } from "../utils";
+import { getClassification } from "./burg-classification";
 import { type CultureType, DEFAULT_CULTURE_TYPE } from "./cultures-generator";
 import { NON_NAVIGABLE_LAKE_SUBTYPES } from "./features-generator";
 import type { Label } from "./labels-generator";
@@ -14,6 +15,9 @@ import type { River } from "./river-generator";
 import type { Point } from "./voronoi";
 
 export const isAutoBurgLimit = (): boolean => options.generation.burgs.limit === AUTO_BURG_LIMIT;
+
+/** Target share of the burg population for each classification, when the map is large enough */
+const SUBTERRANEAN_SHARE = 0.05;
 
 export interface Burg {
   cell: number;
@@ -45,6 +49,8 @@ export interface Burg {
   market?: number;
   label?: Label;
   note?: string;
+  subterranean?: boolean; // dual identity: ground-level and below-level presence at the one site
+  underground?: boolean; // below-level presence only; never set together with `subterranean`
 }
 
 // A burg that could become a port on a given water body.
@@ -155,6 +161,7 @@ class BurgModule {
 
     pack.burgs = burgs;
     this.assignPorts();
+    this.markUndergroundSettlements(burgs);
 
     function getCapitalsNumber() {
       let number = options.generation.states.limit;
@@ -193,6 +200,39 @@ class BurgModule {
     }
 
     return DEFAULT_CULTURE_TYPE;
+  }
+
+  /**
+   * Classifies a share of the burgs that already exist, weighting high and inhospitable sites. The
+   * dual-identity draw comes first and the fully subterranean one from what is left, so the sets are
+   * disjoint by construction and a map too small to satisfy both shares simply classifies fewer.
+   * Marking changes nothing else on a burg: the site is kept, only the relation to the surface is set.
+   */
+  markUndergroundSettlements(burgs: Burg[] = pack.burgs): void {
+    if (!options.generation.underground) return; // off: no draw, so the rest of generation is untouched
+
+    const { cells, biomes } = pack;
+    const eligible = burgs.filter(
+      burg => burg.i && !burg.removed && !getClassification(burg) && cells.h[burg.cell] >= 20
+    );
+    if (!eligible.length) return;
+
+    const weight = (burg: Burg) => {
+      const habitability = biomes[cells.biome[burg.cell]]?.habitability ?? 0;
+      return (cells.h[burg.cell] - 19) * (1 + Math.max(40 - habitability, 0) / 100);
+    };
+
+    const share = Math.round(eligible.length * SUBTERRANEAN_SHARE);
+    const dualIdentity = pickWeighted(eligible, weight, share);
+    const dualIdentityBurgs = new Set(dualIdentity);
+    const subterranean = pickWeighted(
+      eligible.filter(burg => !dualIdentityBurgs.has(burg)),
+      weight,
+      share
+    );
+
+    for (const burg of dualIdentity) burg.subterranean = true;
+    for (const burg of subterranean) burg.underground = true;
   }
 
   // Assign port feature ids to burgs and position them appropriately
@@ -861,6 +901,7 @@ class BurgModule {
 
     pack.burgs = newBurgs;
     this.assignPorts();
+    this.markUndergroundSettlements(); // the new burgs are classified, the locked and market ones keep their flags
 
     states
       .filter(state => state.i && !state.removed && !state.capital)
@@ -896,6 +937,7 @@ class BurgModule {
     pack.cells.burg[burg.cell] = 0;
     burg.removed = true;
     delete burg.note;
+    Routes.pruneUndergroundHighways([burg.cell]); // a highway must not survive the burg it ends at
 
     if (burg.coa) {
       delete burg.coa;

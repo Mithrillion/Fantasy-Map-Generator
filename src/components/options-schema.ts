@@ -171,7 +171,8 @@ export const optionsSchema = z.strictObject({
     states: z.strictObject({ limit: count, sizeVariety: nonNegative, growthRate: nonNegative }),
     provinces: z.strictObject({ ratio: percent }),
     religions: z.strictObject({ limit: count }),
-    burgs: z.strictObject({ limit: count }) // AUTO_BURG_LIMIT means "as many as the land supports"
+    burgs: z.strictObject({ limit: count }), // AUTO_BURG_LIMIT means "as many as the land supports"
+    underground: z.boolean() // classify a share of burgs and connect them with underground highways
   }),
 
   /** how the app itself behaves: applied at once, generating nothing, describing no map */

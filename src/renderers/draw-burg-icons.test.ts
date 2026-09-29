@@ -3,19 +3,21 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { setViewportSize, setViewportTransform } from "@/components/viewport";
 import { ViewportLayers } from "@/renderers/viewport/viewport-renderer";
 
-const mocks = vi.hoisted(() => ({ layerOn: true }));
-vi.mock("@/components/layers", () => ({ Layers: { isOn: () => mocks.layerOn } }));
+const mocks = vi.hoisted(() => ({ layers: { burgIcons: true, undergroundBurgs: true } }));
+vi.mock("@/components/layers", () => ({ Layers: { isOn: (id: keyof (typeof mocks)["layers"]) => mocks.layers[id] } }));
 
 import "@/generators/styles";
-import { drawBurgIcons } from "./draw-burg-icons";
+import { drawBurgIcons, drawUndergroundBurgIcons } from "./draw-burg-icons";
 
 beforeEach(() => {
-  mocks.layerOn = true;
+  mocks.layers.burgIcons = true;
+  mocks.layers.undergroundBurgs = true;
   setViewportSize(100, 100);
   setViewportTransform(1, 0, 0);
   (globalThis as Record<string, unknown>).TIME = false;
   document.body.innerHTML = `<svg id="map">
       <g id="icons"><g id="burgIcons"></g><g id="anchors"></g></g>
+      <g id="undergroundBurgs"><g id="undergroundIcons"></g></g>
     </svg>`;
   globalThis.pack = { burgs: [{}, { i: 1, group: "town", x: 10, y: 10 }] } as never;
   styles.burgIcons.burgIcons.groups.town.options.size = 3;
@@ -131,12 +133,12 @@ test("symbol and size edits apply to offscreen icons and account for overflowing
 
 test("viewport reconciliation does not repopulate a hidden layer", () => {
   drawBurgIcons();
-  mocks.layerOn = false;
+  mocks.layers.burgIcons = false;
   document.getElementById("burgIcons")!.replaceChildren();
   document.getElementById("anchors")!.replaceChildren();
   ViewportLayers.renderNow();
   expect(document.querySelectorAll("#icons use")).toHaveLength(0);
-  mocks.layerOn = true;
+  mocks.layers.burgIcons = true;
   drawBurgIcons();
   expect(document.getElementById("burg1")).not.toBeNull();
 });
@@ -209,4 +211,80 @@ test("viewport culling uses the shifted anchor position", () => {
   drawBurgIcons();
   expect(document.getElementById("burg1")).not.toBeNull();
   expect(document.getElementById("anchor1")).toBeNull();
+});
+
+/** empty the anchors without touching the store, the way the layer registry erases a hidden layer */
+const removeAnchors = () => document.getElementById("anchors")!.replaceChildren();
+
+test("the both state draws every burg once per plane it belongs to, and no anchor twice", () => {
+  // 1 is classified both ways at once, 2 exists below ground only, 3 is a surface burg with a port
+  globalThis.pack = {
+    burgs: [
+      {},
+      { i: 1, group: "town", x: 10, y: 10, port: 1, subterranean: true },
+      { i: 2, group: "town", x: 30, y: 10, port: 1, underground: true },
+      { i: 3, group: "town", x: 50, y: 10, port: 1 }
+    ]
+  } as never;
+
+  drawBurgIcons();
+  drawUndergroundBurgIcons();
+
+  expect(Array.from(document.querySelectorAll("#burgIcons use"), use => use.id)).toEqual(["burg1", "burg3"]);
+  expect(Array.from(document.querySelectorAll("#undergroundIcons use"), use => use.id)).toEqual([
+    "undergroundBurg1",
+    "undergroundBurg2"
+  ]);
+  // the underground container holds no second element: anchors are never materialized there
+  expect(document.querySelectorAll("#undergroundIcons > g")).toHaveLength(1);
+  expect(Array.from(document.querySelectorAll("#anchors use"), use => use.id)).toEqual(["anchor1", "anchor3"]);
+
+  removeAnchors();
+  ViewportLayers.renderNow(); // the both state, with the surface layer reconciled after the underground one
+  expect(Array.from(document.querySelectorAll("#anchors use"), use => use.id)).toEqual(["anchor1", "anchor3"]);
+  expect(Array.from(document.querySelectorAll("#undergroundIcons use"), use => use.id)).toEqual([
+    "undergroundBurg1",
+    "undergroundBurg2"
+  ]);
+});
+
+test("the underground layer is gated on its own id", () => {
+  globalThis.pack = {
+    burgs: [
+      {},
+      { i: 1, group: "town", x: 10, y: 10, subterranean: true },
+      { i: 2, group: "town", x: 30, y: 10, underground: true }
+    ]
+  } as never;
+  mocks.layers.undergroundBurgs = false;
+  drawBurgIcons();
+  drawUndergroundBurgIcons();
+  expect(document.querySelectorAll("#burgIcons use")).toHaveLength(1);
+  expect(document.querySelectorAll("#undergroundIcons use")).toHaveLength(0);
+
+  mocks.layers.burgIcons = false;
+  mocks.layers.undergroundBurgs = true;
+  drawUndergroundBurgIcons();
+  expect(document.querySelectorAll("#undergroundIcons use")).toHaveLength(2);
+});
+
+test("an unknown underground group falls back to the surface icon styles", () => {
+  options.map.burgs.groups.push({ name: "custom", order: -1 } as never);
+  globalThis.pack = { burgs: [{}, { i: 1, group: "custom", x: 10, y: 10, underground: true }] } as never;
+
+  drawUndergroundBurgIcons();
+  const fallback = document.querySelector<SVGGElement>("#undergroundIcons > #custom")!;
+  expect(fallback.getAttribute("fill")).toBe(styles.burgIcons.burgIcons.groups.town.attrs.fill);
+  expect(fallback.getAttribute("font-size")).toBe("3");
+
+  styles.undergroundBurgs.undergroundIcons.groups.custom = structuredClone(styles.burgIcons.burgIcons.groups.town);
+  Object.assign(styles.undergroundBurgs.undergroundIcons.groups.custom.attrs, { fill: "#123456" });
+  Object.assign(styles.undergroundBurgs.undergroundIcons.groups.custom.options, { size: 5, icon: "#icon-square" });
+
+  drawUndergroundBurgIcons();
+  const own = document.querySelector<SVGGElement>("#undergroundIcons > #custom")!;
+  expect(own.getAttribute("fill")).toBe("#123456");
+  expect(own.getAttribute("font-size")).toBe("5");
+  expect(own.getAttribute("data-icon")).toBe("#icon-square");
+  expect(styles.burgIcons.burgIcons.groups.custom).toBeUndefined(); // the surface plane is untouched
 });

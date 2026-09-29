@@ -346,6 +346,16 @@ const TEMPLATE = /* html */ `
       </td>
     </tr>
     <tr
+      data-tip="Classify a share of the generated burgs as underground and connect them with underground highways. Applies to the next generated map"
+    >
+      <td></td>
+      <td>Underground</td>
+      <td colspan="2">
+        <input id="undergroundInput" class="checkbox" type="checkbox" />
+        <label for="undergroundInput" class="checkbox-label"></label>
+      </td>
+    </tr>
+    <tr
       data-tip="Define how many organized religions and cults should be generated. Cultures will have their own folk religions in any case"
     >
       <td>
@@ -654,6 +664,11 @@ function addListeners(): void {
   root.addEventListener("input", onOptionInput);
   root.addEventListener("change", onOptionInput);
 
+  // a checkbox carries its state rather than a value, so it stays outside the string binding registry
+  ensureEl<HTMLInputElement>("undergroundInput").addEventListener("change", function () {
+    Options.set(o => (o.generation.underground = this.checked));
+  });
+
   content.addEventListener("click", event => {
     const target = event.target as HTMLElement;
     if (target.id === "restoreDefaultMapSize") restoreDefaultMapSize();
@@ -697,6 +712,7 @@ export function syncOptionInputs(): void {
   if (template && id) applyOption(template, id, heightmapTemplates[id]?.name || precreatedHeightmaps[id]?.name || id);
 
   for (const key of Object.keys(OPTION_BINDINGS)) syncOption(key);
+  ensureEl<HTMLInputElement>("undergroundInput").checked = options.generation.underground;
   syncManors();
   syncCellsDensity();
   syncCultures();

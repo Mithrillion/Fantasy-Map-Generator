@@ -1,4 +1,5 @@
 // Layers tab: a projection of the Layers registry. Renders the layer buttons and wires them up.
+import { type ContentFocus, getContentFocus, setContentFocus } from "@/components/content-focus";
 import type { LayerId } from "@/components/layers";
 import { Layers } from "@/components/layers";
 import { ViewportLayers } from "@/renderers/viewport/viewport-renderer";
@@ -30,6 +31,7 @@ export const LAYER_TOGGLES = new Map<LayerId, LayerButton>([
   ["zones", { label: "<u>Z</u>ones", shortcut: "KeyZ" }],
   ["borders", { label: "Bor<u>d</u>ers", shortcut: "KeyD" }],
   ["routes", { label: "Ro<u>u</u>tes", shortcut: "KeyU" }],
+  ["undergroundRoutes", { label: "Underground highways" }],
   ["temperature", { label: "<u>T</u>emperature", shortcut: "KeyT" }],
   ["ice", { label: "Ice", shortcut: "KeyJ" }],
   ["goods", { label: "<u>G</u>oods", shortcut: "KeyG" }],
@@ -39,6 +41,7 @@ export const LAYER_TOGGLES = new Map<LayerId, LayerButton>([
   ["population", { label: "Populatio<u>n</u>", shortcut: "KeyN" }],
   ["emblems", { label: "Emblems", shortcut: "KeyY" }],
   ["burgIcons", { label: "<u>I</u>cons", shortcut: "KeyI" }],
+  ["undergroundBurgs", { label: "Underground burgs" }],
   ["labels", { label: "<u>L</u>abels", shortcut: "KeyL" }],
   ["military", { label: "<u>M</u>ilitary", shortcut: "KeyM" }],
   ["markers", { label: "Mar<u>k</u>ers", shortcut: "KeyK" }],
@@ -67,6 +70,26 @@ export const LAYER_PRESETS: Record<string, string> = {
 
 export const getLayerByShortcut = (code: string): LayerId | undefined =>
   [...LAYER_TOGGLES].find(([, button]) => button.shortcut === code)?.[0];
+
+const CONTENT_FOCUS_TIPS: Record<ContentFocus, string> = {
+  surface: "Surface content only: the map as it was before underground settlements",
+  underground: "Underground highway and burg layers only, with the surface content hidden",
+  both: "Surface and underground content together"
+};
+const CONTENT_FOCUS_LABELS: Record<ContentFocus, string> = {
+  surface: "Surface",
+  underground: "Underground",
+  both: "Both"
+};
+const CONTENT_FOCUS_IDS: Record<ContentFocus, string> = {
+  surface: "contentFocusSurface",
+  underground: "contentFocusUnderground",
+  both: "contentFocusBoth"
+};
+const CONTENT_FOCUS_STATES = Object.keys(CONTENT_FOCUS_IDS) as ContentFocus[];
+
+const contentFocusButton = (state: ContentFocus): string =>
+  `<button data-tip="${CONTENT_FOCUS_TIPS[state]}" data-focus="${state}" id="${CONTENT_FOCUS_IDS[state]}">${CONTENT_FOCUS_LABELS[state]}</button>`;
 
 const TEMPLATE = /* html */ `
   <p data-tip="Select a map layers preset" style="display: inline-block">Layers preset:</p>
@@ -109,6 +132,10 @@ const TEMPLATE = /* html */ `
     </button>
     <button data-tip="Project map on globe. Cannot be used for editing" id="viewGlobe">Globe</button>
   </div>
+  <div id="contentFocus" data-tip="Set the displayed plane">
+    <p>Content focus:</p>
+    ${CONTENT_FOCUS_STATES.map(contentFocusButton).join("")}
+  </div>
 `;
 
 ensureEl("layersContent").innerHTML = TEMPLATE;
@@ -129,7 +156,18 @@ function render(): void {
       return [item];
     })
   );
+
+  // the focus control reports the layer selection: exactly the matching button is pressed
+  const focus = getContentFocus(Layers.state.active);
+  for (const state of CONTENT_FOCUS_STATES) {
+    findEl(CONTENT_FOCUS_IDS[state])?.classList.toggle("pressed", state === focus);
+  }
 }
+
+ensureEl("contentFocus").addEventListener("click", event => {
+  const state = (event.target as HTMLElement).closest("button")?.dataset.focus as ContentFocus | undefined;
+  if (state) setContentFocus(state);
+});
 
 ensureEl("mapLayers").addEventListener("click", event => {
   const id = (event.target as HTMLElement).closest("li")?.dataset.layer;

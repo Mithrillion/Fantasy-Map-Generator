@@ -3,6 +3,7 @@ import { curveCatmullRom, line } from "d3";
 import Delaunator from "delaunator";
 import { distanceSquared, findPath, getAdjective, isLand, ra, rn, round, rw } from "../utils";
 import { meander } from "../utils/pathUtils";
+import { hasBelowLevelPresence, hasGroundLevelPresence } from "./burg-classification";
 import type { Burg } from "./burgs-generator";
 import type { Label } from "./labels-generator";
 import type { River } from "./river-generator";
@@ -183,6 +184,7 @@ export interface Route {
   lock?: boolean;
   label?: Label;
   note?: string;
+  underground?: boolean; // presentation only: generated underground, traversed exactly as any other route
 }
 
 type RiverEdge = { riverId: number; fromIndex: number };
@@ -215,10 +217,13 @@ class RoutesModule {
     });
 
     pack.routes = this.createRoutesData(lockedRoutes);
+    if (options.generation.underground) this.generateUndergroundHighways(pack.routes);
+    this.pruneUndergroundHighways(); // a locked highway may have lost the burg it ended at
     pack.cells.routes = this.buildLinks(pack.routes);
   }
 
-  private sortBurgsByFeature(burgs: Burg[]) {
+  /** `isEligible` is what keeps the two planes apart: surface routes see ground-level presence only */
+  private sortBurgsByFeature(burgs: Burg[], isEligible: (burg: Burg) => boolean = hasGroundLevelPresence) {
     const burgsByFeature: Record<number, Burg[]> = {};
     const capitalsByFeature: Record<number, Burg[]> = {};
     const portsByFeature: Record<number, Burg[]> = {};
@@ -229,7 +234,7 @@ class RoutesModule {
     };
 
     for (const burg of burgs) {
-      if (burg.i && !burg.removed) {
+      if (burg.i && !burg.removed && isEligible(burg)) {
         const { feature, capital, port } = burg;
         if (feature === undefined) continue;
         addBurg(burgsByFeature, feature, burg);
@@ -331,8 +336,50 @@ class RoutesModule {
     return distanceCost * typeModifier * connectionModifier;
   }
 
+  /** Tunnelling: water forbidden, high ground cheaper than lowland, the already-connected discount reused */
+  getUndergroundPathCost(current: number, next: number) {
+    const { h, biome, p } = pack.cells;
+    if (h[next] < 20) return Infinity; // no underground highway runs through water
+
+    const habitability = pack.biomes[biome[next]].habitability;
+    if (!habitability) return Infinity; // the same gate the land cost uses: glaciers block
+
+    const distanceCost = distanceSquared(p[current], p[next]);
+    const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000; // [1, 1.1]
+    const heightModifier = 1 + Math.max(50 - h[next], 0) / 50; // [1, 2]: boring under a mountain beats lowland
+    const connectionModifier = this.connections.has(`${current}-${next}`) ? 0.5 : 1;
+    const burgModifier = pack.cells.burg[next] ? 1 : 3;
+
+    return distanceCost * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
+  }
+
   private createCostEvaluator({ isWater }: { isWater: boolean }) {
     return isWater ? this.getWaterPathCost.bind(this) : this.getLandPathCost.bind(this);
+  }
+
+  /** Stretches of an underground path that are not already part of the underground network */
+  private getUndergroundSegments(pathCells: number[], edges: Set<string>): number[][] {
+    const segments: number[][] = [];
+    let segment: number[] = [];
+
+    for (let i = 0; i < pathCells.length; i++) {
+      const cellId = pathCells[i];
+      const nextCellId = pathCells[i + 1];
+
+      if (nextCellId !== undefined && edges.has(`${cellId}-${nextCellId}`)) {
+        if (segment.length) {
+          segment.push(cellId);
+          segments.push(segment);
+          segment = [];
+        }
+        continue;
+      }
+
+      segment.push(cellId);
+    }
+
+    if (segment.length > 1) segments.push(segment);
+    return segments;
   }
 
   private getRouteSegments(pathCells: number[]) {
@@ -485,6 +532,93 @@ class RoutesModule {
 
     TIME && console.timeEnd("generateSeaRoutes");
     return seaRoutes;
+  }
+
+  /**
+   * The underground network: one Urquhart topology per feature over the burgs with below-level
+   * presence, drawn with the same pathfinding the surface routes use. It runs after them, so it can
+   * only add: the surface network never sees it, and every highway keeps the `roads` group.
+   */
+  private generateUndergroundHighways(routes: Route[]): void {
+    TIME && console.time("generateUndergroundHighways");
+    const { burgsByFeature } = this.sortBurgsByFeature(pack.burgs, hasBelowLevelPresence);
+    const highways: Route[] = [];
+
+    // a surface route does not stand in for a tunnel, so only the underground network merges with itself
+    const undergroundEdges = new Set<string>();
+    const rememberEdges = (cells: number[]) => {
+      for (let i = 0; i < cells.length - 1; i++) {
+        undergroundEdges.add(`${cells[i]}-${cells[i + 1]}`);
+        undergroundEdges.add(`${cells[i + 1]}-${cells[i]}`);
+      }
+    };
+    for (const route of routes) if (route.underground) rememberEdges(route.points.map(point => point[2]));
+
+    for (const [key, featureBurgs] of Object.entries(burgsByFeature)) {
+      if (featureBurgs.length < 2) continue; // a connection needs a pair
+      const points = featureBurgs.map(burg => [burg.x, burg.y] as Point);
+      const urquhartEdges = this.calculateUrquhartEdges(points);
+
+      urquhartEdges.forEach(([fromId, toId]) => {
+        const start = featureBurgs[fromId].cell;
+        const exit = featureBurgs[toId].cell;
+        const pathCells = findPath(start, next => next === exit, this.getUndergroundPathCost.bind(this), pack);
+        if (!pathCells) return;
+
+        for (const segment of this.getUndergroundSegments(pathCells, undergroundEdges)) {
+          rememberEdges(segment);
+          this.addConnections(segment);
+          highways.push({ feature: Number(key), cells: segment } as Route);
+        }
+      });
+    }
+
+    const pointsArray = this.preparePointsArray();
+    for (const { feature, cells, merged } of this.mergeRoutes(highways)) {
+      if (merged) continue;
+      const points = this.getPoints("roads", cells!, pointsArray);
+      const name = this.generateName({ group: "roads", points });
+      routes.push({ i: routes.length, group: "roads", name, feature, points, underground: true });
+    }
+
+    TIME && console.timeEnd("generateUndergroundHighways");
+  }
+
+  /**
+   * Drops underground highways that no longer end at a burg with below-level presence, so one never
+   * outlives its endpoint. A path that joins the existing network ends at the junction cell rather
+   * than at a burg; it only stays while a surviving highway still runs through it, so removing one
+   * highway re-evaluates the spurs that hung on it. Pass the cells of burgs that were just removed
+   * to prune without consulting the burg set, which a partially rebuilt map cannot answer.
+   */
+  pruneUndergroundHighways(removedCells?: Iterable<number>): number {
+    const removed = removedCells ? new Set(removedCells) : undefined;
+    const stale = new Set<Route>();
+
+    const collectStale = (): Route[] => {
+      const kept = pack.routes.filter(route => route.underground && !stale.has(route));
+      const coverage = new Map<number, number>(); // cell -> highways of the surviving network through it
+      for (const route of kept) {
+        for (const point of route.points) coverage.set(point[2], (coverage.get(point[2]) ?? 0) + 1);
+      }
+
+      return kept.filter(route =>
+        [route.points[0]?.[2], route.points.at(-1)?.[2]].some(cellId => {
+          if (cellId === undefined) return true;
+          if (removed?.has(cellId)) return true;
+          const burgId = pack.cells.burg[cellId];
+          const burg = burgId ? pack.burgs[burgId] : undefined;
+          if (burg) return Boolean(burg.removed) || !hasBelowLevelPresence(burg); // a burg endpoint keeps its presence
+          return (coverage.get(cellId) ?? 0) <= 1; // a burgless cell lives only while the network runs through it
+        })
+      );
+    };
+
+    for (let found = collectStale(); found.length; found = collectStale()) {
+      for (const route of found) stale.add(route);
+    }
+    for (const route of stale) this.remove(route);
+    return stale.size;
   }
 
   private preparePointsArray(): Point[] {
@@ -849,15 +983,18 @@ class RoutesModule {
   remove(route: Route) {
     const routes = pack.cells.routes;
 
-    for (const point of route.points) {
-      const from = point[2];
-      if (!routes[from]) continue;
+    // a fresh generation prunes before the links are built, so there may be no index to clean
+    if (routes) {
+      for (const point of route.points) {
+        const from = point[2];
+        if (!routes[from]) continue;
 
-      for (const [to, routeId] of Object.entries(routes[from])) {
-        if (routeId === route.i) {
-          const toCell = parseInt(to, 10);
-          delete routes[from][toCell];
-          if (routes[toCell]) delete routes[toCell][from];
+        for (const [to, routeId] of Object.entries(routes[from])) {
+          if (routeId === route.i) {
+            const toCell = parseInt(to, 10);
+            delete routes[from][toCell];
+            if (routes[toCell]) delete routes[toCell][from];
+          }
         }
       }
     }

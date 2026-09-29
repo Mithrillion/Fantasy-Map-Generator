@@ -173,6 +173,8 @@ Burgs (settlements) data is stored as an array of objects with strict element or
 - `walls`: `number` - `1` if burg has walls, `0` if not. Used for MFCG
 - `lock`: `boolean` - `true` if burg is locked (not affected by regeneration)
 - `removed`: `boolean` - `true` if burg is removed
+- `subterranean`: `boolean` - optional. `true` if the burg has subterranean structures: ground-level and below-level presence at the one site (dual identity)
+- `underground`: `boolean` - optional. `true` if the burg is fully subterranean: below-level presence only. Optional on every record, and absent means a surface burg. Never set together with `subterranean`; a record carrying both resolves to `underground`
 - `note`: `string` - optional. The user's note (legend) about the burg, as html. Removed with it
 
 ## States
@@ -398,6 +400,7 @@ Routes data is stored as an unordered array of objects (so element id is _not_ t
 - `name`: `string` - route name. Optional
 - `lock`: `boolean` - `true` if route is locked (not affected by regeneration). Optional
 - `note`: `string` - optional. The user's note (legend) about the route, as html. Removed with it
+- `underground`: `boolean` - optional. `true` if the route is a generated underground highway. Presentation only: every system traverses it exactly as it traverses a surface route
 
 ## Zones
 

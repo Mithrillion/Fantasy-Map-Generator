@@ -9,7 +9,8 @@ import {
 
 interface RouteShape {
   id: string;
-  group: string;
+  group: string; // container group: tunnels belong to the underground plane, the rest to the surface
+  underground: boolean;
   path: string;
   x0: number;
   y0: number;
@@ -17,12 +18,21 @@ interface RouteShape {
   y1: number;
 }
 
+/** A plane's viewport layer: one gate, one container, and only the shapes that belong to it. */
+const routePlane = (layerId: "routes" | "undergroundRoutes", undergroundPlane: boolean) =>
+  ViewportLayers.register({
+    id: layerId,
+    render: (context: ViewportRenderContext) => reconcileRoutes(context, layerId, undergroundPlane)
+  });
+
+// shapes are built once and reconciled into one container per plane
 const scene = new Scene<RouteShape>();
-const layer = ViewportLayers.register({ id: "routes", render: reconcileRoutes });
+const surface = routePlane("routes", false);
+const underground = routePlane("undergroundRoutes", true);
 const rendered = new WeakMap<Element, RouteShape>();
 
 let editedRouteId: string | null = null; // edited route is rendered even when off-screen
-let tempRoute: RouteShape | null = null; // route being drawn in the Route Creator
+let tempRoute: RouteShape | null = null; // the Route Creator draws on the surface only
 
 export function drawRoutes(): void {
   TIME && console.time("drawRoutes");
@@ -32,8 +42,15 @@ export function drawRoutes(): void {
     if (shape) shapes.push(shape);
   }
   scene.replace(shapes);
-  layer.render();
+  surface.render();
+  underground.render();
   TIME && console.timeEnd("drawRoutes");
+}
+
+export function drawUndergroundRoutes(): void {
+  // hiding the surface layer invalidates the shared scene: rebuild it rather than reconcile nothing
+  if (scene.valid) underground.render();
+  else drawRoutes();
 }
 
 /** drop the paths, keeping the route groups: they are user data carrying the group styles */
@@ -42,12 +59,18 @@ export function removeRoutes(): void {
   for (const path of Array.from(document.querySelectorAll("#routes path"))) path.remove();
 }
 
+/** the shared scene still holds valid surface shapes, so only the underground paths are dropped */
+export function removeUndergroundRoutes(): void {
+  for (const path of Array.from(document.querySelectorAll("#undergroundRoutes path"))) path.remove();
+}
+
 /** Re-render a single edited route, keeping its element (and its editor handlers) in place */
 export function redrawRoute(route: Route): void {
   const shape = buildShape(route);
   if (!shape || !scene.valid) return;
   scene.set(shape);
-  layer.render();
+  surface.render();
+  underground.render();
 }
 
 /** Bounding box of the rendered route, available whether or not the route is currently materialized */
@@ -58,17 +81,17 @@ export function getRouteBox(routeId: number): DOMRect | null {
 
 export function setEditedRoute(routeId: number | null): void {
   editedRouteId = routeId === null ? null : `route${routeId}`;
-  layer.render();
+  surface.render();
 }
 
 const TEMP_ID = "routeTemp";
 export function setTempRoute(route: { group: string; points: number[][] } | null): void {
   tempRoute = route && route.points.length > 1 ? buildShape({ ...route, i: -1 } as Route, TEMP_ID) : null;
-  layer.render();
+  surface.render();
 }
 
 function buildShape(route: Route, id = `route${route.i}`): RouteShape | null {
-  const { group, points } = route;
+  const { points } = route;
   if (!points || points.length < 2) return null;
 
   let x0 = Infinity;
@@ -82,10 +105,18 @@ function buildShape(route: Route, id = `route${route.i}`): RouteShape | null {
     if (y > y1) y1 = y;
   }
 
-  const padding = styles.routes.groups[group]?.attrs["stroke-width"] ?? 1;
+  const underground = Boolean(route.underground);
+  const container = underground ? "tunnels" : route.group;
+  // a tunnel keeps the route's own group for its geometry: only the container and the styling are underground
+  const padding =
+    styles.undergroundRoutes.groups[container]?.attrs["stroke-width"] ??
+    styles.routes.groups[route.group]?.attrs["stroke-width"] ??
+    1;
+
   return {
     id,
-    group,
+    group: container,
+    underground,
     path: Routes.getPath(route),
     x0: x0 - padding,
     y0: y0 - padding,
@@ -94,9 +125,13 @@ function buildShape(route: Route, id = `route${route.i}`): RouteShape | null {
   };
 }
 
-function reconcileRoutes({ root, bounds }: ViewportRenderContext): void {
-  if (!scene.valid || !Layers.isOn("routes")) return;
-  const container = root.querySelector<SVGGElement>("#routes");
+function reconcileRoutes(
+  { root, bounds }: ViewportRenderContext,
+  layerId: "routes" | "undergroundRoutes",
+  undergroundPlane: boolean
+): void {
+  if (!scene.valid || !Layers.isOn(layerId)) return;
+  const container = root.querySelector<SVGGElement>(`#${layerId}`);
   if (!container) return;
   container.setAttribute("fill", "none");
 
@@ -108,9 +143,11 @@ function reconcileRoutes({ root, bounds }: ViewportRenderContext): void {
   };
 
   for (const shape of scene.values()) {
+    if (shape.underground !== undergroundPlane) continue;
     if (shape.id === editedRouteId || boundsIntersect(shape, bounds)) show(shape);
   }
-  if (tempRoute && root === document) show(tempRoute);
+  // the edited route and the creator's draft are surface-plane only, so they never reach the tunnels
+  if (!undergroundPlane && tempRoute && root === document) show(tempRoute);
 
   for (const group of Array.from(container.querySelectorAll<SVGGElement>(":scope > g"))) {
     // custom groups from loaded maps miss the data-group the layer registry stamps on declared ones

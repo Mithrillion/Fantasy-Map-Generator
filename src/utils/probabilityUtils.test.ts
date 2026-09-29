@@ -1,5 +1,54 @@
 import { describe, expect, it } from "vitest";
-import { biased, each, gauss, generateSeed, getNumberInRange, P, Pint, ra, rand, rw } from "./probabilityUtils";
+import {
+  biased,
+  each,
+  gauss,
+  generateSeed,
+  getNumberInRange,
+  P,
+  Pint,
+  pickWeighted,
+  ra,
+  rand,
+  rw
+} from "./probabilityUtils";
+
+describe("pickWeighted", () => {
+  it("draws the requested count without replacement", () => {
+    const items = [1, 2, 3, 4, 5];
+    const picked = pickWeighted(items, () => 1, 3);
+
+    expect(picked).toHaveLength(3);
+    expect(new Set(picked).size).toBe(3);
+  });
+
+  it("never draws more than the pool holds, and stops at zero weight", () => {
+    expect(pickWeighted([1, 2], () => 1, 5)).toHaveLength(2);
+    expect(pickWeighted([1, 2], () => 0, 2)).toHaveLength(0);
+  });
+
+  it("follows the weights", () => {
+    const items = [1, 2, 3];
+    const counts = { 1: 0, 2: 0, 3: 0 } as Record<number, number>;
+    for (let i = 0; i < 1000; i++) counts[pickWeighted(items, item => item, 1)[0]]++;
+
+    expect(counts[3]).toBeGreaterThan(counts[2]);
+    expect(counts[2]).toBeGreaterThan(counts[1]);
+  });
+
+  it("is reproducible from a seeded random source", () => {
+    const items = [1, 2, 3, 4, 5, 6];
+    const original = Math.random;
+    try {
+      Math.random = () => 0.42;
+      const first = pickWeighted(items, () => 1, 4);
+      Math.random = () => 0.42;
+      expect(pickWeighted(items, () => 1, 4)).toEqual(first);
+    } finally {
+      Math.random = original;
+    }
+  });
+});
 
 describe("rand", () => {
   describe("when called with no arguments", () => {
