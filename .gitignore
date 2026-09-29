@@ -20,3 +20,9 @@
 # nix build output
 /result
 /result-*
+
+# dev tools
+.agents/
+.dsh/
+openspec/.opsxa/
+openspec/schemas/
