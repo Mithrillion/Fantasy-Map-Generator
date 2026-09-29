@@ -1,0 +1,783 @@
+/**
+ * TEMPORARY diagnostic harness for the `diverge-underground-network` metaplan (task 3.1).
+ * Not kept in src/: run it, record the numbers in the metaplan, delete it.
+ *
+ *   CHROMIUM_PATH=/usr/bin/chromium npx vitest run --config vitest.browser.config.ts generators/underground-measure.dom.test.ts
+ *   VITE_MEASURE_SEEDS=measure-a   # smoke run on one seed
+ *
+ * Measures the underground network against the surface network with a control and a set of
+ * path/topology variants. Variants run through the production pathfinder and the production
+ * segment/discount bookkeeping; only the pair set and the cost differ.
+ */
+import Delaunator from "delaunator";
+import { it } from "vitest";
+import { distanceSquared } from "@/utils";
+import { findPath } from "@/utils/pathUtils";
+import "@/components/options-model"; // installs the `options` global in browser mode
+import { hasBelowLevelPresence } from "./burg-classification";
+import "./index";
+import { GenerationPipeline } from "./generation-pipeline";
+
+type Point = [number, number];
+type CellRoute = { points: number[][]; underground?: boolean };
+type Burg = { i: number; removed?: boolean; cell: number; x: number; y: number; feature?: number; underground?: boolean; subterranean?: boolean };
+type Pairs = Array<[number, number]>;
+
+/** the app loads public/libs/flatqueue.js as a plain script; browser-mode tests do not */
+class FlatQueue {
+  private ids: number[] = [];
+  private values: number[] = [];
+  get length() {
+    return this.ids.length;
+  }
+  push(id: number, value: number = id) {
+    this.ids.push(id);
+    this.values.push(value);
+    let index = this.ids.length - 1;
+    while (index > 0) {
+      const parent = (index - 1) >> 1;
+      if (this.values[parent] <= this.values[index]) break;
+      this.swap(index, parent);
+      index = parent;
+    }
+  }
+  pop() {
+    if (!this.ids.length) return undefined;
+    const id = this.ids[0];
+    const lastId = this.ids.pop() as number;
+    const lastValue = this.values.pop() as number;
+    if (this.ids.length) {
+      this.ids[0] = lastId;
+      this.values[0] = lastValue;
+      let index = 0;
+      for (;;) {
+        const left = index * 2 + 1;
+        const right = left + 1;
+        let smallest = index;
+        if (left < this.values.length && this.values[left] < this.values[smallest]) smallest = left;
+        if (right < this.values.length && this.values[right] < this.values[smallest]) smallest = right;
+        if (smallest === index) break;
+        this.swap(index, smallest);
+        index = smallest;
+      }
+    }
+    return id;
+  }
+  peekValue() {
+    return this.values[0];
+  }
+  private swap(a: number, b: number) {
+    [this.ids[a], this.ids[b]] = [this.ids[b], this.ids[a]];
+    [this.values[a], this.values[b]] = [this.values[b], this.values[a]];
+  }
+}
+
+// ---------------------------------------------------------------- topology replicas
+
+/** a copy of the generator's Urquhart graph, so variants can build their own pair sets */
+function urquhartEdges(points: Point[]): Pairs {
+  if (points.length < 2) return [];
+  if (points.length === 2) return [[0, 1]];
+
+  const score = (p0: number, p1: number) => distanceSquared(points[p0], points[p1]);
+  const { halfedges, triangles } = Delaunator.from(points as unknown as number[][]);
+  const n = triangles.length;
+  const removed = new Uint8Array(n);
+  const edges: Pairs = [];
+
+  for (let e = 0; e < n; e += 3) {
+    const p0 = triangles[e];
+    const p1 = triangles[e + 1];
+    const p2 = triangles[e + 2];
+    const p01 = score(p0, p1);
+    const p12 = score(p1, p2);
+    const p20 = score(p2, p0);
+    removed[p20 > p01 && p20 > p12 ? Math.max(e + 2, halfedges[e + 2]) : p12 > p01 && p12 > p20 ? Math.max(e + 1, halfedges[e + 1]) : Math.max(e, halfedges[e])] = 1;
+  }
+
+  for (let e = 0; e < n; ++e) {
+    if (e > halfedges[e] && !removed[e]) {
+      const t0 = triangles[e];
+      const t1 = triangles[e % 3 === 2 ? e - 2 : e + 1];
+      edges.push([t0, t1]);
+    }
+  }
+  return edges;
+}
+
+/** minimum spanning tree over a small point set, as the connectivity backbone of a thinned graph */
+function mstEdges(points: Point[]): Pairs {
+  const n = points.length;
+  const candidates: Array<[number, number, number]> = [];
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) candidates.push([i, j, distanceSquared(points[i], points[j])]);
+  candidates.sort((a, b) => a[2] - b[2]);
+
+  const parent = Array.from({ length: n }, (_, i) => i);
+  const find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+  const out: Pairs = [];
+  for (const [i, j] of candidates) {
+    const a = find(i);
+    const b = find(j);
+    if (a !== b) {
+      parent[a] = b;
+      out.push([i, j]);
+    }
+  }
+  return out;
+}
+
+function subterraneanByFeature(): Record<string, Burg[]> {
+  const byFeature: Record<string, Burg[]> = {};
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || !hasBelowLevelPresence(burg as never) || burg.feature === undefined) continue;
+    const key = String(burg.feature);
+    if (!byFeature[key]) byFeature[key] = [];
+    byFeature[key].push(burg);
+  }
+  return byFeature;
+}
+
+type PairSets = { production: Pairs; longhaul: Pairs; trunk25: Pairs; trunk10: Pairs };
+
+function buildPairSets(): PairSets {
+  const sets: PairSets = { production: [], longhaul: [], trunk25: [], trunk10: [] };
+
+  for (const burgs of Object.values(subterraneanByFeature())) {
+    if (burgs.length < 2) continue;
+    const points = burgs.map(burg => [burg.x, burg.y] as Point);
+    const urquhart = urquhartEdges(points);
+    const mst = mstEdges(points);
+    const lengths = urquhart.map(([a, b]) => Math.sqrt(distanceSquared(points[a], points[b]))).sort((a, b) => a - b);
+    const median = lengths.length ? lengths[lengths.length >> 1] : 0;
+
+    for (const [a, b] of urquhart) sets.production.push([burgs[a].cell, burgs[b].cell]);
+    // long connections keep the longer half of the neighbour graph, the MST keeps every burg attached
+    for (const [a, b] of urquhart) {
+      if (Math.sqrt(distanceSquared(points[a], points[b])) < median) continue;
+      sets.longhaul.push([burgs[a].cell, burgs[b].cell]);
+    }
+    for (const [a, b] of mst) sets.longhaul.push([burgs[a].cell, burgs[b].cell]);
+
+    // trunk: the highest share of the burgs is the backbone, every other burg joins its nearest trunk
+    const buildTrunk = (share: number, target: Pairs) => {
+      const byHeight = burgs.map((burg, index) => ({ index, h: pack.cells.h[burg.cell] })).sort((a, b) => b.h - a.h);
+      const trunkCount = Math.max(2, Math.round(burgs.length * share));
+      const trunkIndexes = byHeight.slice(0, trunkCount).map(entry => entry.index);
+      const trunkSet = new Set(trunkIndexes);
+      const trunkPoints = trunkIndexes.map(index => points[index]);
+      for (const [a, b] of mstEdges(trunkPoints)) target.push([burgs[trunkIndexes[a]].cell, burgs[trunkIndexes[b]].cell]);
+      for (let index = 0; index < burgs.length; index++) {
+        if (trunkSet.has(index)) continue;
+        let best = trunkIndexes[0];
+        let bestDistance = Infinity;
+        for (const trunkIndex of trunkIndexes) {
+          const candidate = distanceSquared(points[index], points[trunkIndex]);
+          if (candidate < bestDistance) {
+            bestDistance = candidate;
+            best = trunkIndex;
+          }
+        }
+        target.push([burgs[index].cell, burgs[best].cell]);
+      }
+    };
+
+    buildTrunk(0.25, sets.trunk25);
+    buildTrunk(0.1, sets.trunk10);
+  }
+
+  return sets;
+}
+
+// ---------------------------------------------------------------- variant costs
+
+type Cost = (current: number, next: number) => number;
+
+const passable = (cell: number) => pack.cells.h[cell] >= 20 && Boolean(pack.biomes[pack.cells.biome[cell]]?.habitability);
+const step = (current: number, next: number) => distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+
+function pointCost(current: number, next: number): number {
+  if (!passable(next)) return Infinity;
+  return step(current, next);
+}
+
+function pointBurgCost(current: number, next: number): number {
+  if (!passable(next)) return Infinity;
+  return step(current, next) * (pack.cells.burg[next] ? 1 : 3);
+}
+
+/** the ablation's discount term, applied on top of any base cost */
+function discounted(base: Cost, connections: Set<string>): Cost {
+  return (current, next) => {
+    const value = base(current, next);
+    if (value === Infinity) return Infinity;
+    return value * (connections.has(`${current}-${next}`) ? 0.5 : 1);
+  };
+}
+
+/** depth field smoothed over the cell graph: a regional signal instead of per-cell noise */
+function smoothedHeights(rounds = 3): Uint8Array {
+  const adjacency = pack.cells.c as unknown as number[][];
+  let field = Float64Array.from(pack.cells.h);
+  for (let round = 0; round < rounds; round++) {
+    const next = Float64Array.from(field);
+    for (let cell = 0; cell < field.length; cell++) {
+      let sum = field[cell];
+      let count = 1;
+      for (const neighbour of adjacency[cell] ?? []) {
+        sum += field[neighbour];
+        count++;
+      }
+      next[cell] = sum / count;
+    }
+    field = next;
+  }
+  return Uint8Array.from(field, value => Math.round(value));
+}
+
+/** multi-source BFS distance from the surface network, capped */
+function roadDistances(surfaceCells: Set<number>, adjacency: number[][], cap = 4): Uint8Array {
+  const distances = new Uint8Array(pack.cells.i.length).fill(cap);
+  const queue: number[] = [];
+  for (const cell of surfaceCells) {
+    distances[cell] = 0;
+    queue.push(cell);
+  }
+  for (let head = 0; head < queue.length; head++) {
+    const cell = queue[head];
+    if (distances[cell] >= cap - 1) continue;
+    for (const neighbour of adjacency[cell] ?? []) {
+      if (distances[neighbour] > distances[cell] + 1) {
+        distances[neighbour] = distances[cell] + 1;
+        queue.push(neighbour);
+      }
+    }
+  }
+  return distances;
+}
+
+/** for each burg cell, the neighbouring cell that carries the fewest surface route steps */
+function gateCells(surfaceDirs: Map<number, number[]>): Map<number, number> {
+  const gates = new Map<number, number>();
+  const adjacency = pack.cells.c as unknown as number[][];
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || !hasBelowLevelPresence(burg as never)) continue;
+    let best: number | undefined;
+    let bestScore = Infinity;
+    for (const neighbour of adjacency[burg.cell] ?? []) {
+      if (!passable(neighbour)) continue;
+      let score = (surfaceDirs.get(neighbour) ?? []).length;
+      for (const second of adjacency[neighbour] ?? []) score += (surfaceDirs.get(second) ?? []).length / 4;
+      score -= pack.cells.h[neighbour] / 100; // tie-break toward high ground, as the cost model does
+      if (score < bestScore) {
+        bestScore = score;
+        best = neighbour;
+      }
+    }
+    if (best !== undefined) gates.set(burg.cell, best);
+  }
+  return gates;
+}
+
+// ---------------------------------------------------------------- the replica pass
+
+/**
+ * Runs one variant: same production pathfinder, same production segment/discount bookkeeping,
+ * different pair set and/or cost. Returns the cell chains the pass would have produced, after the
+ * production merge and prune, so the union of cells is the one the generator would have kept.
+ */
+function runPairs(pairs: Pairs, makeCost: (start: number, exit: number, connections: Set<string>) => Cost): number[][] {
+  const module = Routes as unknown as {
+    undergroundConnections: Set<string>;
+    getUndergroundSegments: (path: number[], edges: Set<string>) => number[][];
+    rememberEdges: (edges: Set<string>, cells: number[]) => void;
+    mergeRoutes: (routes: unknown[]) => Array<{ merged?: boolean; cells?: number[] }>;
+    pruneUndergroundHighways: () => number;
+  };
+  const undergroundEdges = new Set<string>();
+  const connections = new Set<string>();
+  module.undergroundConnections = connections; // the production cost reads its discount from here
+  const chains: number[][] = [];
+
+  for (const [start, exit] of pairs) {
+    if (start === exit) continue;
+    const cost = makeCost(start, exit, connections);
+    const pathCells = findPath(start, next => next === exit, cost, pack as never);
+    if (!pathCells) continue;
+    for (const segment of module.getUndergroundSegments(pathCells, undergroundEdges)) {
+      module.rememberEdges(undergroundEdges, segment);
+      module.rememberEdges(connections, segment);
+      chains.push(segment);
+    }
+  }
+
+  // mirror generateUndergroundHighways: merge touching segments into routes, REBUILD their points,
+  // then prune spurs that outlive no burg (prune reads points, so it must see the merged chains)
+  const module2 = module as unknown as {
+    mergeRoutes: (routes: unknown[]) => Array<{ merged?: boolean; cells?: number[] }>;
+    preparePointsArray: () => number[][];
+    getPoints: (group: string, cells: number[], points: number[][]) => number[][];
+  };
+  const asRoute = (cells: number[], index: number) => ({
+    i: index,
+    group: "roads",
+    feature: 0,
+    underground: true,
+    cells: [...cells]
+  });
+  const pointsArray = module2.preparePointsArray();
+  const merged = module2
+    .mergeRoutes(chains.map(asRoute))
+    .filter(route => !route.merged)
+    .map((route, index) => ({
+      i: index,
+      group: "roads",
+      feature: 0,
+      underground: true,
+      cells: route.cells,
+      points: module2.getPoints("roads", route.cells!, pointsArray)
+    }));
+
+  const saved = pack.routes;
+  pack.routes = merged as never;
+  const debug = (globalThis as unknown as { __variantDebug?: boolean }).__variantDebug;
+  module.pruneUndergroundHighways();
+  const kept = (pack.routes as unknown as CellRoute[]).map(route => route.points.map(point => point[2]));
+  if (debug) {
+    console.log(`DEBUG replica stages: raw ${chains.length} routes/${new Set(chains.flat()).size} cells -> merged ${merged.length} routes -> pruned ${kept.length} routes/${new Set(kept.flat()).size} cells`);
+  }
+  pack.routes = saved;
+
+  return kept;
+}
+
+// ---------------------------------------------------------------- metrics
+
+type SurfaceStep = { to: number; angle: number };
+type SurfaceIndex = { cells: Set<number>; dirs: Map<number, number[]>; edges: Set<string>; steps: Map<number, SurfaceStep[]> };
+
+function indexSurface(routes: CellRoute[]): SurfaceIndex {
+  const cells = new Set<number>();
+  const dirs = new Map<number, number[]>();
+  const edges = new Set<string>();
+  const steps = new Map<number, SurfaceStep[]>();
+  const add = (cell: number, angle: number) => {
+    const list = dirs.get(cell);
+    if (list) list.push(angle);
+    else dirs.set(cell, [angle]);
+  };
+  const addStep = (from: number, to: number, angle: number) => {
+    const list = steps.get(from);
+    if (list) list.push({ to, angle });
+    else steps.set(from, [{ to, angle }]);
+  };
+
+  for (const route of routes) {
+    for (let i = 0; i < route.points.length; i++) {
+      const [x, y, cell] = route.points[i];
+      cells.add(cell);
+      const next = route.points[i + 1];
+      if (next) {
+        const angle = Math.atan2(next[1] - y, next[0] - x);
+        add(cell, angle);
+        addStep(cell, next[2], angle);
+        edges.add(`${cell}-${next[2]}`);
+      }
+      const previous = route.points[i - 1];
+      if (previous) add(cell, Math.atan2(previous[1] - y, previous[0] - x));
+    }
+  }
+
+  return { cells, dirs, edges, steps };
+}
+
+const angleGap = (a: number, b: number) => {
+  const gap = Math.abs(a - b) % (2 * Math.PI);
+  return gap > Math.PI ? 2 * Math.PI - gap : gap;
+};
+
+function measure(chains: number[][], surface: SurfaceIndex, landSurface: SurfaceIndex, roadDistance: Uint8Array, adjacency: number[][], subterraneanCells: Set<number>) {
+  const cells = new Set<number>();
+  const bandCells = new Set<number>();
+  let totalLength = 0;
+  let sharedLength = 0;
+  let cellParallelLength = 0; // permissive: a surface step within one cell, any similar direction
+  let exactEdgeLength = 0; // the tunnel step IS a surface step
+  let nearEdgeLength = 0; // a surface step between the tunnel step's cells or their neighbours, similar direction
+  // task 1.3: the endpoint band, split by the kind of settlement the chain ends at
+  const byKind: Record<string, { shared: number; band: number }> = {
+    "dual": { shared: 0, band: 0 },
+    "fully-subterranean": { shared: 0, band: 0 },
+    "junction": { shared: 0, band: 0 }
+  };
+
+  for (const chain of chains) {
+    const band = new Set([chain[0], chain[1], chain[chain.length - 2], chain[chain.length - 1]].filter(cell => cell !== undefined));
+    const kindOf = (cell: number | undefined) => {
+      const burgId = cell === undefined ? 0 : pack.cells.burg[cell];
+      const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+      if (!burg) return "junction";
+      return burg.underground ? "fully-subterranean" : "dual";
+    };
+    const startKind = kindOf(chain[0]);
+    const exitKind = kindOf(chain[chain.length - 1]);
+    const kind = startKind === exitKind ? startKind : "junction";
+
+    for (let i = 0; i < chain.length; i++) {
+      const cell = chain[i];
+      cells.add(cell);
+      if (band.has(cell)) bandCells.add(cell);
+      if (surface.cells.has(cell)) {
+        byKind[kind].shared++;
+        if (band.has(cell)) byKind[kind].band++;
+      }
+      const next = chain[i + 1];
+      if (next === undefined) continue;
+      const length = Math.sqrt(distanceSquared(pack.cells.p[cell], pack.cells.p[next]));
+      totalLength += length;
+      if (surface.cells.has(cell) || surface.cells.has(next)) sharedLength += length;
+
+      const angle = Math.atan2(pack.cells.p[next][1] - pack.cells.p[cell][1], pack.cells.p[next][0] - pack.cells.p[cell][0]);
+      const candidates = [cell, next, ...(adjacency[cell] ?? []), ...(adjacency[next] ?? [])];
+      const cellParallel = candidates.some(candidate =>
+        (surface.dirs.get(candidate) ?? []).some(surfaceAngle => angleGap(angle, surfaceAngle) <= Math.PI / 6)
+      );
+      if (cellParallel) cellParallelLength += length;
+      if (surface.edges.has(`${cell}-${next}`)) exactEdgeLength += length;
+
+      // runs alongside: a surface step leaves the tunnel step's cell (or a neighbour of it) toward the
+      // tunnel step's next cell (or a neighbour of it) in a similar direction
+      const targets = new Set([next, ...(adjacency[next] ?? [])]);
+      const along = [cell, ...(adjacency[cell] ?? [])].some(from =>
+        (surface.steps.get(from) ?? []).some(entry => targets.has(entry.to) && angleGap(angle, entry.angle) <= Math.PI / 6)
+      );
+      if (along) nearEdgeLength += length;
+    }
+  }
+
+  const sharedCells = [...cells].filter(cell => surface.cells.has(cell)).length;
+  const bandSharedCells = [...bandCells].filter(cell => surface.cells.has(cell)).length;
+  const sharedLandCells = [...cells].filter(cell => landSurface.cells.has(cell)).length;
+
+  for (const kind of Object.keys(byKind)) {
+    const entry = byKind[kind];
+    (entry as unknown as { share: number }).share = entry.shared ? entry.band / entry.shared : 0;
+  }
+
+  const histogram = [0, 0, 0, 0];
+  let distanceSum = 0;
+  for (const cell of cells) {
+    const distance = Math.min(roadDistance[cell], 3);
+    histogram[distance]++;
+    distanceSum += distance;
+  }
+
+  // does every subterranean burg still end a highway? (the implicit service guarantee)
+  const served = new Set<number>();
+  for (const chain of chains) {
+    for (const endpoint of [chain[0], chain[chain.length - 1]]) {
+      if (endpoint !== undefined && subterraneanCells.has(endpoint)) served.add(endpoint);
+    }
+  }
+
+  return {
+    routes: chains.length,
+    cells: cells.size,
+    length: Math.round(totalLength),
+    overlap: cells.size ? sharedCells / cells.size : 0,
+    overlapLand: cells.size ? sharedLandCells / cells.size : 0,
+    lengthOverlap: totalLength ? sharedLength / totalLength : 0,
+    parallel: totalLength ? cellParallelLength / totalLength : 0,
+    exactEdge: totalLength ? exactEdgeLength / totalLength : 0,
+    alongEdge: totalLength ? nearEdgeLength / totalLength : 0,
+    bandShare: sharedCells ? bandSharedCells / sharedCells : 0,
+    bandByEndpointKind: byKind,
+    burgsServed: served.size,
+    burgsTotal: subterraneanCells.size,
+    medianRoadDistance: cells.size ? distanceSum / cells.size : 0,
+    histogram
+  };
+}
+
+// ---------------------------------------------------------------- the run
+
+const SEEDS = (import.meta.env.VITE_MEASURE_SEEDS as string | undefined)?.split(",") ?? [
+  "measure-a",
+  "measure-b",
+  "measure-c",
+  "measure-d",
+  "measure-e",
+  "measure-f",
+  "measure-g",
+  "measure-h"
+];
+
+const round = (value: number, digits = 3) => Number(value.toFixed(digits));
+
+it("measures underground alignment variants", { timeout: 3_600_000 }, async () => {
+  for (const flag of ["INFO", "TIME", "ERROR", "WARN", "DEBUG"]) (globalThis as Record<string, unknown>)[flag] = false;
+  globalThis.tip = () => {};
+  (globalThis as unknown as { FlatQueue: unknown }).FlatQueue = FlatQueue;
+  (globalThis as unknown as { window: { FlatQueue: unknown } }).window.FlatQueue = FlatQueue;
+  globalThis.grid = {} as never;
+  globalThis.pack = {} as never;
+
+  const rows: Array<Record<string, unknown>> = [];
+
+  for (const seed of SEEDS) {
+    options.map.seed = seed;
+    options.generation.underground = true;
+    options.generation.template = "continents";
+    try {
+      await GenerationPipeline.run({});
+    } catch (error) {
+      console.log(`pipeline stopped: ${(error as Error).message}`);
+    }
+
+    const routes = pack.routes as unknown as CellRoute[];
+    const surfaceRoutes = routes.filter(route => !route.underground);
+    const productionTunnels = routes.filter(route => route.underground).map(route => route.points.map(point => point[2]));
+    const surface = indexSurface(surfaceRoutes);
+    const landSurface = indexSurface(surfaceRoutes.filter(route => route.group !== "searoutes"));
+    const adjacency = pack.cells.c as unknown as number[][];
+    const roadDistance = roadDistances(surface.cells, adjacency);
+    const heights = pack.cells.h;
+    const smooth = smoothedHeights(3);
+    const gates = gateCells(surface.dirs);
+    const pairs = buildPairSets();
+    const subterraneanCells = new Set(Object.values(subterraneanByFeature()).flatMap(list => list.map(burg => burg.cell)));
+
+    const module = Routes as unknown as {
+      undergroundConnections: Set<string>;
+      generateUndergroundHighways: (routes: unknown[]) => void;
+      pruneUndergroundHighways: () => number;
+    };
+    /** the real pass, run by hand so its pre-prune output can be seen (debug anchor) */
+    const runRealPass = (applyPrune: boolean) => {
+      const saved = pack.routes;
+      const list = (saved as unknown as CellRoute[]).filter(route => !route.underground).map(route => ({ ...route }));
+      module.undergroundConnections = new Set();
+      module.generateUndergroundHighways(list);
+      const chainsOf = (routes: unknown[]) =>
+        (routes as CellRoute[]).filter(route => route.underground).map(route => route.points.map(point => point[2]));
+      if (!applyPrune) {
+        pack.routes = saved;
+        return chainsOf(list);
+      }
+      pack.routes = list as never;
+      module.pruneUndergroundHighways();
+      const kept = chainsOf(pack.routes as unknown as CellRoute[]);
+      pack.routes = saved;
+      return kept;
+    };
+
+    const variants: Array<[string, () => number[][]]> = [
+      ["baseline-production", () => productionTunnels],
+      ["debug-real-noprune", () => runRealPass(false)],
+      ["debug-real-pruned", () => runRealPass(true)],
+      ["replica-production", () => {
+        (globalThis as unknown as { __variantDebug?: boolean }).__variantDebug = true;
+        const result = runPairs(pairs.production, () => (current, next) => Routes.getUndergroundPathCost(current, next));
+        (globalThis as unknown as { __variantDebug?: boolean }).__variantDebug = false;
+        return result;
+      }],
+      [
+        "no-burg-attraction",
+        () =>
+          runPairs(pairs.production, (_start, _exit, connections) => (current, next) => {
+            if (!passable(next)) return Infinity;
+            const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+            const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+            const heightModifier = 1 + Math.max(50 - pack.cells.h[next], 0) / 50;
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            return step(current, next) * habitabilityModifier * heightModifier * connectionModifier;
+          })
+      ],
+      [
+        "combo-divergence",
+        () =>
+          runPairs(pairs.production, (start, exit, connections) => (current, next) => {
+            const startGate = gates.get(start);
+            const exitGate = gates.get(exit);
+            if (current === start && startGate !== undefined && next !== startGate) return Infinity;
+            if (next === exit && exitGate !== undefined && current !== exitGate) return Infinity;
+            if (!passable(next)) return Infinity;
+            const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+            const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+            const heightModifier = 1 + Math.max(50 - pack.cells.h[next], 0) / 50;
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            const repulsion = 1 + 2 / (1 + roadDistance[next]);
+            return step(current, next) * habitabilityModifier * heightModifier * connectionModifier * repulsion;
+          })
+      ],
+      ["control-point", () => runPairs(pairs.production, () => pointCost)],
+      ["control-point-discount", () => runPairs(pairs.production, (_s, _e, connections) => discounted(pointCost, connections))],
+      ["control-point-burg", () => runPairs(pairs.production, () => pointBurgCost)],
+      ["control-point-discount-burg", () => runPairs(pairs.production, (_s, _e, connections) => discounted(pointBurgCost, connections))],
+      [
+        "gate-divergence",
+        () =>
+          runPairs(pairs.production, (start, exit, connections) => (current, next) => {
+            const startGate = gates.get(start);
+            const exitGate = gates.get(exit);
+            if (current === start && startGate !== undefined && next !== startGate) return Infinity;
+            if (next === exit && exitGate !== undefined && current !== exitGate) return Infinity;
+            return Routes.getUndergroundPathCost(current, next);
+          })
+      ],
+      [
+        "smoothed-depth",
+        () =>
+          runPairs(pairs.production, (_start, _exit, connections) => (current, next) => {
+            if (!passable(next)) return Infinity;
+            const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+            const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+            const heightModifier = 1 + Math.max(50 - smooth[next], 0) / 25; // twice the current range
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            const burgModifier = pack.cells.burg[next] ? 1 : 3;
+            return step(current, next) * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
+          })
+      ],
+      [
+        "road-repulsion",
+        () =>
+          runPairs(pairs.production, () => (current, next) => {
+            const base = Routes.getUndergroundPathCost(current, next);
+            if (base === Infinity) return Infinity;
+            return base * (1 + 2 / (1 + roadDistance[next]));
+          })
+      ],
+      [
+        "road-repulsion-strong",
+        () =>
+          runPairs(pairs.production, () => (current, next) => {
+            const base = Routes.getUndergroundPathCost(current, next);
+            if (base === Infinity) return Infinity;
+            return base * (1 + 6 / (1 + roadDistance[next]));
+          })
+      ],
+      ["longhaul-mst", () => runPairs(pairs.longhaul, () => (current, next) => Routes.getUndergroundPathCost(current, next))],
+      ["trunk-spurs-25", () => runPairs(pairs.trunk25, () => (current, next) => Routes.getUndergroundPathCost(current, next))],
+      ["trunk-spurs-10", () => runPairs(pairs.trunk10, () => (current, next) => Routes.getUndergroundPathCost(current, next))]
+    ];
+
+    const longest = Math.max(...productionTunnels.map(chain => chain.length), 0);
+    const landCells = pack.cells.h.reduce((count, height) => count + (height >= 20 ? 1 : 0), 0);
+    const groups = surfaceRoutes.reduce<Record<string, number>>((all, route) => {
+      const group = route.group ?? "unknown";
+      all[group] = (all[group] ?? 0) + 1;
+      return all;
+    }, {});
+    console.log(
+      `SEED ${seed} cells=${pack.cells.i.length} land=${landCells} burgs=${(pack.burgs as unknown as Burg[]).filter(b => b?.i && !b.removed).length} ` +
+        `subterranean=${Object.values(subterraneanByFeature()).reduce((sum, list) => sum + list.length, 0)} ` +
+        `surfaceRoutes=${surfaceRoutes.length} ${JSON.stringify(groups)} surfaceCells=${surface.cells.size} landRouteCells=${landSurface.cells.size} ` +
+        `productionRoutes=${productionTunnels.length} longest=${longest}`
+    );
+
+    for (const [name, run] of variants) {
+      const started = Date.now();
+      const chains = run();
+      const elapsed = Date.now() - started;
+      const metrics = measure(chains, surface, landSurface, roadDistance, adjacency, subterraneanCells);
+      const row = { seed, variant: name, elapsed, ...metrics };
+      rows.push(row);
+      console.log(
+        `ROW ${JSON.stringify({
+          seed: row.seed,
+          variant: row.variant,
+          ms: elapsed,
+          routes: row.routes,
+          cells: row.cells,
+          length: row.length,
+          overlap: round(row.overlap),
+          overlapLand: round(row.overlapLand),
+          parallel: round(row.parallel),
+          exactEdge: round(row.exactEdge),
+          alongEdge: round(row.alongEdge),
+          bandShare: round(row.bandShare),
+          medianRoadDistance: round(row.medianRoadDistance, 2),
+          bandByEndpointKind: row.bandByEndpointKind,
+          histogram: row.histogram,
+          burgsServed: row.burgsServed
+        })}`
+      );
+    }
+
+    pack.cells.h = heights; // variants only read heights, but keep the map as generated
+  }
+
+  const names = Array.from(new Set(rows.map(row => row.variant as string)));
+  const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
+  const baseline = new Map(rows.filter(row => row.variant === "baseline-production").map(row => [row.seed as string, row]));
+
+  for (const name of names) {
+    const subset = rows.filter(row => row.variant === name);
+    const aggregate = {
+      variant: name,
+      seeds: subset.length,
+      overlap: round(mean(subset.map(row => row.overlap as number))),
+      overlapLand: round(mean(subset.map(row => row.overlapLand as number))),
+      parallel: round(mean(subset.map(row => row.parallel as number))),
+      exactEdge: round(mean(subset.map(row => row.exactEdge as number))),
+      alongEdge: round(mean(subset.map(row => row.alongEdge as number))),
+      ms: Math.round(mean(subset.map(row => row.elapsed as number))),
+      burgsServed: round(mean(subset.map(row => (row.burgsServed as number) / (row.burgsTotal as number)))),
+      bandByEndpointKind: Object.fromEntries(
+        ["dual", "fully-subterranean", "junction"].map(kind => {
+          const shared = subset.reduce((sum, row) => sum + ((row.bandByEndpointKind as Record<string, { shared: number }>)?.[kind]?.shared ?? 0), 0);
+          const band = subset.reduce((sum, row) => sum + ((row.bandByEndpointKind as Record<string, { band: number }>)?.[kind]?.band ?? 0), 0);
+          return [kind, { shared, band, share: shared ? round(band / shared) : 0 }];
+        })
+      ),
+      lengthOverlap: round(mean(subset.map(row => row.lengthOverlap as number))),
+      bandShare: round(mean(subset.map(row => row.bandShare as number))),
+      medianRoadDistance: round(mean(subset.map(row => row.medianRoadDistance as number)), 2),
+      cells: Math.round(mean(subset.map(row => row.cells as number))),
+      routes: Math.round(mean(subset.map(row => row.routes as number))),
+      length: Math.round(mean(subset.map(row => row.length as number))),
+      lengthRatio: round(
+        mean(
+          subset.map(row => {
+            const base = baseline.get(row.seed as string);
+            return base ? (row.length as number) / (base.length as number) : 1;
+          })
+        )
+      ),
+      dOverlap: round(
+        mean(
+          subset.map(row => {
+            const base = baseline.get(row.seed as string);
+            return base ? (row.overlap as number) - (base.overlap as number) : 0;
+          })
+        )
+      ),
+      dParallel: round(
+        mean(
+          subset.map(row => {
+            const base = baseline.get(row.seed as string);
+            return base ? (row.parallel as number) - (base.parallel as number) : 0;
+          })
+        )
+      ),
+      worstOverlapDelta: round(
+        Math.max(
+          0,
+          ...subset.map(row => {
+            const base = baseline.get(row.seed as string);
+            return base ? (row.overlap as number) - (base.overlap as number) : 0;
+          })
+        )
+      ),
+      bestOverlapDelta: round(
+        Math.min(
+          0,
+          ...subset.map(row => {
+            const base = baseline.get(row.seed as string);
+            return base ? (row.overlap as number) - (base.overlap as number) : 0;
+          })
+        )
+      )
+    };
+    console.log(`AGG ${JSON.stringify(aggregate)}`);
+  }
+});
