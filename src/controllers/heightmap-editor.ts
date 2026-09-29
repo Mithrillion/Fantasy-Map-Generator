@@ -539,7 +539,8 @@ async function regenerateErasedData(): Promise<void> {
   await ErasePipeline.run({ erosion: erosionAllowed });
 }
 
-function restoreKeptData(): void {
+/** Keep mode: restore the edited grid heights into the pack, leaving every settlement record as it is */
+export function restoreKeptData(): void {
   for (const i of pack.cells.i) {
     pack.cells.h[i] = grid.cells.h[pack.cells.g[i]];
   }
@@ -569,7 +570,8 @@ export const createAvailableLandCellFinder = (cells: {
   };
 };
 
-function restoreRiskedData(): void {
+/** Risk mode: re-graph on the edited heights, restoring the user's data as much as possible */
+export function restoreRiskedData(): void {
   INFO && console.group("Edit Heightmap");
   TIME && console.time("restoreRiskedData");
   const erosionAllowed = options.app.heightmapEditor.allowErosion;

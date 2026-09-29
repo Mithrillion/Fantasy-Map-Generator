@@ -82,7 +82,7 @@ Because four call sites branch on the group name, a new group value would silent
 
 ### D9. Display is two layers plus a derived mode
 
-Implements `underground-display`. Two new entries in `mapLayers` — `undergroundRoutes` (with children `tunnels`, `chambers`) and `undergroundBurgs` (with children `undergroundIcons`, `undergroundAnchors`) — each self-gating on its own id, which is what makes "underground only" expressible at all: presets select layers, they cannot filter inside one.
+Implements `underground-display`. Two new entries in `mapLayers` — `undergroundRoutes` (child `tunnels`) and `undergroundBurgs` (child `undergroundIcons`) — each self-gating on its own id, which is what makes "underground only" expressible at all: presets select layers, they cannot filter inside one. The underground plane has no anchors container: anchors are surface markers (D10).
 
 The content-focus control is a three-state button group modelled on the existing view-mode control but **not** added to it: that control switches between SVG and WebGL, which is a different axis from which content is drawn. The control holds no state — it reads `Layers.state.active` and reports whichever canonical set matches, and clicking it writes a layer set. Layer state is already saved with the map, so persistence and the "reopens underground" behaviour come for free with no migration.
 

@@ -287,4 +287,81 @@ describe("MarketsModule", () => {
       expect(marketsModule.get(2)).toBe(market2);
     });
   });
+
+  describe("generate() with classified burgs", () => {
+    let marketsModule: MarketsModule;
+
+    beforeEach(() => {
+      marketsModule = new MarketsModule();
+      globalThis.Markets = marketsModule;
+      globalThis.TIME = false;
+      options.map.graph = { width: 1000, height: 800, points: 10000 };
+      // minimal FlatQueue for expandMarkets' Dijkstra-style pass
+      (globalThis as any).FlatQueue = class {
+        private items: Array<{ id: unknown; value: number }> = [];
+        get length() {
+          return this.items.length;
+        }
+        push(id: unknown, value: number) {
+          this.items.push({ id, value });
+          this.items.sort((a, b) => a.value - b.value);
+        }
+        pop() {
+          return this.items.shift()?.id;
+        }
+      };
+      // a chain of six land cells; classification flags are the point, not terrain
+      globalThis.pack = {
+        cells: {
+          i: [0, 1, 2, 3, 4, 5],
+          c: [[1], [0, 2], [1, 3], [2, 4], [3, 5], [4]],
+          h: Uint8Array.from([30, 30, 30, 30, 30, 30]),
+          f: Uint8Array.from([1, 1, 1, 1, 1, 1]),
+          state: Uint16Array.from([0, 0, 0, 0, 0, 0]),
+          good: Uint16Array.from([0, 0, 0, 0, 0, 0])
+        },
+        burgs: [
+          { i: 0 } as any,
+          { i: 1, cell: 0, x: 0, y: 0, population: 50 } as any,
+          { i: 2, cell: 3, x: 3000, y: 0, population: 30, underground: true } as Burg,
+          { i: 3, cell: 5, x: 5000, y: 0, population: 20, subterranean: true } as Burg
+        ],
+        rivers: [],
+        goods: [
+          {
+            i: 0,
+            name: "Wheat",
+            value: 10,
+            tags: ["food"],
+            unit: "unit",
+            icon: "icon",
+            color: "#fff",
+            distribution: "1",
+            recipes: [],
+            demandCoverage: { food: 1 }
+          }
+        ],
+        markets: [],
+        deals: []
+      } as any;
+      States.getSalesTax = () => 0;
+    });
+
+    it("anchors markets on classified burgs and links them like a surface burg", () => {
+      marketsModule.generate();
+
+      // the classification neither excludes a burg from a center role nor from its market link:
+      // createMarkets scores by population only, so the fully subterranean and the dual-identity
+      // burg anchor markets of their own and receive burg.market from the expansion pass
+      const centered = globalThis.pack.markets.map((market: Market) => market.centerBurgId);
+      expect(centered.includes(2)).toBe(true); // the fully subterranean burg anchors
+      expect(centered.includes(3)).toBe(true); // the dual-identity burg anchors
+      const byId = new Map(globalThis.pack.markets.map((market: Market) => [market.i, market]));
+      for (const burgIndex of [1, 2, 3]) {
+        const marketId = (globalThis.pack.burgs[burgIndex] as { market: number }).market;
+        expect(marketId).toBeGreaterThan(0);
+        expect(byId.get(marketId)).toBeDefined();
+      }
+    });
+  });
 });
