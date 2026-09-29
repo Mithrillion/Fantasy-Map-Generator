@@ -212,19 +212,26 @@ describe("underground highways", () => {
     expect(path?.includes(lowWay[1])).toBe(false); // and not the lowland way of the same length
   });
 
-  it("prices a tunnel step the same whether or not a surface route covers it", () => {
+  it("prices a surface-covered step no lower than a clear one, and higher beside a route", () => {
     const from = cellAt(0, 1);
     const to = cellAt(1, 1);
     pack.cells.h[to] = 40;
-    globalThis.options.generation.underground = false; // keeps the underground network empty
+    // no burgs: the surface network comes out empty, so the pass leaves the field clear everywhere
+    pack.cells.burg = new Uint16Array(CELL_COUNT);
+    pack.burgs = [0] as unknown as typeof pack.burgs;
+
     Routes.generate([], 1);
-    expect(pack.cells.routes[from]?.[to]).toBeUndefined(); // the generated surface network leaves this step alone
+    expect(pack.cells.routes[from]?.[to]).toBeUndefined(); // no surface route covers this step
     const plain = Routes.getUndergroundPathCost(from, to);
 
-    // a locked surface route over the same step is not part of the underground network
+    // a locked surface route over the same step is not part of the underground network, but it does
+    // seed the separation field, so the step now pays the surface penalty
     Routes.generate([handRoute(1, [from, to])], 1);
     expect(pack.cells.routes[from]?.[to]).toBeDefined(); // the locked route does cover it
-    expect(Routes.getUndergroundPathCost(from, to)).toBe(plain);
+    const covered = Routes.getUndergroundPathCost(from, to);
+
+    expect(covered).toBeGreaterThanOrEqual(plain); // a surface route never makes a tunnel cheaper
+    expect(covered).toBeGreaterThan(plain); // and beside a route it makes it dearer
   });
 
   it("discounts a tunnel step that is part of the underground network", () => {
@@ -485,5 +492,93 @@ describe("underground highways", () => {
       expect(pipeline.includes("burgs")).toBe(true);
       expect(pipeline.includes("routes")).toBe(true);
     }
+  });
+
+  // The separation rule: a tunnel step near the surface network costs more than the same step clear
+  // of it. Distances below are read off the 7x3 grid with a surface route locked over cells 8-9:
+  // 8,9 at 0; 2 at 1; 0 at 2; 4 at 3; 13 and 20 at the cap.
+  describe("surface separation", () => {
+    /** no burgs, so the burg term cannot confound a ratio between two equal-length steps */
+    const clearBurgs = () => {
+      pack.cells.burg = new Uint16Array(CELL_COUNT);
+      pack.burgs = [0] as unknown as typeof pack.burgs;
+    };
+
+    const onRoute = [8, 9];
+    const cost = (from: number, to: number) => Routes.getUndergroundPathCost(from, to);
+
+    it("prices a tunnel step higher beside a surface route than clear of one", () => {
+      clearBurgs();
+      Routes.generate([handRoute(1, onRoute)], 1);
+
+      const onTheRoute = cost(8, 9); // the step the locked route covers
+      const besideIt = cost(9, 2); // one cell away from a route cell
+      const clear = cost(12, 13); // beyond the decay range
+
+      expect(onTheRoute).toBeGreaterThan(besideIt);
+      expect(besideIt).toBeGreaterThan(clear);
+    });
+
+    it("decays the penalty with distance and bounds it", () => {
+      clearBurgs();
+      Routes.generate([handRoute(1, onRoute)], 1);
+
+      const plain = cost(12, 13); // beyond the decay range: no penalty
+      const samples = [
+        [cost(8, 9), 3], // on a surface route cell
+        [cost(9, 2), 2], // one step away
+        [cost(1, 0), 5 / 3], // two steps away
+        [cost(11, 4), 3 / 2] // three steps away
+      ] as const;
+
+      for (const [value, multiplier] of samples) expect(value / plain).toBeCloseTo(multiplier, 5);
+      // bounded: two cells past the decay range cost the same as any other clear step
+      expect(cost(13, 20)).toBeCloseTo(plain, 5);
+    });
+
+    it("never makes a passable step impassable", () => {
+      clearBurgs();
+      Routes.generate([handRoute(1, onRoute)], 1);
+
+      const penalised = cost(8, 9);
+      expect(Number.isFinite(penalised)).toBe(true);
+      expect(penalised).toBeGreaterThan(cost(12, 13));
+      // the gates that do block are untouched by the separation rule
+      expect(cost(1, cellAt(1, STRAIT))).toBe(Infinity);
+      expect(cost(1, cellAt(0, STRAIT))).toBe(Infinity);
+      expect(cost(1, cellAt(1, 1) + 1)).toBeLessThan(Infinity);
+    });
+
+    it("does not let the underground network repel itself", () => {
+      clearBurgs();
+      Routes.generate([handRoute(1, onRoute, true)], 1); // a locked tunnel, no surface route at all
+
+      // the locked highway earns its discount and pays no penalty: half of an equal clear step
+      expect(cost(8, 9) * 2).toBeCloseTo(cost(12, 13), 5);
+    });
+
+    it("keeps a uniform, path-neutral penalty when no surface network exists", () => {
+      clearBurgs();
+      Routes.generate([], 1); // no burgs and no locked routes, so no surface route exists at all
+
+      // uniform: two equal-length steps cost the same wherever they are
+      expect(cost(15, 16) / cost(11, 12)).toBeCloseTo(1, 5);
+
+      // and the terrain preference the direct-call tests rely on is untouched
+      pack.cells.h[8] = 90;
+      pack.cells.h[2] = 21;
+      expect(cost(1, 8)).toBeLessThan(cost(1, 2));
+    });
+
+    it("rebuilds the separation field on every pass", () => {
+      clearBurgs();
+      Routes.generate([handRoute(1, onRoute)], 1);
+      expect(cost(8, 9)).toBeGreaterThan(cost(12, 13)); // the first route's step is the penalised one
+
+      // regenerate with the surface route somewhere else: the old penalty must be gone
+      Routes.generate([handRoute(2, [12, 13])], 1);
+      expect(cost(12, 13)).toBeGreaterThan(cost(9, 2));
+      expect(cost(8, 9)).toBeLessThan(cost(12, 13));
+    });
   });
 });

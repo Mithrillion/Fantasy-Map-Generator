@@ -239,8 +239,10 @@ to the steps that already read them:
 - **`routes` builds.** After the surface network, `Routes.generateUndergroundHighways()` runs one
   Urquhart topology per feature over the subterranean-capable burgs and paths it with
   `getUndergroundPathCost` — water and uninhabitable cells impassable, high ground cheaper than
-  lowland, the already-connected discount reused. The highways keep the `roads` group, so religion
-  spread, trade animation and the road and crossroad tests need no branch.
+  lowland, a bounded penalty on cells near the surface routes so a tunnel keeps clear of the corridors
+  it is an alternative to, and the discount drawn from the underground network alone. The highways
+  keep the `roads` group, so religion spread, trade animation and the road and crossroad tests need no
+  branch.
 
 The connectivity rule binds **generation only**. The planes are held apart by one predicate pair —
 `hasGroundLevelPresence` for surface routes, `hasBelowLevelPresence` for underground ones — and

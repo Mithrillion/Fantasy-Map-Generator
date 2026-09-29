@@ -14,6 +14,10 @@ const ROUTES_VERY_SHARP_ANGLE = 115;
 
 export const MIN_PASSABLE_SEA_TEMP = -4;
 const RIVER_TYPE_MODIFIER = 1.5;
+/** how much dearer a tunnel step is on a surface route cell (the penalty decays over the next cells) */
+const SURFACE_SEPARATION = 2;
+/** beyond this many cells from a surface route a tunnel step pays nothing extra */
+const SURFACE_SEPARATION_RANGE = 4;
 const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
   "-1": 1, // coastline
   "-2": 1.8, // sea
@@ -201,6 +205,8 @@ class RoutesModule {
   private connections: Map<string, boolean> = new Map();
   /** cell pairs of the underground network: the only source of the tunnel discount */
   private undergroundConnections: Set<string> = new Set();
+  /** distance from the surface network per cell, built by the underground pass; absent means "no penalty" */
+  private surfaceDistances: Uint8Array | undefined;
   private riverEdges: Map<number, Map<number, RiverEdge>> = new Map();
   private riversById: Map<number, River> = new Map();
   private riverGeometryCache: Map<number, { points: Point[]; anchorIndices: number[] }> = new Map();
@@ -342,7 +348,7 @@ class RoutesModule {
     return distanceCost * typeModifier * connectionModifier;
   }
 
-  /** Tunnelling: water forbidden, high ground cheaper than lowland, the discount drawn from the underground network alone */
+  /** Tunnelling: water forbidden, high ground cheaper than lowland, surface corridors avoided, discount from the underground network alone */
   getUndergroundPathCost(current: number, next: number) {
     const { h, biome, p } = pack.cells;
     if (h[next] < 20) return Infinity; // no underground highway runs through water
@@ -356,7 +362,55 @@ class RoutesModule {
     const connectionModifier = this.undergroundConnections.has(`${current}-${next}`) ? 0.5 : 1;
     const burgModifier = pack.cells.burg[next] ? 1 : 3;
 
-    return distanceCost * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
+    return (
+      distanceCost *
+      habitabilityModifier *
+      heightModifier *
+      connectionModifier *
+      burgModifier *
+      this.surfaceSeparation(next)
+    );
+  }
+
+  /** A tunnel step pays for running on or beside a surface route; beyond the range it costs nothing extra */
+  private surfaceSeparation(cell: number): number {
+    const distances = this.surfaceDistances;
+    if (!distances) return 1;
+
+    const distance = distances[cell];
+    return distance >= SURFACE_SEPARATION_RANGE ? 1 : 1 + SURFACE_SEPARATION / (1 + distance);
+  }
+
+  /** BFS distance from the surface routes, capped: the corridor a tunnel is asked to keep clear of */
+  private buildSurfaceDistances(routes: Route[]): Uint8Array {
+    const { c, i } = pack.cells;
+    const distances = new Uint8Array(i.length).fill(SURFACE_SEPARATION_RANGE);
+    const queue: number[] = [];
+
+    const seed = (cell: number) => {
+      if (distances[cell] === 0) return;
+      distances[cell] = 0;
+      queue.push(cell);
+    };
+
+    // surface routes only: the underground network never repels itself
+    for (const route of routes) {
+      if (route.underground) continue;
+      for (const point of route.points) seed(point[2]);
+    }
+
+    for (let head = 0; head < queue.length; head++) {
+      const cell = queue[head];
+      if (distances[cell] >= SURFACE_SEPARATION_RANGE - 1) continue;
+      for (const next of c[cell] ?? []) {
+        if (distances[next] > distances[cell] + 1) {
+          distances[next] = distances[cell] + 1;
+          queue.push(next);
+        }
+      }
+    }
+
+    return distances;
   }
 
   private createCostEvaluator({ isWater }: { isWater: boolean }) {
@@ -557,6 +611,9 @@ class RoutesModule {
     TIME && console.time("generateUndergroundHighways");
     const { burgsByFeature } = this.sortBurgsByFeature(pack.burgs, hasBelowLevelPresence);
     const highways: Route[] = [];
+
+    // built before any tunnel exists, so a tunnel never seeds the corridor it is routed against
+    this.surfaceDistances = this.buildSurfaceDistances(routes);
 
     // de-duplication set, local on purpose: a surface route does not stand in for a tunnel, so only
     // the underground network merges with itself
