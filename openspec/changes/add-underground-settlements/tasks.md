@@ -1,0 +1,49 @@
+## 1. Data model and compatibility
+
+- [ ] 1.1 Add the two optional classifications to the burg type and the underground marker to the route type, both optional so an absent value means a surface burg and a surface route; verify `npm run build` type-checks and an existing test fixture with neither field still compiles
+- [ ] 1.2 Add defensive resolution for records carrying both classifications on one burg, resolving to a single classification; verify a unit test asserts a both-flagged record resolves to exactly one classification and is treated as one burg
+- [ ] 1.3 Confirm the save format needs no new records and that both flags round-trip through save and load unchanged; verify a round-trip test loads a map with classifications and underground highways and reads identical values back
+- [ ] 1.4 Add the `auto-update` migration that tolerates and normalizes older saves (absent flags mean false, conflicting flags resolved); verify a migration unit test over a pre-feature fixture asserts every burg resolves to a surface burg and the map loads without error
+- [ ] 1.5 Verify a map saved before this feature behaves identically after the change: no classifications, no underground highways, no display difference; verify by loading such a fixture and asserting the burg and route sets are unchanged
+
+## 2. Settlement classification
+
+- [ ] 2.1 Add the underground generation option to the generation options schema with the existing option-validation conventions and a default of disabled; verify the options schema test accepts a map without the field and rejects a malformed value
+- [ ] 2.2 Implement the weighted selection helper: elevation-weighted, with a modest bonus for non-habitable biomes, deterministic from the seeded random source, drawing without replacement; verify a unit test on a synthetic elevation ramp asserts higher sites are selected more often than under a uniform shuffle of the same size
+- [ ] 2.3 Implement the marking phase inside burg generation, after the town pass and port assignment: compute both shares from the eligible burg count, draw the dual-identity share first and the fully subterranean share from the remainder so the sets are disjoint, skip non-land cells, and change nothing else on the burg; verify a unit test asserts the shares are approximately 5% each, the sets are disjoint, and cell, state, province, culture and population are untouched
+- [ ] 2.4 Verify the small-map degradation path: when there are too few burgs to satisfy both shares, fewer classifications are assigned and generation completes without error; verify a unit test on a minimal burg set asserts no burg carries both classifications and no exception is thrown
+- [ ] 2.5 Verify that with the option disabled no burg is classified on any map; verify a unit test and an unchanged existing burg generator test suite
+- [ ] 2.6 Surface the classifications in the Burgs overview and the Burg editor so a classified burg is identifiable and reviewable; verify in the browser that a classified burg shows its classification in both places, and that an unclassified burg is unchanged
+
+## 3. Underground highway network
+
+- [ ] 3.1 Implement the underground path cost function beside the existing land and water costs: water and non-habitable cells prohibitively expensive, elevation reducing rather than raising cost, reusing the existing already-connected discount; verify a unit test asserts a water step is impassable and a high-ground step costs less than an equal-length low-ground step
+- [ ] 3.2 Add the single eligibility predicate for "may be an endpoint of an underground highway" (below-level presence) and its complement for surface routes (ground-level presence), used by every connection path; verify a unit test covers all four combinations of the two classifications and the unclassified case
+- [ ] 3.3 Implement the highway builder over the eligible burg set, grouped per feature, reusing the existing triangulation and pathfinding, and marking each resulting route as underground while keeping its group value unchanged; verify a unit test asserts every underground highway has both endpoints eligible, no endpoint is a surface-only burg, and no surface route carries the underground marker
+- [ ] 3.4 Verify the water constraint end to end: no cell of any underground highway is below the water level, and burgs on different landmasses separated by water are not connected; verify unit tests for both, including a fixture with two eligible burgs across a strait
+- [ ] 3.5 Verify uniform traversal: a land journey may follow an underground highway, a fully subterranean burg is a valid destination, and a water-domain journey is governed by the existing land-and-water rules regardless of the marker; verify unit tests asserting each of the three, and that no traversal code branches on the underground marker
+- [ ] 3.6 Wire the builder into the route generation step so it runs after surface routes and is skipped when the option is disabled or no burg is eligible; verify a unit test asserts the pipeline leaves surface routes byte-identical when the option is off
+
+## 4. Regeneration paths
+
+- [ ] 4.1 Carry the classifications through the locked-burg and locked-route passes and re-run marking and highway building at the end of the burg and route regenerate actions, so neither is silently stripped; verify by regenerating burgs on a map with the option enabled and asserting classifications and the underground network are still present
+- [ ] 4.2 Add the new generation step to the erase pipeline at the matching boundary; verify by editing a heightmap in erase mode and asserting underground content is regenerated for the resulting burgs
+- [ ] 4.3 Handle the new output in the keep and risk heightmap restore paths consistently with how those paths treat other settlement data; verify by running both modes and asserting classifications and the network are restored or regenerated rather than lost
+- [ ] 4.4 Handle the new output in the resample path, restoring classifications with the burgs and rebuilding the network for the resampled map; verify by transforming a map with underground content and asserting the classifications survive and no underground highway references a removed burg
+- [ ] 4.5 Verify no stale underground highway survives the removal or unclassification of an endpoint burg; verify a unit test removes an endpoint burg and asserts no underground highway retains it
+
+## 5. Display: layers, mode and styling
+
+- [ ] 5.1 Register the two new layers in the layer registry, positioned above the surface route layer and above the surface burg-icon layer respectively, with distinct child element ids so container lookups cannot collide; verify a browser-mode layer test asserts both layers are registered, ordered as intended, and resolve to distinct containers
+- [ ] 5.2 Split the route renderer so the shapes are built once and reconciled into the surface and underground containers separately, with the edited-route and temporary-route globals scoped to the surface layer; verify the existing route renderer tests still pass and a browser-mode test asserts an underground route appears in the underground container and not the surface one
+- [ ] 5.3 Parameterize the burg-icon renderer by layer and container names, select burgs by the classification, and draw port anchors only for burgs with ground-level presence and only in the surface layer; verify a browser-mode test asserts the both state draws each burg once, draws no anchor twice, and draws no anchor for a fully subterranean burg
+- [ ] 5.4 Add the layer toggle buttons for both new layers using the existing toggle registry conventions; verify in the browser that each toggles independently and that a map with no underground content shows empty layers
+- [ ] 5.5 Add the three-state content-focus control, deriving the reported state from the active layer selection and writing a layer set on click, holding no state of its own; verify a browser-mode test asserts each state selects the expected layers and that a manual layer toggle changes the reported state
+- [ ] 5.6 Add the underground style entries for the highway and burg-icon groups, falling back to the existing group styles so an unknown group never renders unstyled, and make underground content visually distinct from surface content; verify in the browser that the both state makes the two planes tellable apart
+- [ ] 5.7 Verify the display survives save and load and that export follows the layer selection: saving in the underground state and reopening restores it, an older map opens in the surface state, and a full-map export taken in the underground state contains the underground content and not the surface routes and burg icons; verify each in the browser
+
+## 6. Final verification
+
+- [ ] 6.1 Run the full unit suite and lint and confirm no regressions: `npm test` and `npm run lint`
+- [ ] 6.2 Walk the four capability specs and confirm every scenario is either covered by an automated test or demonstrated manually, recording how each was checked
+- [ ] 6.3 Update the architecture and domain documentation for the new generation step, the two new layers, the new data fields and the traversal rule, following the checklist in the generation pipeline documentation
