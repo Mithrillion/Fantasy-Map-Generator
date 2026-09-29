@@ -199,6 +199,8 @@ type RiverRun = {
 
 class RoutesModule {
   private connections: Map<string, boolean> = new Map();
+  /** cell pairs of the underground network: the only source of the tunnel discount */
+  private undergroundConnections: Set<string> = new Set();
   private riverEdges: Map<number, Map<number, RiverEdge>> = new Map();
   private riversById: Map<number, River> = new Map();
   private riverGeometryCache: Map<number, { points: Point[]; anchorIndices: number[] }> = new Map();
@@ -211,10 +213,14 @@ class RoutesModule {
   generate(lockedRoutes: Route[] = [], randomSeed?: number) {
     Math.random = Alea(randomSeed ?? options.map.seed);
     this.connections = new Map();
+    this.undergroundConnections = new Set();
     this.buildRiverEdges();
-    lockedRoutes.forEach((route: Route) => {
-      this.addConnections(route.points.map(p => p[2]));
-    });
+
+    for (const route of lockedRoutes) {
+      const cells = route.points.map(point => point[2]);
+      this.addConnections(cells);
+      if (route.underground) this.rememberEdges(this.undergroundConnections, cells); // a pinned tunnel keeps its attractive force
+    }
 
     pack.routes = this.createRoutesData(lockedRoutes);
     if (options.generation.underground) this.generateUndergroundHighways(pack.routes);
@@ -336,7 +342,7 @@ class RoutesModule {
     return distanceCost * typeModifier * connectionModifier;
   }
 
-  /** Tunnelling: water forbidden, high ground cheaper than lowland, the already-connected discount reused */
+  /** Tunnelling: water forbidden, high ground cheaper than lowland, the discount drawn from the underground network alone */
   getUndergroundPathCost(current: number, next: number) {
     const { h, biome, p } = pack.cells;
     if (h[next] < 20) return Infinity; // no underground highway runs through water
@@ -347,7 +353,7 @@ class RoutesModule {
     const distanceCost = distanceSquared(p[current], p[next]);
     const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000; // [1, 1.1]
     const heightModifier = 1 + Math.max(50 - h[next], 0) / 50; // [1, 2]: boring under a mountain beats lowland
-    const connectionModifier = this.connections.has(`${current}-${next}`) ? 0.5 : 1;
+    const connectionModifier = this.undergroundConnections.has(`${current}-${next}`) ? 0.5 : 1;
     const burgModifier = pack.cells.burg[next] ? 1 : 3;
 
     return distanceCost * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
@@ -486,6 +492,14 @@ class RoutesModule {
     }
   }
 
+  /** both directions of every step of a cell chain, in the given edge set */
+  private rememberEdges(edges: Set<string>, cells: number[]) {
+    for (let i = 0; i < cells.length - 1; i++) {
+      edges.add(`${cells[i]}-${cells[i + 1]}`);
+      edges.add(`${cells[i + 1]}-${cells[i]}`);
+    }
+  }
+
   private generateTrails() {
     TIME && console.time("generateTrails");
     const { burgsByFeature } = this.sortBurgsByFeature(pack.burgs);
@@ -544,15 +558,16 @@ class RoutesModule {
     const { burgsByFeature } = this.sortBurgsByFeature(pack.burgs, hasBelowLevelPresence);
     const highways: Route[] = [];
 
-    // a surface route does not stand in for a tunnel, so only the underground network merges with itself
+    // de-duplication set, local on purpose: a surface route does not stand in for a tunnel, so only
+    // the underground network merges with itself
     const undergroundEdges = new Set<string>();
-    const rememberEdges = (cells: number[]) => {
-      for (let i = 0; i < cells.length - 1; i++) {
-        undergroundEdges.add(`${cells[i]}-${cells[i + 1]}`);
-        undergroundEdges.add(`${cells[i + 1]}-${cells[i]}`);
-      }
-    };
-    for (const route of routes) if (route.underground) rememberEdges(route.points.map(point => point[2]));
+    for (const route of routes) {
+      if (!route.underground) continue;
+      this.rememberEdges(
+        undergroundEdges,
+        route.points.map(point => point[2])
+      );
+    }
 
     for (const [key, featureBurgs] of Object.entries(burgsByFeature)) {
       if (featureBurgs.length < 2) continue; // a connection needs a pair
@@ -566,8 +581,8 @@ class RoutesModule {
         if (!pathCells) return;
 
         for (const segment of this.getUndergroundSegments(pathCells, undergroundEdges)) {
-          rememberEdges(segment);
-          this.addConnections(segment);
+          this.rememberEdges(undergroundEdges, segment);
+          this.rememberEdges(this.undergroundConnections, segment);
           highways.push({ feature: Number(key), cells: segment } as Route);
         }
       });

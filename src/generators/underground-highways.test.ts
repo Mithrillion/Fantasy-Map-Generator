@@ -147,14 +147,15 @@ describe("underground highways", () => {
 
   const generate = (seed = 1) => Routes.generate([], seed);
   const undergroundRoutes = () => pack.routes.filter(route => route.underground);
-  const handHighway = (i: number, cells: number[]) =>
+  const handRoute = (i: number, cells: number[], underground = false) =>
     ({
       i,
       group: "roads",
       feature: 1,
-      underground: true,
+      ...(underground ? { underground: true } : {}),
       points: cells.map(cell => [...pack.cells.p[cell], cell])
     }) as Route;
+  const handHighway = (i: number, cells: number[]) => handRoute(i, cells, true);
 
   it("makes a water step impassable and never enters an uninhabitable cell", () => {
     const land = cellAt(1, 1);
@@ -211,26 +212,61 @@ describe("underground highways", () => {
     expect(path?.includes(lowWay[1])).toBe(false); // and not the lowland way of the same length
   });
 
-  it("reuses the already-connected discount", () => {
-    const from = cellAt(1, 1);
-    const to = cellAt(1, 2);
+  it("prices a tunnel step the same whether or not a surface route covers it", () => {
+    const from = cellAt(0, 1);
+    const to = cellAt(1, 1);
     pack.cells.h[to] = 40;
+    globalThis.options.generation.underground = false; // keeps the underground network empty
+    Routes.generate([], 1);
+    expect(pack.cells.routes[from]?.[to]).toBeUndefined(); // the generated surface network leaves this step alone
     const plain = Routes.getUndergroundPathCost(from, to);
 
-    pack.routes = [
-      {
-        i: 0,
-        group: "roads",
-        feature: 1,
-        points: [
-          [10, 10, from],
-          [20, 10, to]
-        ]
-      }
-    ];
-    Routes.sync();
+    // a locked surface route over the same step is not part of the underground network
+    Routes.generate([handRoute(1, [from, to])], 1);
+    expect(pack.cells.routes[from]?.[to]).toBeDefined(); // the locked route does cover it
+    expect(Routes.getUndergroundPathCost(from, to)).toBe(plain);
+  });
 
+  it("discounts a tunnel step that is part of the underground network", () => {
+    const from = cellAt(0, 1);
+    const to = cellAt(1, 1);
+    pack.cells.h[to] = 40;
+    globalThis.options.generation.underground = false;
+    Routes.generate([], 1);
+    pack.routes = [];
+    Routes.sync(); // neither network covers the step, so this is the plain cost
+    const plain = Routes.getUndergroundPathCost(from, to);
+
+    // a pinned tunnel over the same step seeds the network it belongs to
+    Routes.generate([handRoute(1, [from, to], true)], 1);
     expect(Routes.getUndergroundPathCost(from, to)).toBeLessThan(plain);
+  });
+
+  it("records a generated segment in the underground network, not the shared map", () => {
+    generate();
+    const [from, to] = [undergroundRoutes()[0].points[0][2], undergroundRoutes()[0].points[1][2]];
+    const discounted = Routes.getUndergroundPathCost(from, to);
+
+    // the same step with both networks cleared: the discount is 0.5, so the plain cost is twice as large
+    globalThis.options.generation.underground = false;
+    Routes.generate([], 1);
+    pack.routes = [];
+    Routes.sync();
+    expect(discounted * 2).toBeCloseTo(Routes.getUndergroundPathCost(from, to));
+  });
+
+  it("leaves the land and water costs unaware of the underground network", () => {
+    generate();
+    // landmass B has below-level burgs only: no surface route runs where its highway does
+    const highway = undergroundRoutes().find(route => route.points.some(([, , cell]) => pack.cells.f[cell] === 2))!;
+    const [from, to] = [highway.points[0][2], highway.points[1][2]];
+    const landCost = Routes.getLandPathCost(from, to);
+    const waterCost = Routes.getWaterPathCost(from, to);
+
+    globalThis.options.generation.underground = false;
+    Routes.generate([], 1);
+    expect(Routes.getLandPathCost(from, to)).toBe(landCost);
+    expect(Routes.getWaterPathCost(from, to)).toBe(waterCost);
   });
 
   it("connects subterranean-capable burgs only, keeping the surface network to itself", () => {
@@ -334,6 +370,33 @@ describe("underground highways", () => {
     expect(JSON.stringify(pack.routes)).toBe(first);
     expect(undergroundRoutes()).toHaveLength(0);
     expect(pack.routes.length).toBeGreaterThan(0); // the surface network is still generated
+  });
+
+  it("generates the surface network as if the plane were off", () => {
+    globalThis.options.generation.underground = false;
+    generate();
+    const surfaceOnly = JSON.stringify(pack.routes);
+
+    globalThis.options.generation.underground = true;
+    generate();
+    expect(JSON.stringify(pack.routes.filter(route => !route.underground))).toBe(surfaceOnly);
+    expect(undergroundRoutes().length).toBeGreaterThan(0);
+  });
+
+  it("merges a tunnel into the pinned network instead of duplicating its stretch", () => {
+    const junction = cellAt(1, 2);
+    const pinned = handHighway(1, [cellAt(1, 1), junction]);
+    pack.cells.h[cellAt(0, 1)] = 20; // lowland: the way around the pinned stretch is the expensive one
+
+    Routes.generate([pinned], 1);
+    const highways = undergroundRoutes();
+    expect(highways.length).toBeGreaterThan(1); // the pinned tunnel plus what generation joined to it
+    expect(highways.some(route => route !== pinned && endpoints(route).includes(junction))).toBe(true);
+
+    const steps = highways.flatMap(route =>
+      route.points.slice(0, -1).map((point, index) => `${point[2]}-${route.points[index + 1][2]}`)
+    );
+    expect(new Set(steps).size).toBe(steps.length); // the shared stretch is laid once, not twice
   });
 
   it("drops a highway whose endpoint burg is removed", () => {
