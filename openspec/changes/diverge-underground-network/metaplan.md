@@ -55,19 +55,26 @@
 
 ## Status
 
-Cycle open 2026-09-29. **CH2 rung 1 shipped** (not archived): the surface-separation term took overlap
-0.708 → **0.560**, exact-edge 0.326 → 0.208, corridor distance 0.37 → 0.57, at ×1.084 length (worst
-seed ×1.138), with the full suite green. CH1's diagnostic is complete (22/22 tasks).
+Cycle open 2026-09-29. **Rungs 1 and 2 both shipped.** Rung 1 (surface separation) took overlap
+0.708 → 0.560, archived; rung 2 (burg attraction 3 → 2) took the current build **0.561 → 0.516**, every
+seed improving, at ×0.956 mean length — the network did not grow. The plane-hardening change between them
+is archived and its requirements are in the main specs. The metaplan was mistakenly archived on
+2026-09-29 and restored 2026-09-30 — the CH1/CH2 archive state below is correct.
 
 Children:
 
 - CH1 `measure-underground-alignment` (prototyping) — diagnostic complete; evidence F1.1-F4.3.
-- CH2 `underground-highways-avoid-surface-corridors` (semi-test-driven) — **rung 1 shipped**, 25/25 tasks, valid, awaiting archive.
+- CH2 `underground-highways-avoid-surface-corridors` (semi-test-driven) — rung 1 shipped, 25/25, **archived 2026-09-29**; delta merged into `openspec/specs/underground-highways`.
 - CH3 topology sparsification — superseded (D14); CH4 display separation — superseded (D15).
+- CH5 `weaken-underground-burg-attraction` (semi-test-driven) — **rung 2 shipped 2026-09-30**, 17/17,
+  valid, not archived; `skip_specs` (no requirement text mentions the term).
 
-Next session must know: the only open question is whether rung 1 suffices or the ladder continues
-(D16: rung 2 = weaken the burg attraction, ~0.51 at ×1.14; rung 3 = endpoint gates, ~0.50 at ×1.12).
-Everything needed to run either rung is in F3.2s plus CH2's design and verification.
+Next session must know: the ladder is **open, not finished** — rung 3 (endpoint gates, H3) is the next
+lever if the user wants more, measured against **0.516** now. CH5's evidence is its `verification.md` and
+`measure/rung2-production.log`; the paired control reproduced the pre-rung baseline exactly, so the delta
+is attributable. One correction to the ladder's numbers: the archived ×1.142 length prediction for factor
+2 did **not** hold (measured ×0.956) because the plane-hardening change altered the segments in between —
+re-measure paired, never inherit a length figure (F6.1).
 
 ## Findings
 
@@ -187,6 +194,21 @@ Full table in `child-log.md`. Means over 8 seeds:
 - Read as: the underground network keeps connecting exactly these burgs — dual-identity burgs on both planes, fully subterranean ones on the underground plane only. It is not a distinct geography with its own places, so the pair set is not a free variable (D14).
 - Consequence: CH3 (topology sparsification) is superseded, and F1.5's structural floor stands — the reachable improvement is through where a tunnel runs between two given burgs, which is what CH2 does.
 
+### F5.1 — The plane rules are enforced and audited; the tunnel network also passes *under* surface burgs (2026-09-30; CH5 baseline)
+
+- `harden-underground-plane-integrity` (2026-09-30, archived) hardened what generation does *around* the endpoints: a stretch boundary now steps into the already-covered stretch rather than landing on the other plane's burg cell; the prune keeps a record whose end is a below-level burg **or** a cell another surviving highway runs through; a service pass reconnects any below-level burg that could be paired. Baseline 41 boundaries on below-level cells → 0, 50 of 682 unserved → 0, surface contact on below-level cells 178 → 21-33 per seed, `repairs=0` on all 8 seeds.
+- It adds `auditPlanes` + a real-map audit in `playwright.yml`, so **every later rung is gated on a zero-violation audit**: `src/generators/plane-integrity.dom.test.ts`, 8 seeds, one `PLANES …` line each.
+- Contact is pass-under, not connection: 636 surface-burg cells touched by tunnels over 3 seeds, ~90% drawn through the burg's own coordinates while not the record's endpoint; no tunnel ends at a surface-only burg (every such endpoint is a junction or a dual-identity burg). So a longer tunnel network raises `contact` without implying new connections.
+- Consequence for the ladder: rung 2's longer network must be read together with the audit's boundary and service lines, not overlap alone; the plane rules are a standing acceptance gate from here on.
+
+### F6.1 — Rung 2 landed: overlap 0.561 → 0.516 on every seed, and the network did *not* grow (task CH5 4.1-4.4, 2026-09-30; CH5, next rung)
+
+- Paired 8-seed run on one build: production (attraction 2) **0.516** against the reverse control (attraction 3) **0.561**, Δ −0.045, improving on all 8 seeds (−0.023 to −0.060). Exact-edge 0.297 → 0.243, corridor distance 0.56 → 0.62, served 0.737 → 0.733.
+- The control reproduces the pre-change production baseline *exactly* (0.561 / 0.297 / 6386 length), so the delta is attributable to the rung and not build drift.
+- **The archived length prediction was wrong in sign**: the ladder expected ×1.142, measured ×0.956 (worst seed ×1.002). The plane-hardening change landed between the two measurements and changed which cells the segment builders cover. Lesson: re-measure paired; never inherit a length figure across a build change.
+- Gates: zero plane violations on all 8 seeds, `repairs=0` (the service pass is not carrying the rung), and contact **fell** — tunnels on surface burg cells 132-190, against 159-217 pre-rung — so the weaker attraction really does route tunnel cells under fewer settlements.
+- Consequence: the floor for any rung 3 is **0.516**, and the ladder's remaining lever is endpoint gates (H3, ~-8.6 overlap but a ×1.337 worst seed when measured alone).
+
 ## Decisions
 
 <!-- APPEND-ONLY, <= ~3 lines per entry. Child-scoped rulings are one-liners here only. -->
@@ -260,9 +282,23 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
   `underground-highways` deltas (one requirement re-scoped, one added); 7 new tests, 1 re-aimed; docs fixed.
   Outcome (8 paired seeds): **overlap 0.708 → 0.560 (−14.7, every seed improves), exact-edge 0.326 → 0.208,
   corridor distance 0.37 → 0.57, length ×1.084 mean / ×1.138 worst, service 0.665 → 0.691.** Unblocks the
-  next rungs, which now start from 0.560. Complete and valid, **not archived** (archiving merges the delta).
-  OPEN (owner: user): does rung 1 suffice, or continue (D16 rung 2 ≈ 0.51 at ×1.14; rung 3 ≈ 0.50 at ×1.12)?
+  next rungs, which now start from 0.560. Complete and valid, **archived 2026-09-29**; delta merged.
+  CLOSED: rung 1 does not suffice — the user opened rung 2 on 2026-09-30 (CH5, D16 rung 2).
   Pointers: the change's `verification.md`, `measure-after.log`; this file's D16 and F3.2s.
+
+- [x] 5. **`weaken-underground-burg-attraction`** (schema: `semi-test-driven`; **rung 2, D16**) — **shipped 2026-09-30**, 17/17 tasks, valid, not archived.
+  Delivered: the burg attraction in `getUndergroundPathCost` 3 → 2 as `UNDERGROUND_BURG_ATTRACTION`; the
+  surface cost's own 3× term untouched so the measurement reference stays fixed; docs updated; two new
+  unit tests that pin both terms by making two destination cells identical but for the burg map.
+  `skip_specs` declared — no requirement text mentions the term.
+  Outcome (paired 8 seeds, one build): **overlap 0.561 → 0.516 (−0.045, every seed improves), exact-edge
+  0.297 → 0.243, corridor distance 0.56 → 0.62, length ×0.956 mean / ×1.002 worst, served 0.737 → 0.733**,
+  with the reverse control reproducing the pre-rung baseline exactly. Plane audit: zero violations,
+  `repairs=0`, contact down (F6.1).
+  OPEN (owner: user): does rung 2 suffice, or escalate to rung 3 (endpoint gates, H3)? The ladder's floor
+  is now 0.516.
+  Pointers: the change's `verification.md`, `measure/rung2-production.log`, `measure/plane-audit.log`;
+  this file's F6.1, H2, H3.
 
 - [ ] 3. **CH3 — topology sparsification** (schema: `spec-driven`; **superseded by D14**).
   Superseded 2026-09-29: the user ruled the underground network keeps connecting the same burgs, so the
@@ -277,6 +313,10 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
 ## Notes registry
 
 - `child-log.md` — declared companion (unmanaged). Holds the offload tier: the measurement harness, the raw 8-seed run output, and the full comparison tables. Cited by: F1.1-F1.8, F3.2, F3.3, F4.2.
+- `harness/underground-measure.dom.test.ts.txt` — the measuring instrument for every rung (H6); `harness/*.log` the rung-1 raw output. Cited by: F1.1-F4.3, F3.2s, H6, F5.1.
+- `openspec/changes/archive/2026-09-29-underground-highways-avoid-surface-corridors/` — CH2's full record (rung 1). Cited by: H1, CH2 checklist entry.
+- `openspec/changes/archive/2026-09-30-harden-underground-plane-integrity/` — the plane-hardening change and its `verification.md` (per-seed audit table, mutation check, pass-under measurement). Cited by: F5.1, CH5 gate.
+- Lifecycle note: this metaplan was archived with CH2 on 2026-09-29 by mistake and restored to `openspec/changes/diverge-underground-network` on 2026-09-30, before CH5 was authored. The archive holds only finished children.
 
 ## Handover
 
@@ -288,11 +328,12 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
 - Rationale: the tunnel cost now pays `1 + 2/(1+distance)` up to 4 cells from a surface route. Overlap fell 0.708 → **0.560** on every seed, exact-edge 0.326 → 0.208, corridor distance 0.37 → 0.57, length ×1.084 (worst ×1.138), service 0.665 → 0.691. The spec delta is merged: `openspec/specs/underground-highways/spec.md` carries the re-scoped *Underground connectivity is self-contained* and the new *Underground highways keep clear of the surface network's corridors*.
 - Binds / suggests for next cycle: treat 0.560 as the baseline any further rung is measured against. Full record: `openspec/changes/archive/2026-09-29-underground-highways-avoid-surface-corridors/` (`verification.md`, `design.md`, `measure-after.log`).
 
-### H2 — Rung 2 (next): weaken the burg attraction — expect ~0.51 overlap at ~×1.14 length
+### H2 — Rung 2 DONE 2026-09-30: the burg attraction is 2, overlap 0.516, and the network did not grow
 
-- Source: measurement · measured 2026-09-29 via the ladder sweep (`child-log.md`, F3.2s).
-- Rationale: `pack.cells.burg[next] ? 1 : 3` is the largest remaining term pulling tunnels through the settlements roads converge on. Factor 2 measured −4.1 points alone and −19.5 combined with rung 1; factor 1 measured −13.1 / −23.4. No requirement mentions the term, so no spec delta is needed. Length is the cost: factor 2 stayed ≤×1.236, factor 1 reached ×1.314.
-- Binds / suggests for next cycle: a `semi-test-driven` change reusing CH2's shape — measure with the harness, record a `verification.md`, keep the pinned high-ground, water, merge and traversal tests untouched.
+- Source: measurement + user ruling · opened 2026-09-29 from the ladder sweep (`child-log.md`, F3.2s); shipped 2026-09-30 as `weaken-underground-burg-attraction`.
+- Result: paired 8 seeds on one build, production **0.516** against the attraction-3 control **0.561** — every seed improves, exact-edge 0.297 → 0.243, corridor distance 0.56 → 0.62, length **×0.956** (worst ×1.002), served 0.737 → 0.733. The control reproduced the pre-rung baseline exactly, so the delta is the rung's. Plane audit: zero violations, `repairs=0`, contact down.
+- Correction of record: the archived ladder predicted ×1.142 length for factor 2; on the post-hardening build it is ×0.956. The plane-hardening change altered the segments in between, so **length figures do not carry across a build change** — re-measure paired (F6.1).
+- Binds / suggests for next cycle: rung 3 (endpoint gates, H3) is measured against **0.516**, not 0.560, and inherits `skip_specs` as its likely shape (no requirement mentions endpoint geometry either).
 
 ### H3 — Rung 3: endpoint gate divergence — expect ~0.50 overlap at ~×1.12, spec-clean
 
