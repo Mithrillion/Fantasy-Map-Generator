@@ -458,6 +458,7 @@ function measure(chains: number[][], surface: SurfaceIndex, landSurface: Surface
   const sharedCells = [...cells].filter(cell => surface.cells.has(cell)).length;
   const bandSharedCells = [...bandCells].filter(cell => surface.cells.has(cell)).length;
   const sharedLandCells = [...cells].filter(cell => landSurface.cells.has(cell)).length;
+  const waterCellCount = [...cells].filter(cell => pack.cells.h[cell] < 20).length;
 
   for (const kind of Object.keys(byKind)) {
     const entry = byKind[kind];
@@ -518,6 +519,7 @@ function measure(chains: number[][], surface: SurfaceIndex, landSurface: Surface
     length: Math.round(totalLength),
     overlap: cells.size ? sharedCells / cells.size : 0,
     overlapLand: cells.size ? sharedLandCells / cells.size : 0,
+    waterShare: cells.size ? waterCellCount / cells.size : 0,
     lengthOverlap: totalLength ? sharedLength / totalLength : 0,
     parallel: totalLength ? cellParallelLength / totalLength : 0,
     exactEdge: totalLength ? exactEdgeLength / totalLength : 0,
@@ -730,13 +732,16 @@ it("measures underground alignment variants", { timeout: 3_600_000 }, async () =
 
     const longest = Math.max(...productionTunnels.map(chain => chain.length), 0);
     const landCells = pack.cells.h.reduce((count, height) => count + (height >= 20 ? 1 : 0), 0);
+    // D6: tunnels on water overlap no road by construction, so the per-seed water share is recorded
+    // separately and the verdict reads overlapLand (land route cells only) alongside the total
+    const waterCells = pack.cells.h.reduce((count, height) => count + (height < 20 ? 1 : 0), 0);
     const groups = surfaceRoutes.reduce<Record<string, number>>((all, route) => {
       const group = route.group ?? "unknown";
       all[group] = (all[group] ?? 0) + 1;
       return all;
     }, {});
     console.log(
-      `SEED ${seed} cells=${pack.cells.i.length} land=${landCells} burgs=${(pack.burgs as unknown as Burg[]).filter(b => b?.i && !b.removed).length} ` +
+      `SEED ${seed} cells=${pack.cells.i.length} land=${landCells} water=${waterCells} burgs=${(pack.burgs as unknown as Burg[]).filter(b => b?.i && !b.removed).length} ` +
         `subterranean=${Object.values(subterraneanByFeature()).reduce((sum, list) => sum + list.length, 0)} ` +
         `surfaceRoutes=${surfaceRoutes.length} ${JSON.stringify(groups)} surfaceCells=${surface.cells.size} landRouteCells=${landSurface.cells.size} ` +
         `productionRoutes=${productionTunnels.length} longest=${longest}`
@@ -759,6 +764,7 @@ it("measures underground alignment variants", { timeout: 3_600_000 }, async () =
           length: row.length,
           overlap: round(row.overlap),
           overlapLand: round(row.overlapLand),
+          waterShare: round(row.waterShare),
           parallel: round(row.parallel),
           exactEdge: round(row.exactEdge),
           alongEdge: round(row.alongEdge),
@@ -791,6 +797,7 @@ it("measures underground alignment variants", { timeout: 3_600_000 }, async () =
       seeds: subset.length,
       overlap: round(mean(subset.map(row => row.overlap as number))),
       overlapLand: round(mean(subset.map(row => row.overlapLand as number))),
+      waterShare: round(mean(subset.map(row => row.waterShare as number))),
       parallel: round(mean(subset.map(row => row.parallel as number))),
       exactEdge: round(mean(subset.map(row => row.exactEdge as number))),
       alongEdge: round(mean(subset.map(row => row.alongEdge as number))),

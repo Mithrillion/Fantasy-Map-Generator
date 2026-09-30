@@ -237,15 +237,20 @@ to the steps that already read them:
   not see a burg set that depends on the option. With the option off it draws nothing, so the rest
   of generation is byte-for-byte what it was.
 - **`routes` builds.** After the surface network, `Routes.generateUndergroundHighways()` runs one
-  Urquhart topology per feature over the subterranean-capable burgs and paths it with
-  `getUndergroundPathCost` — water and uninhabitable cells impassable, high ground cheaper than
-  lowland, a bounded penalty on cells near the surface routes so a tunnel keeps clear of the corridors
-  it is an alternative to, and the discount drawn from the underground network alone. A burg cell
-  with below-level presence is cheaper than a plain one, but less so than on the surface: the tunnel
-  attraction is 2 (`UNDERGROUND_BURG_ATTRACTION`) against the land cost's 3. A burg with ground-level
-  presence only is priced as a plain cell, and a missing or removed record too, so a tunnel prefers the
-  settlements it serves without being paid to graze the ones it only passes. The highways keep the
-  `roads` group, so religion spread, trade animation and the road and crossroad tests need no branch.
+  Urquhart topology per feature over the subterranean-capable burgs and paths it with a feature-scoped
+  evaluator (`createUndergroundCost` closes over the pair's landmass, so a crossing may run under a
+  bay but never lands on a foreign shore) built on `getUndergroundPathCost`: uninhabitable land
+  impassable; water passable only within the coast-indenting bound — a step onto water farther than
+  two cells from land is prohibitive — and priced by depth through the height term, so a shallow bay
+  costs less than a deep one; frozen water impassable by the sea-route temperature rule; high ground
+  cheaper than lowland; a bounded penalty on cells near the surface routes so a tunnel keeps clear of
+  the corridors it is an alternative to; and the discount drawn from the underground network alone.
+  A burg cell with below-level presence is cheaper than a plain one, but less so than on the surface:
+  the tunnel attraction is 2 (`UNDERGROUND_BURG_ATTRACTION`) against the land cost's 3. A burg with
+  ground-level presence only is priced as a plain cell, and a missing or removed record too, so a
+  tunnel prefers the settlements it serves without being paid to graze the ones it only passes. The
+  highways keep the `roads` group, so religion spread, trade animation and the road and crossroad
+  tests need no branch.
 
 The connectivity rule binds **generation only**. The planes are held apart by one predicate pair —
 `hasGroundLevelPresence` for surface routes, `hasBelowLevelPresence` for underground ones — and

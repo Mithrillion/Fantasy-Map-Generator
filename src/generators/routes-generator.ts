@@ -357,20 +357,26 @@ class RoutesModule {
   }
 
   /**
-   * Tunnelling: water forbidden, high ground cheaper than lowland, surface corridors avoided, discount
-   * from the underground network alone. The burg attraction is weaker here than in the land cost and
-   * plane-aware: only a burg the network can serve is a cheaper cell, a surface-only one prices as plain.
+   * Tunnelling: water passable only within the coast-indenting bound and priced by depth through the
+   * height term, frozen water impassable, high ground cheaper than lowland, surface corridors
+   * avoided, discount from the underground network alone. The burg attraction is weaker here than in
+   * the land cost and plane-aware: only a burg the network can serve is a cheaper cell, a
+   * surface-only one prices as plain. The pair's landmass is enforced by createUndergroundCost.
    */
   getUndergroundPathCost(current: number, next: number) {
-    const { h, biome, p } = pack.cells;
-    if (h[next] < 20) return Infinity; // no underground highway runs through water
+    const { h, biome, p, t, g } = pack.cells;
+    const isWater = h[next] < 20;
 
-    const habitability = pack.biomes[biome[next]].habitability;
-    if (!habitability) return Infinity; // the same gate the land cost uses: glaciers block
+    if (isWater) {
+      if (t[next] < -2) return Infinity; // the crossing bound: only water that indents the coast is diggable
+      if (grid.cells.temp[g[next]] < MIN_PASSABLE_SEA_TEMP) return Infinity; // frozen water, as sea routes gate it
+    } else if (!pack.biomes[biome[next]].habitability) {
+      return Infinity; // the same gate the land cost uses: glaciers block
+    }
 
     const distanceCost = distanceSquared(p[current], p[next]);
-    const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000; // [1, 1.1]
-    const heightModifier = 1 + Math.max(50 - h[next], 0) / 50; // [1, 2]: boring under a mountain beats lowland
+    const habitabilityModifier = 1 + Math.max(100 - pack.biomes[biome[next]].habitability, 0) / 1000; // [1, 1.1]
+    const heightModifier = 1 + Math.max(50 - h[next], 0) / 50; // [1, 2]: boring under a mountain beats lowland, deeper water costs dearer
     const connectionModifier = this.undergroundConnections.has(`${current}-${next}`) ? 0.5 : 1;
     const burgId = pack.cells.burg[next];
     const burg = burgId ? pack.burgs[burgId] : undefined;
@@ -384,6 +390,18 @@ class RoutesModule {
       burgModifier *
       this.surfaceSeparation(next)
     );
+  }
+
+  /**
+   * The per-pair tunnel cost: the pair's landmass closed over, so a crossing may run under the bay
+   * but never lands on a foreign shore. Water steps are bound-governed and feature-blind; the
+   * pricing itself is getUndergroundPathCost.
+   */
+  createUndergroundCost(feature: number) {
+    return (current: number, next: number) => {
+      if (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature) return Infinity;
+      return this.getUndergroundPathCost(current, next);
+    };
   }
 
   /** A tunnel step pays for running on or beside a surface route; beyond the range it costs nothing extra */
@@ -657,13 +675,14 @@ class RoutesModule {
 
     for (const [key, featureBurgs] of Object.entries(burgsByFeature)) {
       if (featureBurgs.length < 2) continue; // a connection needs a pair
+      const getCost = this.createUndergroundCost(Number(key)); // the pair's landmass: no foreign shores
       const points = featureBurgs.map(burg => [burg.x, burg.y] as Point);
       const urquhartEdges = this.calculateUrquhartEdges(points);
 
       urquhartEdges.forEach(([fromId, toId]) => {
         const start = featureBurgs[fromId].cell;
         const exit = featureBurgs[toId].cell;
-        const pathCells = findPath(start, next => next === exit, this.getUndergroundPathCost.bind(this), pack);
+        const pathCells = findPath(start, next => next === exit, getCost, pack);
         if (!pathCells) return;
 
         for (const segment of this.getUndergroundSegments(pathCells, undergroundEdges)) {
@@ -774,7 +793,7 @@ class RoutesModule {
       const pathCells = findPath(
         burg.cell,
         cellId => targets.has(cellId),
-        this.getUndergroundPathCost.bind(this),
+        this.createUndergroundCost(burg.feature),
         pack
       );
       if (!pathCells || pathCells.length < 2) continue;

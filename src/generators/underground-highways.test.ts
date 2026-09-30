@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isLand } from "../utils";
+import { distanceSquared, isLand } from "../utils";
 import { findPath } from "../utils/pathUtils";
 import { getClassification, hasBelowLevelPresence, hasGroundLevelPresence } from "./burg-classification";
 import type { Burg } from "./burgs-generator";
@@ -17,6 +17,19 @@ const STRAIT = 3;
 const CELL_COUNT = COLUMNS * ROWS;
 const cellAt = (row: number, column: number) => row * COLUMNS + column;
 const isStrait = (cell: number) => cell % COLUMNS === STRAIT;
+
+/**
+ * The 9x3 bay variant: one landmass (feature 1) shores both sides of a bay (water columns 3-5,
+ * feature 3), whose second water column sits at the crossing bound's edge (t = -2). The optional
+ * one-cell isle (feature 2, row 1 column 4) is a foreign landmass inside the bay, which makes every
+ * water cell a shore cell (t = -1) and leaves no land neck around it. Cell id = row * 9 + col.
+ */
+const BAY_COLUMNS = 9;
+const BAY_WEST = 3; // the bay's first water column
+const BAY_EAST = 5; // its last
+const BAY_ISLE = 4; // the isle's column inside the bay
+const BAY_CELL_COUNT = BAY_COLUMNS * ROWS;
+const bayAt = (row: number, column: number) => row * BAY_COLUMNS + column;
 
 /** Minimal FlatQueue stand-in (correct, not optimised) for the A* the pathfinder runs */
 class TestFlatQueue {
@@ -36,56 +49,102 @@ class TestFlatQueue {
   }
 }
 
-function makePack(heights: (cell: number) => number = () => 30) {
+/**
+ * Builds the fixture pack with the fields the underground gates read: per-cell `t` is the shore
+ * distance (land 1, water -1, the bay's second column -2) and the grid stub built beside it
+ * (`makeGrid`) holds `temp` above `MIN_PASSABLE_SEA_TEMP` everywhere. Heights and biomes follow the
+ * base fixture: land biome 1, water biome 12 (habitability 0, which water legs do not gate on),
+ * water h 5.
+ */
+function makePack(
+  heights: (cell: number) => number = () => 30,
+  { bay = false, isle = false }: { bay?: boolean; isle?: boolean } = {}
+) {
+  const columns = bay ? BAY_COLUMNS : COLUMNS;
+  const cellCount = bay ? BAY_CELL_COUNT : CELL_COUNT;
   const p: [number, number][] = [];
   const c: number[][] = [];
-  const h = new Uint8Array(CELL_COUNT);
-  const f = new Uint8Array(CELL_COUNT);
-  const biome = new Uint8Array(CELL_COUNT);
+  const h = new Uint8Array(cellCount);
+  const f = new Uint8Array(cellCount);
+  const biome = new Uint8Array(cellCount);
+  const t = new Int8Array(cellCount);
 
-  for (let cell = 0; cell < CELL_COUNT; cell++) {
-    const row = Math.floor(cell / COLUMNS);
-    const column = cell % COLUMNS;
+  /** the bay variant's land: the shores on both sides, and the isle cell when the variant has one */
+  const isBayLand = (row: number, column: number) =>
+    row >= 0 &&
+    row < ROWS &&
+    column >= 0 &&
+    column < columns &&
+    (column < BAY_WEST || column > BAY_EAST || (isle && row === 1 && column === BAY_ISLE));
+
+  for (let cell = 0; cell < cellCount; cell++) {
+    const row = Math.floor(cell / columns);
+    const column = cell % columns;
     p.push([column * 10, row * 10]);
-    h[cell] = isStrait(cell) ? 5 : heights(cell);
-    f[cell] = column < STRAIT ? 1 : 2;
-    biome[cell] = isStrait(cell) ? 12 : 1;
 
     const neighbors: number[] = [];
-    if (row > 0) neighbors.push(cellAt(row - 1, column));
-    if (row < ROWS - 1) neighbors.push(cellAt(row + 1, column));
-    if (column > 0) neighbors.push(cellAt(row, column - 1));
-    if (column < COLUMNS - 1) neighbors.push(cellAt(row, column + 1));
+    if (row > 0) neighbors.push(cell - columns);
+    if (row < ROWS - 1) neighbors.push(cell + columns);
+    if (column > 0) neighbors.push(cell - 1);
+    if (column < columns - 1) neighbors.push(cell + 1);
     c.push(neighbors);
+
+    if (!bay) {
+      h[cell] = isStrait(cell) ? 5 : heights(cell);
+      f[cell] = column < STRAIT ? 1 : 2;
+      biome[cell] = isStrait(cell) ? 12 : 1;
+      t[cell] = isStrait(cell) ? -1 : 1;
+      continue;
+    }
+
+    const isIsle = isle && row === 1 && column === BAY_ISLE;
+    const isWater = !isBayLand(row, column);
+    h[cell] = isWater ? 5 : heights(cell);
+    f[cell] = isIsle ? 2 : isWater ? 3 : 1;
+    biome[cell] = isWater ? 12 : 1;
+    t[cell] = isWater
+      ? isBayLand(row - 1, column) ||
+        isBayLand(row + 1, column) ||
+        isBayLand(row, column - 1) ||
+        isBayLand(row, column + 1)
+        ? -1
+        : -2
+      : 1;
   }
 
-  const burgs = [
-    0 as unknown as Burg,
-    { cell: cellAt(1, 1), x: 10, y: 10, i: 1, name: "Deephold", feature: 1, capital: 0, underground: true },
-    { cell: cellAt(0, 2), x: 20, y: 0, i: 2, name: "Twinhall", feature: 1, capital: 0, subterranean: true },
-    { cell: cellAt(2, 0), x: 0, y: 20, i: 3, name: "Surfacetown", feature: 1, capital: 0 },
-    { cell: cellAt(1, 5), x: 50, y: 10, i: 4, name: "Stonegate", feature: 2, capital: 0, underground: true },
-    { cell: cellAt(1, 6), x: 60, y: 10, i: 5, name: "Rockmarch", feature: 2, capital: 0, underground: true }
-  ];
+  const burgs = bay
+    ? [
+        0 as unknown as Burg,
+        { cell: bayAt(1, 1), x: 10, y: 10, i: 1, name: "Westshore", feature: 1, capital: 0, underground: true },
+        { cell: bayAt(1, 7), x: 70, y: 10, i: 2, name: "Eastshore", feature: 1, capital: 0, underground: true }
+      ]
+    : [
+        0 as unknown as Burg,
+        { cell: cellAt(1, 1), x: 10, y: 10, i: 1, name: "Deephold", feature: 1, capital: 0, underground: true },
+        { cell: cellAt(0, 2), x: 20, y: 0, i: 2, name: "Twinhall", feature: 1, capital: 0, subterranean: true },
+        { cell: cellAt(2, 0), x: 0, y: 20, i: 3, name: "Surfacetown", feature: 1, capital: 0 },
+        { cell: cellAt(1, 5), x: 50, y: 10, i: 4, name: "Stonegate", feature: 2, capital: 0, underground: true },
+        { cell: cellAt(1, 6), x: 60, y: 10, i: 5, name: "Rockmarch", feature: 2, capital: 0, underground: true }
+      ];
 
-  const burgOfCell = new Uint16Array(CELL_COUNT);
+  const burgOfCell = new Uint16Array(cellCount);
   for (const burg of burgs) if (burg?.i) burgOfCell[burg.cell] = burg.i;
 
   return {
     cells: {
-      i: Array.from({ length: CELL_COUNT }, (_, cell) => cell),
+      i: Array.from({ length: cellCount }, (_, cell) => cell),
       p,
       c,
       h,
       f,
       biome,
+      t,
       burg: burgOfCell,
-      haven: new Uint16Array(CELL_COUNT),
-      harbor: new Uint8Array(CELL_COUNT),
-      r: new Uint16Array(CELL_COUNT),
-      fl: new Uint16Array(CELL_COUNT),
-      t: new Int8Array(CELL_COUNT),
-      g: new Uint8Array(CELL_COUNT),
+      haven: new Uint16Array(cellCount),
+      harbor: new Uint8Array(cellCount),
+      r: new Uint16Array(cellCount),
+      fl: new Uint16Array(cellCount),
+      g: new Uint8Array(cellCount),
       routes: {} as Record<number, Record<number, number>>
     },
     // biome 1 is habitable, biome 12 is not: `habitability: 0` is the gate the land cost uses
@@ -95,12 +154,15 @@ function makePack(heights: (cell: number) => number = () => 30) {
       ...Array.from({ length: 10 }, (_, i) => ({ i: i + 2, habitability: 40 })),
       { i: 12, habitability: 0 }
     ],
-    features: [0, { i: 1 }, { i: 2 }],
+    features: bay ? [0, { i: 1 }, { i: 2 }, { i: 3 }] : [0, { i: 1 }, { i: 2 }],
     burgs,
     rivers: [],
     routes: [] as Route[]
   };
 }
+
+/** The grid stub the water gates read `grid.cells.temp` from: above `MIN_PASSABLE_SEA_TEMP` everywhere */
+const makeGrid = (cellCount = CELL_COUNT) => ({ cells: { temp: new Array(cellCount).fill(20) } });
 
 /** Every cell joined by a route link, walked the way a journey walks the shared cell network */
 function reachable(from: number, to: number, canTraverse: (cell: number) => boolean): boolean {
@@ -122,20 +184,24 @@ function reachable(from: number, to: number, canTraverse: (cell: number) => bool
 
 const endpoints = (route: Route) => [route.points[0][2], route.points.at(-1)?.[2]] as number[];
 
+/** The cell shape a tunnel leg may occupy: land, or water within the crossing bound */
+const isTunnelPassableCell = (cell: number) => pack.cells.h[cell] >= 20 || Math.abs(pack.cells.t[cell]) <= 2;
+
 describe("underground highways", () => {
   let Routes: any;
   let Burgs: any;
+  let minPassableSeaTemp: number;
 
   beforeEach(async () => {
     globalThis.TIME = false;
     (globalThis as any).FlatQueue = TestFlatQueue;
     vi.stubGlobal("Pack", { findCell: () => -1 }); // only sharp-angle smoothing reads it
-    globalThis.grid = { cells: { temp: new Array(CELL_COUNT).fill(20) } } as unknown as typeof grid;
+    globalThis.grid = makeGrid() as unknown as typeof grid;
     globalThis.pack = makePack() as unknown as typeof pack;
     globalThis.options.generation.underground = true;
 
     await import("./river-generator"); // the water cost reads the Rivers global
-    await import("./routes-generator");
+    ({ MIN_PASSABLE_SEA_TEMP: minPassableSeaTemp } = await import("./routes-generator"));
     await import("./burgs-generator");
     Routes = (globalThis as any).Routes;
     Burgs = (globalThis as any).Burgs;
@@ -158,15 +224,89 @@ describe("underground highways", () => {
     }) as Route;
   const handHighway = (i: number, cells: number[]) => handRoute(i, cells, true);
 
-  it("makes a water step impassable and never enters an uninhabitable cell", () => {
-    const land = cellAt(1, 1);
+  /** bare-cost determinism: the pass's own fields start as they do on a fresh module */
+  const freshUndergroundState = () => {
+    Routes.surfaceDistances = undefined;
+    Routes.undergroundConnections = new Set();
+  };
+
+  it("lets a water step within the crossing bound pass", () => {
+    freshUndergroundState();
+    const west = cellAt(1, 2);
+    const east = cellAt(1, 4);
     const water = cellAt(1, STRAIT);
+
+    expect(pack.cells.t[water]).toBe(-1); // a shore water cell
+    expect(Routes.getUndergroundPathCost(west, water)).toBeLessThan(Infinity);
+    expect(Routes.getUndergroundPathCost(east, water)).toBeLessThan(Infinity); // from either bank
+
+    pack.cells.t[cellAt(0, STRAIT)] = -2; // the bound's edge is still passable
+    expect(Routes.getUndergroundPathCost(west, cellAt(0, STRAIT))).toBeLessThan(Infinity);
+  });
+
+  it("prices a deep water step dearer than an equal shallow one", () => {
+    freshUndergroundState();
+    const from = cellAt(1, 2);
+    const shallow = cellAt(0, STRAIT);
+    const deep = cellAt(2, STRAIT);
+    pack.cells.h[shallow] = 19;
+    pack.cells.h[deep] = 2;
+
+    expect(pack.cells.t[shallow]).toBe(-1);
+    expect(distanceSquared(pack.cells.p[from], pack.cells.p[shallow])).toBe(
+      distanceSquared(pack.cells.p[from], pack.cells.p[deep])
+    ); // equal distances and equal t: the depth term is the only difference
+    expect(Routes.getUndergroundPathCost(from, deep)).toBeGreaterThan(Routes.getUndergroundPathCost(from, shallow));
+  });
+
+  it("prices a water step dearer than the same step on land", () => {
+    freshUndergroundState();
+    const from = cellAt(1, 2);
+    const land = cellAt(2, 2);
+    const water = cellAt(1, STRAIT);
+    pack.cells.h[land] = 90; // heightModifier 1.0
+
+    expect(distanceSquared(pack.cells.p[from], pack.cells.p[land])).toBe(
+      distanceSquared(pack.cells.p[from], pack.cells.p[water])
+    ); // equal offsets from the bank
+    expect(Routes.getUndergroundPathCost(from, water)).toBeGreaterThan(Routes.getUndergroundPathCost(from, land));
+  });
+
+  it("keeps water beyond the shore-distance bound prohibitive", () => {
+    freshUndergroundState();
+    const beyondBound = cellAt(1, STRAIT);
+    pack.cells.t[beyondBound] = -3;
+
+    expect(Routes.getUndergroundPathCost(cellAt(1, 2), beyondBound)).toBe(Infinity);
+    expect(Routes.getUndergroundPathCost(cellAt(1, 4), beyondBound)).toBe(Infinity); // from either bank
+
+    pack.cells.t[cellAt(0, STRAIT)] = -4;
+    expect(Routes.getUndergroundPathCost(cellAt(0, 2), cellAt(0, STRAIT))).toBe(Infinity);
+    expect(Routes.getUndergroundPathCost(cellAt(0, 4), cellAt(0, STRAIT))).toBe(Infinity);
+  });
+
+  it("keeps frozen water impassable", () => {
+    freshUndergroundState();
+    const from = cellAt(1, 2);
+    const frozen = cellAt(1, STRAIT);
+    const control = cellAt(0, STRAIT);
+    pack.cells.g[frozen] = 1; // the water leg reads its own grid temperature
+    grid.cells.temp[1] = minPassableSeaTemp - 1;
+
+    expect(Routes.getUndergroundPathCost(from, frozen)).toBe(Infinity);
+    expect(Routes.getUndergroundPathCost(from, control)).toBeLessThan(Infinity); // the default temp is passable
+  });
+
+  it("refuses a land step onto a foreign landmass and keeps the glacier gate", () => {
+    freshUndergroundState();
+    const crossing = cellAt(1, STRAIT); // bound-passable water between the landmasses
+    const foreignShore = cellAt(1, 4); // land of feature 2
+    expect(Routes.createUndergroundCost(1)(crossing, foreignShore)).toBe(Infinity);
+    expect(Routes.createUndergroundCost(2)(crossing, foreignShore)).toBeLessThan(Infinity);
+
+    const land = cellAt(1, 1);
     const glacier = cellAt(1, 2);
-
-    expect(Routes.getUndergroundPathCost(land, water)).toBe(Infinity);
-    expect(Routes.getUndergroundPathCost(cellAt(1, 4), water)).toBe(Infinity); // water blocks from either bank
-
-    pack.cells.biome[glacier] = 12; // glacier: habitability 0
+    pack.cells.biome[glacier] = 12; // habitability 0
     expect(Routes.getUndergroundPathCost(land, glacier)).toBe(Infinity);
   });
 
@@ -277,6 +417,117 @@ describe("underground highways", () => {
     expect(Routes.getWaterPathCost(from, to)).toBe(waterCost);
   });
 
+  it("keeps the land and water costs unaware of the underground network on water legs", () => {
+    generate();
+    const land = cellAt(1, 2);
+    const water = cellAt(1, STRAIT);
+    expect(Routes.getLandPathCost(land, water)).toBe(Infinity); // the height gate stands on water
+    const waterCost = Routes.getWaterPathCost(land, water);
+    expect(waterCost).toBeLessThan(Infinity);
+
+    globalThis.options.generation.underground = false;
+    Routes.generate([], 1);
+    expect(Routes.getLandPathCost(land, water)).toBe(Infinity);
+    expect(Routes.getWaterPathCost(land, water)).toBe(waterCost); // the sea cost reads the same fields it always did
+  });
+
+  it("prices a water step as a plain, burgless cell and keeps the separation term", () => {
+    // bare state: no surface network exists, so the water step is distance x 1.1 x 1.62 x 2 — the
+    // plain no-burg price, the depth term the only water-specific factor and no burg discount
+    freshUndergroundState();
+    const from = cellAt(1, 2);
+    const water = cellAt(1, STRAIT);
+    pack.cells.h[water] = 19; // shallow: the depth term at its gentlest
+    const distance = distanceSquared(pack.cells.p[from], pack.cells.p[water]);
+    const plain = distance * 1.1 * 1.62 * 2; // the water biome's habitability 0, h 19, no burg on water
+
+    expect(Routes.getUndergroundPathCost(from, water)).toBeCloseTo(plain, 5);
+
+    // a locked surface route over the bay seeds the separation field on the water cell too
+    pack.cells.burg = new Uint16Array(CELL_COUNT);
+    pack.burgs = [0] as unknown as typeof pack.burgs;
+    Routes.generate([handRoute(1, [water, cellAt(1, 4)])], 1);
+    expect(Routes.getUndergroundPathCost(from, water) / plain).toBeCloseTo(3, 5); // the full penalty at distance 0
+  });
+
+  // The bay variant: one landmass (feature 1) around a bay, an optional foreign isle (feature 2).
+  // The crossing tests that need a whole network run generate() on it; useBay also clears the
+  // pass's own fields, so a bare call never reads the previous fixture's separation field.
+  describe("bounded water crossings on a bay", () => {
+    const useBay = ({ isle = false }: { isle?: boolean } = {}) => {
+      globalThis.pack = makePack(() => 30, { bay: true, isle }) as unknown as typeof pack;
+      globalThis.grid = makeGrid(BAY_CELL_COUNT) as unknown as typeof grid;
+      freshUndergroundState();
+    };
+
+    it("a bay crossing serves its burgs and stays plane-clean", () => {
+      useBay();
+      // the bay spans the fixture's every row, so the land detour does not exist: the pair is
+      // bridged through the bay's water or not at all
+      generate();
+
+      expect(undergroundRoutes()).toHaveLength(1);
+      const crossing = undergroundRoutes()[0];
+      expect(crossing.points.some(([, , cell]) => pack.cells.h[cell] < 20)).toBe(true);
+      for (const cell of endpoints(crossing)) {
+        expect(pack.cells.h[cell]).toBeGreaterThanOrEqual(20); // endpoints stay on land
+        expect(hasBelowLevelPresence(pack.burgs[pack.cells.burg[cell]])).toBe(true);
+      }
+      expect(
+        crossing.points
+          .map(([, , cell]) => cell)
+          .filter(cell => pack.cells.h[cell] >= 20)
+          .every(cell => pack.cells.f[cell] === 1)
+      ).toBe(true); // no cell of the crossing is land of another feature
+
+      const report = auditPlanes(pack, pack.routes);
+      expect(report.violations).toEqual([]);
+    });
+
+    it("keeps a mixed tunnel's record shape", () => {
+      useBay();
+      generate();
+
+      const crossing = undergroundRoutes().find(route => route.points.some(([, , cell]) => pack.cells.h[cell] < 20));
+      expect(crossing).toBeDefined();
+      expect(crossing!.group).toBe("roads"); // the group is what the rest of the app branches on
+      expect(crossing!.underground).toBe(true);
+      expect(Object.keys(crossing!).sort()).toEqual(["feature", "group", "i", "name", "points", "underground"]);
+    });
+
+    it("the isle detour is refused", () => {
+      useBay({ isle: true });
+      // the bay leaves no land neck, so the crossing is the only way through; the isle sits in the
+      // middle of it, and the pair's own feature scope must route around, not through
+      const path = findPath(bayAt(1, 1), cell => cell === bayAt(1, 7), Routes.createUndergroundCost(1), pack as never);
+
+      expect(path).not.toBeNull();
+      expect(path!.some(cell => pack.cells.h[cell] < 20)).toBe(true); // the way through is the bay's water
+      expect(path!.includes(bayAt(1, 4))).toBe(false); // never steps on the isle's land
+      expect(path!.every(cell => pack.cells.h[cell] < 20 || pack.cells.f[cell] === 1)).toBe(true);
+    });
+
+    it("the repair pass crosses water with the same factory", () => {
+      useBay();
+      // the east shore is served by a pinned stretch; the west burg is the orphan to reconnect
+      const eastshore = pack.burgs[2] as Burg;
+      const westshore = pack.burgs[1] as Burg;
+      pack.routes = [handHighway(900, [eastshore.cell, bayAt(2, 7)])];
+
+      expect(Routes.repairUndergroundHighways()).toBe(1);
+      const repaired = pack.routes.find(route => route.repaired)!;
+      expect(endpoints(repaired).includes(westshore.cell)).toBe(true); // the orphan is served
+      expect(
+        repaired.points
+          .map(([, , cell]) => cell)
+          .filter(cell => pack.cells.h[cell] >= 20)
+          .every(cell => pack.cells.f[cell] === 1)
+      ).toBe(true);
+      const report = auditPlanes(pack, pack.routes);
+      expect(report.violations).toEqual([]);
+    });
+  });
+
   it("connects subterranean-capable burgs only, keeping the surface network to itself", () => {
     generate();
 
@@ -306,16 +557,20 @@ describe("underground highways", () => {
     expect(undergroundRoutes().every(route => route.underground === true)).toBe(true);
   });
 
-  it("never runs through water and never joins two landmasses", () => {
+  it("runs on the pair's land or bound-passage water, and never joins two landmasses", () => {
     generate();
 
     for (const route of undergroundRoutes()) {
       const features = new Set<number>();
       for (const [, , cell] of route.points) {
-        expect(pack.cells.h[cell]).toBeGreaterThanOrEqual(20);
-        features.add(pack.cells.f[cell]);
+        if (pack.cells.h[cell] < 20) {
+          expect(Math.abs(pack.cells.t[cell])).toBeLessThanOrEqual(2); // a water leg stays within the crossing bound
+        } else {
+          features.add(pack.cells.f[cell]);
+        }
       }
-      expect(features.size).toBe(1); // a strait is not a tunnel
+      expect(features.size).toBe(1); // a strait is not a tunnel: land of one feature only
+      expect(features.has(route.feature)).toBe(true);
     }
 
     // the two burgs across the strait are not connected
@@ -420,7 +675,7 @@ describe("underground highways", () => {
     Burgs.remove(burgId);
 
     expect(pack.routes.some(route => route.i === highway.i)).toBe(false);
-    expect(pack.cells.h[cellAt(0, 5)]).toBeGreaterThanOrEqual(20);
+    expect(isTunnelPassableCell(cellAt(0, 5))).toBe(true); // the far endpoint was a cell a tunnel may occupy
   });
 
   it("drops a highway whose endpoint burg loses its classification", () => {
@@ -433,7 +688,7 @@ describe("underground highways", () => {
 
     expect(Routes.pruneUndergroundHighways()).toBeGreaterThan(0);
     expect(pack.routes.some(route => route.i === stub.i)).toBe(false);
-    expect(pack.cells.h[cellAt(0, 1)]).toBeGreaterThanOrEqual(20);
+    expect(isTunnelPassableCell(cellAt(0, 1))).toBe(true); // the far endpoint was a cell a tunnel may occupy
   });
 
   it("keeps a highway that ends at a network junction instead of a burg", () => {
@@ -893,7 +1148,9 @@ describe("underground highways", () => {
       const penalised = cost(8, 9);
       expect(Number.isFinite(penalised)).toBe(true);
       expect(penalised).toBeGreaterThan(cost(12, 13));
-      // the gates that do block are untouched by the separation rule
+      // the gates that do block are untouched by the separation rule: water beyond the crossing bound
+      pack.cells.t[cellAt(1, STRAIT)] = -3;
+      pack.cells.t[cellAt(0, STRAIT)] = -4;
       expect(cost(1, cellAt(1, STRAIT))).toBe(Infinity);
       expect(cost(1, cellAt(0, STRAIT))).toBe(Infinity);
       expect(cost(1, cellAt(1, 1) + 1)).toBeLessThan(Infinity);
