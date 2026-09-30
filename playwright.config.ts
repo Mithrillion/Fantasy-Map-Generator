@@ -1,7 +1,19 @@
 import { defineConfig, devices } from '@playwright/test'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const isCI = !!process.env.CI
 const skipBuild = !!process.env.SKIP_BUILD
+
+// Chromium refuses to start when its config dir is unwritable (and raises a blocking dialog),
+// which is the case under a sandbox that mounts $HOME read-only. Keep config + cache in the
+// writable temp dir instead. env replaces process.env, so carry it over explicitly.
+const browserConfigDir = join(tmpdir(), 'dsh-browser-config')
+const browserEnv = {
+  ...process.env,
+  XDG_CONFIG_HOME: browserConfigDir,
+  XDG_CACHE_HOME: browserConfigDir,
+}
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -26,7 +38,10 @@ export default defineConfig({
         // CHROMIUM_PATH: point at a system-installed browser (e.g. NixOS, where Playwright's own
         // downloaded chromium is dynamically linked against libs the sandbox doesn't have).
         // Unset elsewhere (CI, other machines) so Playwright uses its own managed browser.
-        ...(process.env.CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.CHROMIUM_PATH } } : {}),
+        launchOptions: {
+          env: browserEnv,
+          ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
+        },
       },
     },
   ],
