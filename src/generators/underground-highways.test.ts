@@ -674,10 +674,67 @@ describe("underground highways", () => {
       const from = classified - COLUMNS;
       generate();
 
-      // pathfinding is untouched: a burg cell still costs a third of a plain one
+      // the land cost keeps its own attraction: a burg cell costs exactly a third of a plain one, so
+      // the weaker underground attraction below cannot be read as a surface change
       const burgStep = Routes.getLandPathCost(from, classified);
       pack.cells.burg[classified] = 0;
       expect(Routes.getLandPathCost(from, classified)).toBeCloseTo(burgStep * 3, 5);
+    });
+    /**
+     * Both plane costs read the *destination* cell's burg: the term is what makes a tunnel prefer the
+     * settlements it serves. The probes make two destination cells identical in every respect but the
+     * burg map — same coordinates, height, biome and separation — so the quotient of the two steps is
+     * that term alone. State is set after the last `generate()`, which replaces `pack.cells`, and put
+     * back afterwards so the probe cannot leak into the tests around it.
+     */
+    const withAttractionProbe = (run: (cells: { from: number; burgCell: number; plainCell: number }) => void) => {
+      const from = cellAt(1, 0);
+      const burgCell = cellAt(1, 1);
+      const plainCell = cellAt(1, 2);
+      const saved = {
+        point: pack.cells.p[plainCell],
+        height: pack.cells.h[plainCell],
+        biome: pack.cells.biome[plainCell],
+        burgs: pack.cells.burg,
+        records: pack.burgs
+      };
+
+      pack.cells.p[plainCell] = [...pack.cells.p[burgCell]];
+      pack.cells.h[plainCell] = pack.cells.h[burgCell];
+      pack.cells.biome[plainCell] = pack.cells.biome[burgCell];
+      pack.cells.burg = new Uint16Array(CELL_COUNT);
+      pack.burgs = [0] as unknown as typeof pack.burgs;
+      pack.cells.burg[burgCell] = 99;
+
+      try {
+        run({ from, burgCell, plainCell });
+      } finally {
+        pack.cells.p[plainCell] = saved.point;
+        pack.cells.h[plainCell] = saved.height;
+        pack.cells.biome[plainCell] = saved.biome;
+        pack.cells.burg = saved.burgs;
+        pack.burgs = saved.records;
+      }
+    };
+
+    it("prices a tunnel step off a burg cell at the weakened attraction", () => {
+      // no eligible pairs: the pass runs and merges nothing, but the separation field is built
+      globalThis.options.generation.underground = false;
+      generate();
+      pack.routes = [];
+      globalThis.options.generation.underground = true;
+
+      withAttractionProbe(({ from, burgCell, plainCell }) => {
+        const ratio = Routes.getUndergroundPathCost(from, plainCell) / Routes.getUndergroundPathCost(from, burgCell);
+        expect(ratio).toBeCloseTo(2, 5);
+      });
+    });
+
+    it("leaves the surface network's own burg attraction at three", () => {
+      withAttractionProbe(({ from, burgCell, plainCell }) => {
+        const ratio = Routes.getLandPathCost(from, plainCell) / Routes.getLandPathCost(from, burgCell);
+        expect(ratio).toBeCloseTo(3, 5);
+      });
     });
   });
 

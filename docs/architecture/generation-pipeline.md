@@ -240,9 +240,11 @@ to the steps that already read them:
   Urquhart topology per feature over the subterranean-capable burgs and paths it with
   `getUndergroundPathCost` — water and uninhabitable cells impassable, high ground cheaper than
   lowland, a bounded penalty on cells near the surface routes so a tunnel keeps clear of the corridors
-  it is an alternative to, and the discount drawn from the underground network alone. The highways
-  keep the `roads` group, so religion spread, trade animation and the road and crossroad tests need no
-  branch.
+  it is an alternative to, and the discount drawn from the underground network alone. A burg cell is
+  cheaper than a plain one, but less so than on the surface: the tunnel attraction is 2
+  (`UNDERGROUND_BURG_ATTRACTION`) against the land cost's 3, so a tunnel prefers the settlements it
+  serves without being paid to graze the ones it passes. The highways keep the `roads` group, so
+  religion spread, trade animation and the road and crossroad tests need no branch.
 
 The connectivity rule binds **generation only**. The planes are held apart by one predicate pair —
 `hasGroundLevelPresence` for surface routes, `hasBelowLevelPresence` for underground ones — and

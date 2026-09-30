@@ -19,6 +19,8 @@ const RIVER_TYPE_MODIFIER = 1.5;
 const SURFACE_SEPARATION = 2;
 /** beyond this many cells from a surface route a tunnel step pays nothing extra */
 const SURFACE_SEPARATION_RANGE = 4;
+/** How much dearer a tunnel step off a burg cell is than on one: the pull toward the settlements it serves */
+const UNDERGROUND_BURG_ATTRACTION = 2;
 const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
   "-1": 1, // coastline
   "-2": 1.8, // sea
@@ -354,7 +356,11 @@ class RoutesModule {
     return distanceCost * typeModifier * connectionModifier;
   }
 
-  /** Tunnelling: water forbidden, high ground cheaper than lowland, surface corridors avoided, discount from the underground network alone */
+  /**
+   * Tunnelling: water forbidden, high ground cheaper than lowland, surface corridors avoided, discount
+   * from the underground network alone. The burg attraction is weaker here than in the land cost: a
+   * tunnel still prefers a settlement cell, but is not paid to graze the ones it only passes.
+   */
   getUndergroundPathCost(current: number, next: number) {
     const { h, biome, p } = pack.cells;
     if (h[next] < 20) return Infinity; // no underground highway runs through water
@@ -366,7 +372,7 @@ class RoutesModule {
     const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000; // [1, 1.1]
     const heightModifier = 1 + Math.max(50 - h[next], 0) / 50; // [1, 2]: boring under a mountain beats lowland
     const connectionModifier = this.undergroundConnections.has(`${current}-${next}`) ? 0.5 : 1;
-    const burgModifier = pack.cells.burg[next] ? 1 : 3;
+    const burgModifier = pack.cells.burg[next] ? 1 : UNDERGROUND_BURG_ATTRACTION;
 
     return (
       distanceCost *
