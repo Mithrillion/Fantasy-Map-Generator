@@ -53,19 +53,72 @@ Surface routes SHALL continue to connect only burgs with ground-level presence. 
 - **WHEN** a surface path runs across the cell of a burg without ground-level presence
 - **THEN** that cell stays on the route, and the record boundary moves to a neighbouring cell, so no step of the path is dropped
 
-### Requirement: Underground highways never run through water
+### Requirement: Underground highways cross water only in bounded stretches
 
-Every cell on an underground highway SHALL be a land cell. The generation cost of traversing a water cell SHALL be prohibitive, and an underground highway SHALL NOT cross from one landmass to another.
+An underground highway MAY pass under the water alongside its endpoints' landmass. A step onto a
+water cell SHALL NOT be impassable by rule: where the old prohibition made every water step
+prohibitive, a water step is passable under the bounds of this requirement. It SHALL be dearer than
+an otherwise equal step onto land, so that a crossing is chosen for the geometry it removes and not
+for its cheapness, and its cost SHALL rise with the depth of the water, so that a shallow bay costs
+less than a deep one. A water step beyond the crossing bound SHALL be prohibitive every time: the
+bound is the distance to the nearest land cell, so no underground highway crosses a sea arm wider
+than the bound, however cheap the direct line would be. Frozen water SHALL be impassable, by the
+same passable-sea temperature rule that sea routes already use.
 
-#### Scenario: No water cells on an underground highway
+The landmass constraint is unchanged: an underground highway SHALL NOT cross from one landmass to
+another, and with water legs present SHALL NOT step onto land belonging to another landmass. The
+endpoint constraint is unchanged: an underground highway continues to carry subterranean-capable
+burgs at both of its endpoints, on land. This requirement governs generation only: it SHALL NOT
+alter how any system traverses a generated underground highway, and a water-granting stretch
+confers no water transport on it.
 
-- **WHEN** underground highways are generated
-- **THEN** no cell of any underground highway is below the water level
+#### Scenario: Water is not categorically impassable
 
-#### Scenario: Adjacent landmasses are not joined
+- **WHEN** the generation cost of an underground highway step onto a shallow water cell within the
+  crossing bound is evaluated
+- **THEN** the cost is finite, because the step is passable
 
-- **WHEN** two subterranean-capable burgs lie on different landmasses separated by water
-- **THEN** no underground highway connects them
+#### Scenario: Deep water costs dearer than shallow
+
+- **WHEN** the cost of an underground highway step onto a deep water cell is compared with the same
+  step onto a shallow water cell at an equal distance
+- **THEN** the deep step costs more
+
+#### Scenario: A water step costs more than the same step on land
+
+- **WHEN** the generation cost of an underground highway step onto a water cell is compared with the
+  same step onto a land cell identical but for its height
+- **THEN** the water step costs more
+
+#### Scenario: A wide sea arm stays impassable
+
+- **WHEN** the generation cost of an underground highway step onto a water cell farther from every
+  land cell than the crossing bound is evaluated
+- **THEN** the cost is prohibitive, however short the direct line would be
+
+#### Scenario: Frozen water is impassable
+
+- **WHEN** the generation cost of an underground highway step onto colder-than-passable water is
+  evaluated, by the temperature rule sea routes use
+- **THEN** the cost is prohibitive
+
+#### Scenario: No crossing steps onto a foreign landmass
+
+- **WHEN** a path between two subterranean-capable burgs on one landmass is found
+- **THEN** no cell of the path is land belonging to another landmass, however narrow the water way
+  to it
+
+#### Scenario: Endpoints, boundaries and the audit are unchanged
+
+- **WHEN** underground highways are generated with water legs present
+- **THEN** every endpoint is a land cell of a burg with below-level presence, every boundary rule
+  applies as written, and the plane audit reports zero violations
+
+#### Scenario: Traversal is unchanged in kind
+
+- **WHEN** any system traverses a generated underground highway that carries water cells
+- **THEN** the transport rules that already apply to every path apply to it, and the water cells of
+  the crossing confer no right of water transport
 
 ### Requirement: Underground highways prefer high ground
 
