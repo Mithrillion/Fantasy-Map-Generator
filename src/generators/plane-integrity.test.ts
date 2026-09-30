@@ -103,10 +103,10 @@ describe("plane integrity audit", () => {
     expect(merged[0]).toMatchObject({ cell: 1, route: 0, kind: "junction", carriedBy: [1] });
   });
 
-  it("reports a below-level burg without a connection as a service violation", () => {
+  it("reports a fully subterranean burg without a connection as a service violation", () => {
     const map = mapFixture([
-      { i: 1, cell: 2, classification: "underground" },
-      { i: 2, cell: 5, classification: "subterranean" }
+      { i: 1, cell: 2, classification: "subterranean" },
+      { i: 2, cell: 5, classification: "underground" }
     ]);
     const routes = [recordAt(0, [1, 2], true)];
 
@@ -115,6 +115,21 @@ describe("plane integrity audit", () => {
     expect(serviceViolations(report)).toEqual<PlaneViolation[]>([
       { rule: "service", burg: 2, cell: 5, feature: 1, name: "Burg 2" }
     ]);
+    expect(report.unconnectable).toEqual([]);
+  });
+
+  it("does not report a dual-identity burg without a connection as a service violation", () => {
+    // the dual-identity burg reaches the surface network, so no tunnel is owed to it
+    const map = mapFixture([
+      { i: 1, cell: 2, classification: "underground" },
+      { i: 2, cell: 5, classification: "subterranean" }
+    ]);
+    const routes = [recordAt(0, [1, 2], true)];
+
+    const report = auditPlanes(map, routes);
+
+    expect(serviceViolations(report)).toEqual([]);
+    expect(report.violations).toEqual([]);
     expect(report.unconnectable).toEqual([]);
   });
 

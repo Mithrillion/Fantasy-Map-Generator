@@ -236,10 +236,15 @@ to the steps that already read them:
   Marking belongs inside the step rather than beside it: `states` reads `pack.burgs` next and must
   not see a burg set that depends on the option. With the option off it draws nothing, so the rest
   of generation is byte-for-byte what it was.
-- **`routes` builds.** After the surface network, `Routes.generateUndergroundHighways()` runs one
-  Urquhart topology per feature over the subterranean-capable burgs and paths it with a feature-scoped
-  evaluator (`createUndergroundCost` closes over the pair's landmass, so a crossing may run under a
-  bay but never lands on a foreign shore) built on `getUndergroundPathCost`: uninhabitable land
+- **`routes` builds.** After the surface network, `Routes.generateUndergroundHighways()` selects the
+  pairs the two-layer policy admits (`selectUndergroundPairs`) and paths each with a feature-scoped
+  evaluator. The backbone is one tree per landmass over the fully subterranean burgs, with a
+  dual-identity burg kept only where it carries a path between two of them, since its surface route
+  already connects it; the shortcut layer adds a pair wherever the surface path between two burgs is at
+  least `UNDERGROUND_SHORTCUT_RATIO` (1.5) times their straight line, measured through the generated
+  surface records. The evaluator is `createUndergroundCost`, which closes over the pair's landmass so
+  a crossing may run under a bay but never lands on a foreign shore, and prices through
+  `getUndergroundPathCost`: uninhabitable land
   impassable; water passable only within the coast-indenting bound — a step onto water farther than
   two cells from land is prohibitive — and priced by depth through the height term, so a shallow bay
   costs less than a deep one; frozen water impassable by the sea-route temperature rule; high ground
@@ -269,10 +274,12 @@ Three rules keep the split honest once the stretches are assembled:
   end is a below-level burg and neither end is a junction another surviving underground highway runs
   through. A boundary cell carrying a surface burg is therefore kept while something continues through
   it, so a prune can no longer disconnect the burgs the record carried in its middle.
-- **The service repair.** `Routes.repairUndergroundHighways()` runs after the prune: every burg with
-  below-level presence that shares its landmass with another such burg and has no underground link is
-  pathed to the nearest connected peer with the production tunnel cost, and the stretch is appended
-  with `repaired: true`. A burg alone on its landmass is left unconnected and gets nothing else.
+- **The service repair.** `Routes.repairUndergroundHighways()` runs after the prune: every *fully
+  subterranean* burg that shares its landmass with another below-level burg and has no underground link
+  is pathed to the nearest connected peer with the production tunnel cost, and the stretch is appended
+  with `repaired: true`. A dual-identity burg reaches the surface network already, so no repair is owed
+  to it, and a burg alone on its landmass is left unconnected and gets nothing else. `auditPlanes`
+  reports a service violation for fully subterranean burgs only, on the same rule.
 
 `auditPlanes` reports the whole state of a generated map — census, boundary classification, per-plane
 connections, contact and violations — and the real-map test

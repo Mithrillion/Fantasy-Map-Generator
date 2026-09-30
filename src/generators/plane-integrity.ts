@@ -155,7 +155,8 @@ export function auditPlanes(map: typeof pack, routes: Route[]): PlaneReport {
     }
   }
 
-  // the service rule: a below-level burg that could be paired is not left without a connection
+  // the service rule: a fully subterranean burg that could be paired is not left without a connection.
+  // A dual-identity burg reaches the surface network already, so no tunnel is owed to it.
   for (const group of belowLevelByFeature.values()) {
     for (const burg of group) {
       if (cellsOf.underground.has(burg.cell)) continue;
@@ -163,6 +164,7 @@ export function auditPlanes(map: typeof pack, routes: Route[]): PlaneReport {
         report.unconnectable.push(burg.i);
         continue;
       }
+      if (getClassification(burg) !== "underground") continue;
       report.violations.push({
         rule: "service",
         burg: burg.i,

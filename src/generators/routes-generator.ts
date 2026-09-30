@@ -3,7 +3,7 @@ import { curveCatmullRom, line } from "d3";
 import Delaunator from "delaunator";
 import { distanceSquared, findPath, getAdjective, isLand, ra, rn, round, rw } from "../utils";
 import { meander } from "../utils/pathUtils";
-import { hasBelowLevelPresence, hasGroundLevelPresence } from "./burg-classification";
+import { getClassification, hasBelowLevelPresence, hasGroundLevelPresence } from "./burg-classification";
 import type { Burg } from "./burgs-generator";
 import type { Label } from "./labels-generator";
 import { isLegitimateBoundary, type Plane } from "./plane-integrity";
@@ -21,6 +21,13 @@ const SURFACE_SEPARATION = 2;
 const SURFACE_SEPARATION_RANGE = 4;
 /** How much dearer a tunnel step off a burg cell is than on one: the pull toward the settlements it serves */
 const UNDERGROUND_BURG_ATTRACTION = 2;
+/**
+ * The shortcut layer's threshold: the surface path between two burgs must be at least this many times
+ * their straight-line distance before a tunnel is owed. The water census measured land fallbacks of
+ * 1.01-6.70 with 26 of 53 crossings above 1.0, so 1.5 selects the crossings that are expensive
+ * rather than merely present.
+ */
+export const UNDERGROUND_SHORTCUT_RATIO = 1.5;
 const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
   "-1": 1, // coastline
   "-2": 1.8, // sea
@@ -205,6 +212,345 @@ type RiverRun = {
   firstCanonicalIndexInRiver: number; // river.cells index of the run's source-most cell
 };
 
+// ---------------------------------------------------------------- pair selection
+
+/**
+ * The selection layers, in admission order: a pair keeps the first layer that admitted it. The long
+ * link layer is deferred: on the eight-seed protocol its two pairs per seed cost seventeen records,
+ * because a long path is cut into stretches wherever it meets the existing network.
+ */
+export const UNDERGROUND_PAIR_LAYERS = ["backbone", "shortcut"] as const;
+export type UndergroundPairLayer = (typeof UNDERGROUND_PAIR_LAYERS)[number];
+
+/** One admitted pair of burg cells, with the landmass it belongs to and the layer that justified it */
+export type UndergroundPair = { start: number; end: number; feature: number; layer: UndergroundPairLayer };
+
+/** The surface path between two burg cells in map units, or null when no land surface route connects them */
+export type SurfacePathMeasure = (start: number, end: number) => number | null;
+
+// Urquhart graph is obtained by removing the longest edge from each triangle in the Delaunay triangulation
+// this gives us an aproximation of a desired road network, i.e. connections between burgs
+// code from https://observablehq.com/@mbostock/urquhart-graph
+function urquhartEdges(points: Point[]) {
+  if (points.length < 2) return []; // No connection for less than 2 points
+  if (points.length === 2) return [[0, 1]]; // Direct connection for exactly two points
+
+  const score = (p0: number, p1: number) => distanceSquared(points[p0], points[p1]);
+
+  const { halfedges, triangles } = Delaunator.from(points);
+  const n = triangles.length;
+
+  const removed = new Uint8Array(n);
+  const edges: Array<[number, number]> = [];
+
+  for (let e = 0; e < n; e += 3) {
+    const p0 = triangles[e],
+      p1 = triangles[e + 1],
+      p2 = triangles[e + 2];
+
+    const p01 = score(p0, p1),
+      p12 = score(p1, p2),
+      p20 = score(p2, p0);
+
+    removed[
+      p20 > p01 && p20 > p12
+        ? Math.max(e + 2, halfedges[e + 2])
+        : p12 > p01 && p12 > p20
+          ? Math.max(e + 1, halfedges[e + 1])
+          : Math.max(e, halfedges[e])
+    ] = 1;
+  }
+
+  for (let e = 0; e < n; ++e) {
+    if (e > halfedges[e] && !removed[e]) {
+      const t0 = triangles[e];
+      const t1 = triangles[e % 3 === 2 ? e - 2 : e + 1];
+      edges.push([t0, t1]);
+    }
+  }
+
+  return edges;
+}
+
+/** Kruskal's minimum spanning tree over the burg positions: the backbone's shape */
+function mstEdges(points: Point[]): Array<[number, number]> {
+  const candidates: Array<[number, number, number]> = [];
+  for (let i = 0; i < points.length; i++)
+    for (let j = i + 1; j < points.length; j++) candidates.push([i, j, distanceSquared(points[i], points[j])]);
+  candidates.sort((a, b) => a[2] - b[2]);
+
+  const parent = Array.from({ length: points.length }, (_, index) => index);
+  const find = (index: number): number => {
+    while (parent[index] !== index) {
+      parent[index] = parent[parent[index]];
+      index = parent[index];
+    }
+    return index;
+  };
+
+  const edges: Array<[number, number]> = [];
+  for (const [i, j] of candidates) {
+    const a = find(i);
+    const b = find(j);
+    if (a === b) continue;
+    parent[a] = b;
+    edges.push([i, j]);
+  }
+  return edges;
+}
+
+const isDeepBurg = (burg: Burg) => getClassification(burg) === "underground";
+
+/**
+ * Layer 1: the backbone. The tree over every below-level burg is cut down to the tree that carries the
+ * fully subterranean burgs: an edge between two dual-identity burgs goes, then a dual-identity leaf
+ * goes too, because its surface route already connects it. A dual-identity burg that carries the path
+ * between two backbone burgs stays, so the tree passes through it rather than around it. Where the
+ * pruning splits the subterranean set, its components are rejoined by their closest allowed pair.
+ */
+function backboneEdges(burgs: ReadonlyArray<Burg>): Array<[number, number]> {
+  const points = burgs.map(burg => [burg.x, burg.y] as Point);
+  const deep = burgs.map(isDeepBurg);
+  const parent = Array.from({ length: burgs.length }, (_, index) => index);
+  const find = (index: number): number => {
+    while (parent[index] !== index) {
+      parent[index] = parent[parent[index]];
+      index = parent[index];
+    }
+    return index;
+  };
+  const union = (a: number, b: number) => {
+    const rootA = find(a);
+    const rootB = find(b);
+    if (rootA !== rootB) parent[rootA] = rootB;
+  };
+
+  let edges = mstEdges(points).filter(([a, b]) => deep[a] || deep[b]); // an edge serving two served burgs is not owed
+
+  for (;;) {
+    const degree = new Map<number, number>();
+    for (const [a, b] of edges) {
+      degree.set(a, (degree.get(a) ?? 0) + 1);
+      degree.set(b, (degree.get(b) ?? 0) + 1);
+    }
+
+    let removed = false;
+    edges = edges.filter(([a, b]) => {
+      const leaf = !deep[a] && (degree.get(a) ?? 0) === 1 ? a : !deep[b] && (degree.get(b) ?? 0) === 1 ? b : -1;
+      if (leaf < 0) return true;
+      const neighbour = leaf === a ? b : a;
+      if (deep[neighbour] && (degree.get(neighbour) ?? 0) === 1) return true; // the deep burg's only support
+      removed = true;
+      return false;
+    });
+    if (!removed) break;
+  }
+
+  for (const [a, b] of edges) union(a, b);
+
+  for (;;) {
+    const components = new Set(deep.flatMap((isDeep, index) => (isDeep ? [find(index)] : [])));
+    if (components.size < 2) break;
+
+    let best: { a: number; b: number; distance: number } | undefined;
+    for (let a = 0; a < burgs.length; a++) {
+      if (!components.has(find(a))) continue;
+      for (let b = a + 1; b < burgs.length; b++) {
+        if (!components.has(find(b)) || find(a) === find(b)) continue;
+        if (!deep[a] && !deep[b]) continue;
+        const distance = distanceSquared(points[a], points[b]);
+        if (!best || distance < best.distance) best = { a, b, distance };
+      }
+    }
+    if (!best) break;
+    union(best.a, best.b);
+    edges.push([best.a, best.b]);
+  }
+
+  return edges;
+}
+
+/**
+ * The surface path between two burg cells through the generated surface records, in map units, or null
+ * when no land route connects them. Each burg is anchored to the surface route cell nearest it (by cell
+ * hops, then by distance), and the path is the shortest route between the two anchors. Sea routes are
+ * not a land path, so they do not stand in for one.
+ */
+export function createSurfacePathMeasure(routes: readonly Route[], map: typeof pack = pack): SurfacePathMeasure {
+  const links = new Map<number, Array<[number, number]>>();
+  const surface = new Set<number>();
+  const connect = (from: number, to: number, weight: number) => {
+    const list = links.get(from);
+    if (list) list.push([to, weight]);
+    else links.set(from, [[to, weight]]);
+  };
+
+  for (const route of routes) {
+    if (route.underground || route.group === "searoutes" || !route.points?.length) continue;
+    for (let index = 0; index < route.points.length - 1; index++) {
+      const [x, y, cell] = route.points[index];
+      const [nextX, nextY, nextCell] = route.points[index + 1];
+      if (cell === nextCell) continue;
+      const weight = Math.sqrt((nextX - x) ** 2 + (nextY - y) ** 2);
+      connect(cell, nextCell, weight);
+      connect(nextCell, cell, weight);
+    }
+    for (const point of route.points) surface.add(point[2]);
+  }
+
+  if (!surface.size) return () => null;
+
+  const { c, p } = map.cells;
+  const anchors = new Map<number, number | null>();
+  const anchorOf = (cell: number): number | null => {
+    const cached = anchors.get(cell);
+    if (cached !== undefined) return cached;
+
+    // the nearest surface cell by cell hops, then by distance: a burg may sit far from any road, and
+    // walking to the road is not what the ratio prices
+    let best: number | null = null;
+    let bestDistance = Infinity;
+    const seen = new Set([cell]);
+    let frontier = [cell];
+
+    while (frontier.length && best === null) {
+      const next: number[] = [];
+      for (const candidate of frontier) {
+        if (surface.has(candidate)) {
+          const [x, y] = p[candidate];
+          const distance = (x - p[cell][0]) ** 2 + (y - p[cell][1]) ** 2;
+          if (distance < bestDistance) {
+            best = candidate;
+            bestDistance = distance;
+          }
+          continue;
+        }
+        for (const neighbour of c[candidate] ?? []) {
+          if (seen.has(neighbour)) continue;
+          seen.add(neighbour);
+          next.push(neighbour);
+        }
+      }
+      frontier = best === null ? next : [];
+    }
+
+    anchors.set(cell, best);
+    return best;
+  };
+
+  const paths = new Map<number, Map<number, number>>();
+  const measureFrom = (anchor: number): Map<number, number> => {
+    const cached = paths.get(anchor);
+    if (cached) return cached;
+
+    const found = new Map<number, number>([[anchor, 0]]);
+    const heap: Array<[number, number]> = [[anchor, 0]];
+    const push = (cell: number, distance: number) => {
+      heap.push([cell, distance]);
+      let index = heap.length - 1;
+      while (index > 0) {
+        const parentIndex = (index - 1) >> 1;
+        if (heap[parentIndex][1] <= heap[index][1]) break;
+        [heap[parentIndex], heap[index]] = [heap[index], heap[parentIndex]];
+        index = parentIndex;
+      }
+    };
+    const pop = () => {
+      const top = heap[0];
+      const last = heap.pop() as [number, number];
+      if (heap.length) {
+        heap[0] = last;
+        let index = 0;
+        for (;;) {
+          const left = index * 2 + 1;
+          const right = left + 1;
+          let smallest = index;
+          if (left < heap.length && heap[left][1] < heap[smallest][1]) smallest = left;
+          if (right < heap.length && heap[right][1] < heap[smallest][1]) smallest = right;
+          if (smallest === index) break;
+          [heap[smallest], heap[index]] = [heap[index], heap[smallest]];
+          index = smallest;
+        }
+      }
+      return top;
+    };
+
+    while (heap.length) {
+      const [cell, distance] = pop();
+      if (distance > (found.get(cell) ?? Infinity)) continue;
+      for (const [next, weight] of links.get(cell) ?? []) {
+        const candidate = distance + weight;
+        if (candidate >= (found.get(next) ?? Infinity)) continue;
+        found.set(next, candidate);
+        push(next, candidate);
+      }
+    }
+
+    paths.set(anchor, found);
+    return found;
+  };
+
+  return (start, end) => {
+    const from = anchorOf(start);
+    const to = anchorOf(end);
+    if (from === null || to === null) return null;
+    return measureFrom(from).get(to) ?? null;
+  };
+}
+
+/**
+ * The pair policy, applied in order over the burgs of each landmass: the backbone tree over the fully
+ * subterranean burgs, then the shortcuts where overland travel is expensive. The cost model is
+ * untouched — this decides only which pairs are routed. A pair admitted by both layers is recorded
+ * once, under the first layer that admitted it.
+ */
+export function selectUndergroundPairs(
+  burgs: readonly Burg[],
+  measureSurfacePath: SurfacePathMeasure = () => null,
+  layers: readonly UndergroundPairLayer[] = UNDERGROUND_PAIR_LAYERS
+): UndergroundPair[] {
+  const byFeature = new Map<number, Array<Burg & { feature: number }>>();
+  for (const burg of burgs) {
+    if (!burg?.i || burg.removed || burg.feature === undefined || !hasBelowLevelPresence(burg)) continue;
+    const list = byFeature.get(burg.feature);
+    if (list) list.push(burg as Burg & { feature: number });
+    else byFeature.set(burg.feature, [burg as Burg & { feature: number }]);
+  }
+  const features = [...byFeature.entries()].sort((a, b) => a[0] - b[0]);
+
+  const admitted = new Map<string, UndergroundPair>();
+  const admit = (start: number, end: number, feature: number, layer: UndergroundPairLayer) => {
+    if (start === end) return;
+    const key = start < end ? `${start}-${end}` : `${end}-${start}`;
+    if (admitted.has(key)) return;
+    admitted.set(key, { start, end, feature, layer });
+  };
+  const pointsOf = (featureBurgs: ReadonlyArray<Burg>) => featureBurgs.map(burg => [burg.x, burg.y] as Point);
+
+  for (const layer of layers) {
+    if (layer === "backbone") {
+      for (const [feature, featureBurgs] of features)
+        for (const [a, b] of backboneEdges(featureBurgs))
+          admit(featureBurgs[a].cell, featureBurgs[b].cell, feature, layer);
+      continue;
+    }
+
+    if (layer === "shortcut") {
+      for (const [feature, featureBurgs] of features) {
+        const points = pointsOf(featureBurgs);
+        for (const [a, b] of urquhartEdges(points)) {
+          const direct = Math.sqrt(distanceSquared(points[a], points[b]));
+          const surface = measureSurfacePath(featureBurgs[a].cell, featureBurgs[b].cell);
+          if (surface === null || surface >= UNDERGROUND_SHORTCUT_RATIO * direct)
+            admit(featureBurgs[a].cell, featureBurgs[b].cell, feature, layer);
+        }
+      }
+    }
+  }
+
+  return [...admitted.values()];
+}
+
 class RoutesModule {
   private connections: Map<string, boolean> = new Map();
   /** cell pairs of the underground network: the only source of the tunnel discount */
@@ -270,44 +616,7 @@ class RoutesModule {
   // this gives us an aproximation of a desired road network, i.e. connections between burgs
   // code from https://observablehq.com/@mbostock/urquhart-graph
   private calculateUrquhartEdges(points: Point[]) {
-    if (points.length < 2) return []; // No connection for less than 2 points
-    if (points.length === 2) return [[0, 1]]; // Direct connection for exactly two points
-
-    const score = (p0: number, p1: number) => distanceSquared(points[p0], points[p1]);
-
-    const { halfedges, triangles } = Delaunator.from(points);
-    const n = triangles.length;
-
-    const removed = new Uint8Array(n);
-    const edges = [];
-
-    for (let e = 0; e < n; e += 3) {
-      const p0 = triangles[e],
-        p1 = triangles[e + 1],
-        p2 = triangles[e + 2];
-
-      const p01 = score(p0, p1),
-        p12 = score(p1, p2),
-        p20 = score(p2, p0);
-
-      removed[
-        p20 > p01 && p20 > p12
-          ? Math.max(e + 2, halfedges[e + 2])
-          : p12 > p01 && p12 > p20
-            ? Math.max(e + 1, halfedges[e + 1])
-            : Math.max(e, halfedges[e])
-      ] = 1;
-    }
-
-    for (let e = 0; e < n; ++e) {
-      if (e > halfedges[e] && !removed[e]) {
-        const t0 = triangles[e];
-        const t1 = triangles[e % 3 === 2 ? e - 2 : e + 1];
-        edges.push([t0, t1]);
-      }
-    }
-
-    return edges;
+    return urquhartEdges(points);
   }
 
   getLandPathCost(current: number, next: number) {
@@ -650,13 +959,12 @@ class RoutesModule {
   }
 
   /**
-   * The underground network: one Urquhart topology per feature over the burgs with below-level
-   * presence, drawn with the same pathfinding the surface routes use. It runs after them, so it can
-   * only add: the surface network never sees it, and every highway keeps the `roads` group.
+   * The underground network: the pairs the three-layer policy admits, drawn with the same pathfinding
+   * the surface routes use. It runs after them, so it can only add: the surface network never sees it,
+   * and every highway keeps the `roads` group.
    */
   private generateUndergroundHighways(routes: Route[]): void {
     TIME && console.time("generateUndergroundHighways");
-    const { burgsByFeature } = this.sortBurgsByFeature(pack.burgs, hasBelowLevelPresence);
     const highways: Route[] = [];
 
     // built before any tunnel exists, so a tunnel never seeds the corridor it is routed against
@@ -673,24 +981,18 @@ class RoutesModule {
       );
     }
 
-    for (const [key, featureBurgs] of Object.entries(burgsByFeature)) {
-      if (featureBurgs.length < 2) continue; // a connection needs a pair
-      const getCost = this.createUndergroundCost(Number(key)); // the pair's landmass: no foreign shores
-      const points = featureBurgs.map(burg => [burg.x, burg.y] as Point);
-      const urquhartEdges = this.calculateUrquhartEdges(points);
+    // the surface records are read before the tunnels are drawn, so the shortcut layer measures the
+    // overland network the player would travel, not one a tunnel has already shortened
+    const pairs = selectUndergroundPairs(pack.burgs, createSurfacePathMeasure(routes, pack));
+    for (const { start, end, feature } of pairs) {
+      const pathCells = findPath(start, next => next === end, this.createUndergroundCost(feature), pack);
+      if (!pathCells) continue;
 
-      urquhartEdges.forEach(([fromId, toId]) => {
-        const start = featureBurgs[fromId].cell;
-        const exit = featureBurgs[toId].cell;
-        const pathCells = findPath(start, next => next === exit, getCost, pack);
-        if (!pathCells) return;
-
-        for (const segment of this.getUndergroundSegments(pathCells, undergroundEdges)) {
-          this.rememberEdges(undergroundEdges, segment);
-          this.rememberEdges(this.undergroundConnections, segment);
-          highways.push({ feature: Number(key), cells: segment } as Route);
-        }
-      });
+      for (const segment of this.getUndergroundSegments(pathCells, undergroundEdges)) {
+        this.rememberEdges(undergroundEdges, segment);
+        this.rememberEdges(this.undergroundConnections, segment);
+        highways.push({ feature, cells: segment } as Route);
+      }
     }
 
     const pointsArray = this.preparePointsArray();
@@ -752,10 +1054,11 @@ class RoutesModule {
   }
 
   /**
-   * The service guarantee: a burg with below-level presence that shares its landmass with another
-   * such burg ends the generation on the underground network. Pruning and merging cannot promise
-   * that on their own, so a burg left out is pathed to the nearest connected peer and the stretch is
-   * appended. A burg alone on its landmass has no peer, is left unconnected, and gets nothing else.
+   * The service guarantee: a fully subterranean burg that shares its landmass with another below-level
+   * burg ends the generation on the underground network. Pruning and merging cannot promise that on
+   * their own, so a burg left out is pathed to the nearest connected peer and the stretch is appended.
+   * A dual-identity burg already reaches the surface network, so it is never owed a repair, and a burg
+   * alone on its landmass has no peer, is left unconnected, and gets nothing else.
    */
   repairUndergroundHighways(): number {
     const { burgs } = pack;
@@ -775,7 +1078,9 @@ class RoutesModule {
       else peers.set(burg.feature, [burg]);
     }
 
-    const orphans = belowLevel.filter(burg => !served.has(burg.cell) && (peers.get(burg.feature)?.length ?? 0) > 1);
+    const orphans = belowLevel.filter(
+      burg => isDeepBurg(burg) && !served.has(burg.cell) && (peers.get(burg.feature)?.length ?? 0) > 1
+    );
     if (!orphans.length) return 0;
 
     const pointsArray = this.preparePointsArray();

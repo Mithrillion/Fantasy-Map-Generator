@@ -5,7 +5,7 @@ import { findPath } from "../utils/pathUtils";
 import { getClassification, hasBelowLevelPresence, hasGroundLevelPresence } from "./burg-classification";
 import type { Burg } from "./burgs-generator";
 import { auditPlanes, isLegitimateBoundary } from "./plane-integrity";
-import type { Route } from "./routes-generator";
+import { createSurfacePathMeasure, type Route, selectUndergroundPairs } from "./routes-generator";
 
 /**
  * A 7x3 land grid, 10px apart, 4-way connected. Column 3 is a strait: cells left of it are one
@@ -163,6 +163,214 @@ function makePack(
 
 /** The grid stub the water gates read `grid.cells.temp` from: above `MIN_PASSABLE_SEA_TEMP` everywhere */
 const makeGrid = (cellCount = CELL_COUNT) => ({ cells: { temp: new Array(cellCount).fill(20) } });
+
+/** The biome table both fixtures read: biome 1 habitable, 12 (water) not */
+const FIXTURE_BIOMES = [
+  null,
+  { i: 1, habitability: 50 },
+  ...Array.from({ length: 10 }, (_, i) => ({ i: i + 2, habitability: 40 })),
+  { i: 12, habitability: 0 }
+];
+
+type FixtureBurg = { cell: number; name: string; classification?: "underground" | "subterranean" };
+
+/**
+ * A rectangular pack built from a per-cell spec, for the pair-selection fixtures: every cell is land
+ * of one feature unless `isWater` says otherwise, all heights are passable, and each listed burg is
+ * placed on its own cell. Water keeps the bay fixture's shape (h 5, biome 12, its own feature, `t`
+ * -1 beside land and -2 otherwise) so a fixture can also route across it.
+ */
+function makeRectPack({
+  columns,
+  rows,
+  spacing = 10,
+  isWater = () => false,
+  burgs,
+  surfaceRoutes = []
+}: {
+  columns: number;
+  rows: number;
+  spacing?: number;
+  isWater?: (row: number, column: number) => boolean;
+  burgs: FixtureBurg[];
+  surfaceRoutes?: number[][];
+}) {
+  const cellCount = columns * rows;
+  const p: [number, number][] = [];
+  const c: number[][] = [];
+  const h = new Uint8Array(cellCount);
+  const f = new Uint8Array(cellCount);
+  const biome = new Uint8Array(cellCount);
+  const t = new Int8Array(cellCount);
+  const isLand = (row: number, column: number) =>
+    row >= 0 && row < rows && column >= 0 && column < columns && !isWater(row, column);
+
+  for (let cell = 0; cell < cellCount; cell++) {
+    const row = Math.floor(cell / columns);
+    const column = cell % columns;
+    const water = isWater(row, column);
+    p.push([column * spacing, row * spacing]);
+
+    const neighbors: number[] = [];
+    if (row > 0) neighbors.push(cell - columns);
+    if (row < rows - 1) neighbors.push(cell + columns);
+    if (column > 0) neighbors.push(cell - 1);
+    if (column < columns - 1) neighbors.push(cell + 1);
+    c.push(neighbors);
+
+    h[cell] = water ? 5 : 30;
+    f[cell] = water ? 3 : 1;
+    biome[cell] = water ? 12 : 1;
+    t[cell] = water
+      ? isLand(row - 1, column) || isLand(row + 1, column) || isLand(row, column - 1) || isLand(row, column + 1)
+        ? -1
+        : -2
+      : 1;
+  }
+
+  const records = burgs.map(({ cell, name, classification }, index) => ({
+    i: index + 1,
+    cell,
+    x: p[cell][0],
+    y: p[cell][1],
+    name,
+    feature: 1,
+    capital: 0,
+    ...(classification === "underground" ? { underground: true } : {}),
+    ...(classification === "subterranean" ? { subterranean: true } : {})
+  }));
+  const burgsById = [0 as unknown as Burg, ...(records as unknown as Burg[])];
+  const burgOfCell = new Uint16Array(cellCount);
+  for (const burg of burgsById) if (burg?.i) burgOfCell[burg.cell] = burg.i;
+
+  return {
+    cells: {
+      i: Array.from({ length: cellCount }, (_, cell) => cell),
+      p,
+      c,
+      h,
+      f,
+      biome,
+      t,
+      burg: burgOfCell,
+      haven: new Uint16Array(cellCount),
+      harbor: new Uint8Array(cellCount),
+      r: new Uint16Array(cellCount),
+      fl: new Uint16Array(cellCount),
+      g: new Uint8Array(cellCount),
+      routes: {} as Record<number, Record<number, number>>
+    },
+    biomes: FIXTURE_BIOMES,
+    features: [0, { i: 1 }, { i: 2 }, { i: 3 }],
+    burgs: burgsById,
+    rivers: [],
+    routes: surfaceRoutes.map(
+      (cells, index) =>
+        ({
+          i: index,
+          group: "roads",
+          feature: 1,
+          points: cells.map(cell => [...p[cell], cell])
+        }) as Route
+    )
+  };
+}
+
+/**
+ * The pair-selection fixture: `count` fully subterranean burgs on one all-land landmass (feature 1),
+ * plus `dualIdentity` dual-identity burgs. `layout` places the subterranean burgs either along the
+ * middle row (two columns apart, so a dual burg fits between a pair) or in two clusters at opposite
+ * corners, which is the case a tree has to span. Dual burgs sit off the middle row unless `dualCells`
+ * names their cells. `surfaceRoutes` are hand-built surface records (cell lists), so the shortcut
+ * layer has a surface path to measure.
+ */
+const LANDMASS_COLUMNS = 11;
+const LANDMASS_ROWS = 3;
+const landmassAt = (row: number, column: number) => row * LANDMASS_COLUMNS + column;
+
+function landmassWithSubterranean(
+  count: number,
+  {
+    dualIdentity = 0,
+    dualCells,
+    layout = "line",
+    surfaceRoutes = []
+  }: {
+    dualIdentity?: number;
+    dualCells?: number[];
+    layout?: "line" | "clusters";
+    surfaceRoutes?: number[][];
+  } = {}
+) {
+  const clusterSplit = Math.ceil(count / 2);
+
+  const subterranean =
+    layout === "line"
+      ? Array.from({ length: count }, (_, index) => landmassAt(1, 2 * index + 1))
+      : Array.from({ length: count }, (_, index) =>
+          index < clusterSplit ? landmassAt(0, index) : landmassAt(2, LANDMASS_COLUMNS - 1 - (count - 1 - index))
+        );
+  const duals =
+    dualCells ??
+    Array.from({ length: dualIdentity }, (_, index) =>
+      layout === "line" ? landmassAt(0, 2 * index + 2) : landmassAt(1, 4 + index)
+    );
+
+  return makeRectPack({
+    columns: LANDMASS_COLUMNS,
+    rows: LANDMASS_ROWS,
+    burgs: [
+      ...subterranean.map((cell, index) => ({
+        cell,
+        name: `Deep ${index + 1}`,
+        classification: "underground" as const
+      })),
+      ...duals.map((cell, index) => ({ cell, name: `Twin ${index + 1}`, classification: "subterranean" as const }))
+    ],
+    surfaceRoutes
+  });
+}
+
+/** The bay fixture's own span, scaled up so the land detour can be an exact multiple of the direct line */
+const DETOUR_COLUMNS = 211;
+const DETOUR_ROWS = 4;
+const DETOUR_WEST = 5; // the west burg's column
+const DETOUR_EAST = 205; // the east burg's column
+const DETOUR_SPAN = DETOUR_EAST - DETOUR_WEST; // 200 cells of ten units: a 2000-unit direct line
+const detourAt = (row: number, column: number) => row * DETOUR_COLUMNS + column;
+
+/**
+ * Two fully subterranean burgs across a bay whose only land path is a specified multiple of the
+ * direct line: the record runs along row 2 (the bay floods row 1 between the shores) and dips into
+ * row 3 for the extra length, each dip adding two steps on every second column. With the shore span
+ * fixed at 200 cells the ratio is exact to the hundredth, which is what pins the 1.49x / 1.5x
+ * boundary. The record's end cells are the cells beside each burg, so the measured path is the
+ * record's own span.
+ */
+function bayWithLandDetour(ratio: number) {
+  let detours = Math.round(((ratio - 1) * DETOUR_SPAN) / 2);
+  const record: number[] = [];
+
+  for (let column = DETOUR_WEST; column <= DETOUR_EAST; column++) {
+    record.push(detourAt(2, column));
+    // one dip every second column, so consecutive dips never share a cell
+    if (detours > 0 && column < DETOUR_EAST && (column - DETOUR_WEST) % 2 === 0) {
+      record.push(detourAt(3, column), detourAt(3, column + 1));
+      detours--;
+    }
+  }
+
+  return makeRectPack({
+    columns: DETOUR_COLUMNS,
+    rows: DETOUR_ROWS,
+    isWater: (row, column) => row === 1 && column > DETOUR_WEST && column < DETOUR_EAST,
+    burgs: [
+      { cell: detourAt(1, DETOUR_WEST), name: "Westshore", classification: "underground" },
+      { cell: detourAt(1, DETOUR_EAST), name: "Eastshore", classification: "underground" }
+    ],
+    surfaceRoutes: [record]
+  });
+}
 
 /** Every cell joined by a route link, walked the way a journey walks the shared cell network */
 function reachable(from: number, to: number, canTraverse: (cell: number) => boolean): boolean {
@@ -1187,5 +1395,300 @@ describe("underground highways", () => {
       expect(cost(12, 13)).toBeGreaterThan(cost(9, 2));
       expect(cost(8, 9)).toBeLessThan(cost(12, 13));
     });
+  });
+});
+
+/** The unordered pair key the admitted set is keyed on, so a test can ask for a pair without its order */
+const samePair = (pair: { start: number; end: number }, a: number, b: number) =>
+  (pair.start === a && pair.end === b) || (pair.start === b && pair.end === a);
+
+/**
+ * The pair-selection contract: the three-layer policy, the narrowed service rule, and the routing
+ * that follows from them. The fixtures are built per test, so each case states its own landmass,
+ * burg classification and surface records.
+ */
+describe("underground pair selection", () => {
+  let Routes: any;
+
+  const usePack = (fixture: ReturnType<typeof landmassWithSubterranean> | ReturnType<typeof bayWithLandDetour>) => {
+    globalThis.pack = fixture as unknown as typeof pack;
+    globalThis.grid = makeGrid(fixture.cells.i.length) as unknown as typeof grid;
+    Routes.surfaceDistances = undefined;
+    Routes.undergroundConnections = new Set();
+    return fixture;
+  };
+
+  const generate = (seed = 1) => Routes.generate([], seed);
+  const undergroundRoutes = () => pack.routes.filter(route => route.underground) as Route[];
+  const cellsOf = (route: Route) => route.points.map(point => point[2]);
+  const touches = (cell: number) => undergroundRoutes().some(route => cellsOf(route).includes(cell));
+  const handHighway = (i: number, cells: number[]) =>
+    ({
+      i,
+      group: "roads",
+      feature: 1,
+      underground: true,
+      points: cells.map(cell => [...pack.cells.p[cell], cell])
+    }) as Route;
+
+  /** One component per connected group of burg cells over the admitted pairs */
+  const components = (burgs: Burg[], pairs: Array<{ start: number; end: number }>) => {
+    const parent = new Map(burgs.map(burg => [burg.cell, burg.cell]));
+    const find = (cell: number): number => {
+      const next = parent.get(cell) as number;
+      if (next === cell) return cell;
+      const root = find(next);
+      parent.set(cell, root);
+      return root;
+    };
+    for (const { start, end } of pairs) parent.set(find(start), find(end));
+    return new Set(burgs.map(burg => find(burg.cell)));
+  };
+
+  beforeEach(async () => {
+    globalThis.TIME = false;
+    (globalThis as any).FlatQueue = TestFlatQueue;
+    vi.stubGlobal("Pack", { findCell: () => -1 }); // only sharp-angle smoothing reads it
+    globalThis.options.generation.underground = true;
+    await import("./river-generator"); // the water cost reads the Rivers global
+    await import("./burgs-generator");
+    Routes = (globalThis as any).Routes;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    globalThis.options.generation.underground = false;
+  });
+
+  it("serves / fully subterranean burg is connected", () => {
+    const fixture = usePack(landmassWithSubterranean(3));
+    generate();
+
+    const deep = fixture.burgs.slice(1) as Burg[];
+    for (const burg of deep) expect(touches(burg.cell)).toBe(true);
+
+    const report = auditPlanes(pack, pack.routes);
+    expect(report.violations).toEqual([]);
+    expect(report.connections.underground).toEqual(expect.arrayContaining(deep.map(burg => burg.cell)));
+  });
+
+  it("serves / dual burg without a tunnel is not a violation", () => {
+    // the two dual burgs are each other's nearest neighbour, so the tree prunes their edge, and the
+    // road the surface pass draws between them keeps the shortcut layer quiet
+    const fixture = usePack(landmassWithSubterranean(2, { dualCells: [landmassAt(0, 8), landmassAt(0, 9)] }));
+    generate();
+
+    const dual = fixture.burgs[4] as Burg;
+    expect(getClassification(dual)).toBe("subterranean");
+    expect(touches(dual.cell)).toBe(false);
+
+    // the contract's break: no tunnel is owed, so no service violation is reported for it
+    const report = auditPlanes(pack, pack.routes);
+    expect(report.violations.filter(violation => violation.rule === "service")).toEqual([]);
+  });
+
+  it("layers / dual burg that carries no path is not a backbone pair", () => {
+    // the dual burg is the nearest neighbour of the second deep burg, but the deep pair is cheaper
+    // direct, so the dual carries no path between two deep burgs and is not attached for its own sake
+    const fixture = usePack(landmassWithSubterranean(2, { dualCells: [landmassAt(0, 8)] }));
+    const deep = fixture.burgs.slice(1, 3) as Burg[];
+    const dual = fixture.burgs[3] as Burg;
+
+    const pairs = selectUndergroundPairs(fixture.burgs, () => null, ["backbone"]);
+    expect(pairs.some(pair => pair.start === dual.cell || pair.end === dual.cell)).toBe(false);
+    expect(components(deep, pairs).size).toBe(1); // the deep pair is still one component
+
+    // nothing is owed to it, so the audit reports no service violation for it
+    generate();
+    expect(auditPlanes(pack, pack.routes).violations.filter(violation => violation.rule === "service")).toEqual([]);
+  });
+
+  it("serves / dual burg as an endpoint is valid", () => {
+    // the backbone leaves the dual burg alone; the shortcut admits it, because no surface route reaches
+    // either burg, and a tunnel ending at a dual-identity burg is valid
+    const fixture = usePack(landmassWithSubterranean(2, { dualCells: [landmassAt(0, 8)] }));
+    const dual = fixture.burgs[3] as Burg;
+    generate();
+
+    expect(undergroundRoutes().some(route => endpoints(route).includes(dual.cell))).toBe(true);
+
+    const report = auditPlanes(pack, pack.routes);
+    expect(report.violations.filter(violation => violation.rule === "boundary")).toEqual([]);
+    expect(report.connections.underground.includes(dual.cell)).toBe(true); // the highway serves it
+
+    // and the layer policy admits dual-ended pairs: an expensive overland path is one of them
+    const admitted = selectUndergroundPairs(pack.burgs, () => 1e9, ["shortcut"]);
+    expect(admitted.some(pair => samePair(pair, dual.cell, (fixture.burgs[2] as Burg).cell))).toBe(true);
+  });
+
+  it("serves / subterranean burg is reconnected", () => {
+    const fixture = usePack(landmassWithSubterranean(2, { dualCells: [landmassAt(0, 8)] }));
+    const [deepA, deepB] = fixture.burgs.slice(1, 3) as Burg[];
+    const dual = fixture.burgs[3] as Burg;
+
+    // the network serves one deep burg only, so the other is the orphan the service pass has to reach
+    pack.routes = [handHighway(900, [deepB.cell, landmassAt(1, 2)])];
+    expect(Routes.repairUndergroundHighways()).toBe(1);
+    expect(touches(deepA.cell)).toBe(true);
+
+    // the same position with a dual-identity burg is left as it is: both deep burgs are served, so
+    // nothing is owed even though the dual burg has no tunnel
+    pack.routes = [handHighway(901, [deepA.cell, landmassAt(1, 2), deepB.cell])];
+    expect(Routes.repairUndergroundHighways()).toBe(0);
+    expect(touches(dual.cell)).toBe(false);
+    expect(auditPlanes(pack, pack.routes).violations.filter(violation => violation.rule === "service")).toEqual([]);
+  });
+
+  it("layers / backbone tree is connected", () => {
+    const ask = () => {
+      throw new Error("the backbone must not measure the surface path");
+    };
+
+    const clusters = usePack(landmassWithSubterranean(4, { layout: "clusters" }));
+    const tree = selectUndergroundPairs(clusters.burgs, ask, ["backbone"]);
+    expect(tree.every(pair => pair.layer === "backbone")).toBe(true);
+    expect(components(clusters.burgs.slice(1) as Burg[], tree).size).toBe(1); // one tree over the four
+    expect(tree).toHaveLength(3);
+
+    // five in a line: a tree, so exactly four pairs
+    const line = usePack(landmassWithSubterranean(5));
+    expect(selectUndergroundPairs(line.burgs, ask, ["backbone"])).toHaveLength(4);
+  });
+
+  it("layers / dual burg is transit", () => {
+    const fixture = usePack(landmassWithSubterranean(2, { dualCells: [landmassAt(1, 2)] }));
+    const [deepA, deepB] = fixture.burgs.slice(1, 3) as Burg[];
+    const dual = fixture.burgs[3] as Burg;
+
+    // the tree reaches each deep burg through the dual burg's cell rather than routing around it
+    const pairs = selectUndergroundPairs(fixture.burgs, () => null, ["backbone"]);
+    expect(pairs.some(pair => samePair(pair, deepA.cell, dual.cell))).toBe(true);
+    expect(pairs.some(pair => samePair(pair, deepB.cell, dual.cell))).toBe(true);
+
+    generate();
+
+    // the stretches that carry the dual burg's cell also carry a deep burg, so the tree passes through
+    // the cell instead of routing around it
+    const carrying = undergroundRoutes().filter(route => cellsOf(route).includes(dual.cell));
+    expect(carrying.some(route => cellsOf(route).includes(deepA.cell))).toBe(true);
+    expect(carrying.some(route => cellsOf(route).includes(deepB.cell))).toBe(true);
+
+    // the audit reads the cell as a junction, so the dual burg is not where the network dead-ends
+    const report = auditPlanes(pack, pack.routes);
+    expect(report.boundaries.underground.junctions.some(boundary => boundary.cell === dual.cell)).toBe(true);
+    expect(report.boundaries.underground.termini.some(boundary => boundary.cell === dual.cell)).toBe(false);
+  });
+
+  it("layers / shortcut admitted above threshold", () => {
+    for (const [ratio, admitted] of [
+      [1.49, 0],
+      [1.5, 1]
+    ] as const) {
+      const fixture = usePack(bayWithLandDetour(ratio));
+      const measure = createSurfacePathMeasure(pack.routes, pack);
+      const [west, east] = fixture.burgs.slice(1) as Burg[];
+
+      // the measured surface path is the ratio times the direct line, to the hundredth
+      expect(measure(west.cell, east.cell)).toBeCloseTo(ratio * 2000, 6);
+      expect(selectUndergroundPairs(fixture.burgs, measure, ["shortcut"])).toHaveLength(admitted);
+    }
+  });
+
+  it("layers / no pair for two served burgs", () => {
+    const fixture = usePack(
+      landmassWithSubterranean(2, {
+        dualCells: [landmassAt(0, 8), landmassAt(0, 9)],
+        surfaceRoutes: [[landmassAt(0, 8), landmassAt(0, 9)]] // the road already connects them
+      })
+    );
+    const [dualA, dualB] = fixture.burgs.slice(-2) as Burg[];
+    const measure = createSurfacePathMeasure(pack.routes, pack);
+    expect(measure(dualA.cell, dualB.cell)).toBeCloseTo(10, 6);
+
+    // asserted on the admitted set, not inferred from the network the merge leaves behind
+    const pairs = selectUndergroundPairs(fixture.burgs, measure);
+    expect(pairs.some(pair => samePair(pair, dualA.cell, dualB.cell))).toBe(false);
+    expect(pairs.some(pair => samePair(pair, (fixture.burgs[1] as Burg).cell, (fixture.burgs[2] as Burg).cell))).toBe(
+      true
+    ); // the deep pair is still connected
+  });
+
+  it("layers / thresholds are named and documented", () => {
+    const source = readFileSync("src/generators/routes-generator.ts", "utf8");
+    const declaration = source.match(/(\/\*\*[\s\S]*?\*\/)\s*export const UNDERGROUND_SHORTCUT_RATIO = ([\d.]+);/);
+
+    expect(declaration, "the shortcut ratio is an exported constant with its own comment").not.toBeNull();
+    expect(Number(declaration![2])).toBe(1.5);
+    expect(declaration![1]).toMatch(/water census/i); // the measurement that chose it
+    expect(declaration![1]).toMatch(/1\.01-6\.70|53/);
+  });
+
+  it("edge cases / a lone below-level burg is left alone", () => {
+    usePack(landmassWithSubterranean(1));
+    generate();
+
+    expect(undergroundRoutes()).toHaveLength(0);
+    expect(pack.routes.filter(route => !route.underground)).toHaveLength(0); // no surface route in exchange
+
+    const report = auditPlanes(pack, pack.routes);
+    expect(report.unconnectable).toEqual([1]);
+    expect(report.violations).toEqual([]);
+  });
+
+  it("edge cases / a landmass with no fully subterranean burg admits no backbone pair", () => {
+    const fixture = usePack(
+      landmassWithSubterranean(0, {
+        dualCells: [landmassAt(0, 8), landmassAt(0, 9)],
+        surfaceRoutes: [[landmassAt(0, 8), landmassAt(0, 9)]]
+      })
+    );
+    const measure = createSurfacePathMeasure(pack.routes, pack);
+
+    expect(selectUndergroundPairs(fixture.burgs, measure, ["backbone"])).toEqual([]);
+    expect(selectUndergroundPairs(fixture.burgs, measure)).toEqual([]); // the network may legitimately be empty
+
+    generate();
+    expect(undergroundRoutes()).toHaveLength(0);
+    expect(pack.routes.filter(route => !route.underground).length).toBeGreaterThan(0); // the surface pass still ran
+  });
+
+  it("edge cases / a null surface path is admitted, a short one is not", () => {
+    const fixture = usePack(landmassWithSubterranean(2));
+    const [deepA, deepB] = fixture.burgs.slice(1) as Burg[];
+    const direct = Math.sqrt(distanceSquared(pack.cells.p[deepA.cell], pack.cells.p[deepB.cell]));
+
+    // no surface route exists at all, so the measure is null rather than a ratio against null
+    expect(
+      selectUndergroundPairs(fixture.burgs, createSurfacePathMeasure(fixture.routes, pack), ["shortcut"])
+    ).toHaveLength(1);
+    // a real, short measurement is below the threshold: the pair is not admitted
+    expect(selectUndergroundPairs(fixture.burgs, () => direct, ["shortcut"])).toHaveLength(0);
+  });
+
+  it("edge cases / a pair admitted by two layers is routed once", () => {
+    const fixture = usePack(landmassWithSubterranean(2));
+    const [deepA, deepB] = fixture.burgs.slice(1) as Burg[];
+
+    // the backbone admits the pair, and an expensive surface path would admit it again
+    const pairs = selectUndergroundPairs(fixture.burgs, () => 1e9);
+    expect(pairs.filter(pair => samePair(pair, deepA.cell, deepB.cell))).toHaveLength(1);
+    expect(pairs[0].layer).toBe("backbone"); // the first layer that admitted it
+
+    generate();
+    expect(undergroundRoutes()).toHaveLength(1); // and it is routed once
+  });
+
+  it("edge cases / a dual burg between two clusters is transit and not an endpoint", () => {
+    const fixture = usePack(landmassWithSubterranean(4, { layout: "clusters", dualCells: [landmassAt(1, 5)] }));
+    const deep = fixture.burgs.slice(1, 5) as Burg[];
+    const dual = fixture.burgs[5] as Burg;
+
+    const pairs = selectUndergroundPairs(fixture.burgs, () => null, ["backbone"]);
+    expect(components(deep, pairs).size).toBe(1); // the clusters are one component over the deep burgs
+    expect(pairs.some(pair => pair.start === dual.cell || pair.end === dual.cell)).toBe(true); // it is on the way
+
+    generate();
+    const report = auditPlanes(pack, pack.routes);
+    expect(report.violations).toEqual([]); // not required to be an endpoint, so nothing is owed to it
   });
 });
