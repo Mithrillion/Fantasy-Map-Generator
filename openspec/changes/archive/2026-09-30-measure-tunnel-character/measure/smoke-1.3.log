@@ -1,0 +1,50 @@
+npm warn Unknown env config "manage-package-manager-versions". This will error in a future major version of npm. See `npm help npmrc` for supported config options.
+npm notice run fantasy-map-generator@1.154.0 npx
+npm notice run 'vitest' run --config vitest.browser.config.ts generators/underground-measure.dom.test.ts
+
+ RUN  v4.1.11 /mnt/Mega/TestSpace/Fantasy-Map-Generator
+
+stdout | src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+KNOWN-ANSWER pass directness.two-cell directness=1
+stdout | src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+KNOWN-ANSWER pass directness.L-chain directness=1.414213562373095 expected=1.414213562373095
+stdout | src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+KNOWN-ANSWER pass crestHit.through crossings=1 hit=1
+stdout | src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+KNOWN-ANSWER FAIL crestHit.skirt crossings=1 hit=1
+stdout | src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+KNOWN-ANSWER FAIL crestHit.wide-corridor-still-misses hit=1 (three cell-widths off the peak)
+stdout | src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+KNOWN-ANSWER FAIL nearMiss.beside passUnder=0 nearMiss=3
+stdout | src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+KNOWN-ANSWER FAIL passUnder.on passUnder=1 nearMiss=1
+stdout | src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+KNOWN-ANSWER pass waterSpan.bay spans=[3] of chain length 7
+stdout | src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+KNOWN-ANSWER pass waterSpan.none spans=[]
+stdout | src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+KNOWN-ANSWER FAIL biomeShare.single share={"5:Tropical seasonal forest":{"cells":9,"tunnel":1,"land":1}}
+ ❯ |chromium| src/generators/underground-measure.dom.test.ts (1 test | 1 failed) 4ms
+   × measures underground alignment variants 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |chromium| src/generators/underground-measure.dom.test.ts:1136:1 > measures underground alignment variants
+Error: known-answer checks failed: crestHit.skirt: crossings=1 hit=1; crestHit.wide-corridor-still-misses: hit=1 (three cell-widths off the peak); nearMiss.beside: passUnder=0 nearMiss=3; passUnder.on: passUnder=1 nearMiss=1; biomeShare.single: share={"5:Tropical seasonal forest":{"cells":9,"tunnel":1,"land":1}}
+ ❯ knownAnswerChecks src/generators/underground-measure.dom.test.ts:1132:29
+    1130|   }
+    1131|
+    1132|   if (failures.length) throw new Error(`known-answer checks failed: ${…
+       |                             ^
+    1133|   console.log(`KNOWN-ANSWER all ${6} checks passed`);
+    1134| }
+ ❯ src/generators/underground-measure.dom.test.ts:1144:2
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  20:43:15
+   Duration  5.48s (transform 0ms, setup 0ms, import 131ms, tests 4ms, environment 0ms)
+

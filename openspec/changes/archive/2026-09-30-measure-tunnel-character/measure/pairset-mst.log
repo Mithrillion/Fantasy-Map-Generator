@@ -1,0 +1,990 @@
+npm warn Unknown env config "manage-package-manager-versions". This will error in a future major version of npm. See `npm help npmrc` for supported config options.
+npm notice run fantasy-map-generator@1.154.0 npx
+npm notice run 'vitest' run --config vitest.browser.config.ts generators/underground-measure.dom.test.ts
+
+ RUN  v4.1.11 /mnt/Mega/TestSpace/Fantasy-Map-Generator
+
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass directness.two-cell directness=1
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass directness.L-chain directness=1.414213562373095 expected=1.414213562373095
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass crestHit.through crossings=1 hit=1 sag=0
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass crestHit.skirt crossings=1 hit=0 sag=70
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass nearMiss.beside passUnder=0 nearMiss=3
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass passUnder.on passUnder=1 nearMiss=1
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass anchorMinDist.on-burg anchorMinDist=0
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass waterSpan.bay spans=[3] of chain length 7
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass waterSpan.none spans=[]
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass roadCopy.same-connection same=1 via=0 copies=1
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass roadCopy.no-settlements copies=0 expanded=0
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass roadCopy.one-end-only copies=0 expanded=0
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER pass biomeShare.single entry={"cells":9,"tunnel":1,"land":1} key=5:Tropical seasonal forest
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+KNOWN-ANSWER all checks passed
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+SEED measure-a cells=6112 land=4410 water=1702 burgs=870 subterranean=88 surfaceRoutes=573 {"roads":10,"trails":494,"searoutes":69} surfaceCells=2589 landRouteCells=1849 productionRoutes=57 longest=48
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR definitions {"directness":"per record: drawn-path length (points[0],points[1] polyline) over the straight-line distance between the record's own first and last drawn anchor; records shorter than 1 cell-width are dropped","elevProfile":"mean h of the record's land cells (h>=20) against the mean h of the direct-corridor cells, where the corridor is every cell within 1.5 cell-widths of the record's own direct segment (sampled every half cell-width) and the land mean is the whole map's land cells","crestHit":"for records whose direct corridor holds a cell with h>=50 (the crossing set): crestSag is the corridor's highest h minus the record's own highest h, and a hit is a sag of at most 10 — the record came up to the crest instead of bending around it. The sag is the primary reading: a distance radius on the crest cell cannot separate reach from a detour, because the corridor's own width puts the crest near any chain that stays on the line","biomeShare":"share of the record set's distinct land cells in each biome, against that biome's share of all land cells","passUnder":"distinct tunnel cells that are surface-only burg cells (burg with ground-level presence and no below-level presence) — the F7.2 audit definition","nearMiss":"distinct tunnel cells that are not surface-only burg cells but have such a burg cell among their neighbours","anchorMinDist":"per record, the smallest distance (in cell-widths) from any drawn point to any surface-only burg dot; the mean over records is reported"}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR fields seed=measure-a cellWidth=6.406 landMeanH=33 surfaceOnlyBurgs=782 landCells=4410
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR variants seed=measure-a ["baseline-production","replica-production","replica-production-2","pairset-backbone-mst","pairset-subterranean-only"]
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-a","variant":"baseline-production","ms":0,"routes":57,"cells":578,"length":6027,"overlap":0.445,"overlapLand":0.441,"waterShare":0.009,"parallel":0.833,"exactEdge":0.149,"alongEdge":0.472,"bandShare":0.358,"medianRoadDistance":0.66,"surfaceOnlyContact":75,"dualIdentityContact":44,"multiRecordCells":97,"surfaceOnlyHubs":9,"dualIdentityHubs":26,"otherHubs":62,"bandByEndpointKind":{"dual":{"shared":97,"band":40,"share":0.41237113402061853},"fully-subterranean":{"shared":36,"band":16,"share":0.4444444444444444},"junction":{"shared":223,"band":85,"share":0.3811659192825112}},"histogram":[257,268,43,10],"burgsServed":68,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":57,"directness":1.288,"directness125":0.304,"directness150":0.143,"directnessMax":3.048,"directnessRecords":56,"wander":2.97,"wanderMax":14.99,"tunnelH":39.5,"corridorH":40.1,"landMeanH":33,"crestCrossings":30,"crestHit":0.933,"crestSag":2,"passUnder":75,"nearMiss":316,"anchorMinDist":0.531,"tunnelCells":578,"corridorCells":811}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+DEBUG replica stages: raw 143 routes/578 cells -> merged 57 routes -> pruned 57 routes/578 cells
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-a","variant":"replica-production","ms":17,"routes":57,"cells":578,"length":6027,"overlap":0.445,"overlapLand":0.441,"waterShare":0.009,"parallel":0.833,"exactEdge":0.149,"alongEdge":0.472,"bandShare":0.358,"medianRoadDistance":0.66,"surfaceOnlyContact":75,"dualIdentityContact":44,"multiRecordCells":97,"surfaceOnlyHubs":9,"dualIdentityHubs":26,"otherHubs":62,"bandByEndpointKind":{"dual":{"shared":97,"band":40,"share":0.41237113402061853},"fully-subterranean":{"shared":36,"band":16,"share":0.4444444444444444},"junction":{"shared":223,"band":85,"share":0.3811659192825112}},"histogram":[257,268,43,10],"burgsServed":68,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":57,"directness":1.355,"directness125":0.429,"directness150":0.143,"directnessMax":3.168,"directnessRecords":56,"wander":2.98,"wanderMax":14.99,"tunnelH":39.5,"corridorH":40.1,"landMeanH":33,"crestCrossings":30,"crestHit":0.933,"crestSag":2,"passUnder":75,"nearMiss":316,"anchorMinDist":0.555,"tunnelCells":578,"corridorCells":809}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-a","variant":"replica-production-2","ms":16,"routes":57,"cells":578,"length":6027,"overlap":0.445,"overlapLand":0.441,"waterShare":0.009,"parallel":0.833,"exactEdge":0.149,"alongEdge":0.472,"bandShare":0.358,"medianRoadDistance":0.66,"surfaceOnlyContact":75,"dualIdentityContact":44,"multiRecordCells":97,"surfaceOnlyHubs":9,"dualIdentityHubs":26,"otherHubs":62,"bandByEndpointKind":{"dual":{"shared":97,"band":40,"share":0.41237113402061853},"fully-subterranean":{"shared":36,"band":16,"share":0.4444444444444444},"junction":{"shared":223,"band":85,"share":0.3811659192825112}},"histogram":[257,268,43,10],"burgsServed":68,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":57,"directness":1.355,"directness125":0.429,"directness150":0.143,"directnessMax":3.168,"directnessRecords":56,"wander":2.98,"wanderMax":14.99,"tunnelH":39.5,"corridorH":40.1,"landMeanH":33,"crestCrossings":30,"crestHit":0.933,"crestSag":2,"passUnder":75,"nearMiss":316,"anchorMinDist":0.555,"tunnelCells":578,"corridorCells":809}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-a","variant":"pairset-backbone-mst","ms":9,"routes":75,"cells":471,"length":4460,"overlap":0.463,"overlapLand":0.456,"waterShare":0.008,"parallel":0.817,"exactEdge":0.128,"alongEdge":0.425,"bandShare":0.523,"medianRoadDistance":0.62,"surfaceOnlyContact":62,"dualIdentityContact":44,"multiRecordCells":78,"surfaceOnlyHubs":2,"dualIdentityHubs":30,"otherHubs":46,"bandByEndpointKind":{"dual":{"shared":71,"band":50,"share":0.704225352112676},"fully-subterranean":{"shared":73,"band":36,"share":0.4931506849315068},"junction":{"shared":144,"band":89,"share":0.6180555555555556}},"histogram":[218,221,26,6],"burgsServed":82,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":75,"directness":1.194,"directness125":0.32,"directness150":0.053,"directnessMax":1.7,"directnessRecords":75,"wander":1.69,"wanderMax":7.52,"tunnelH":38.9,"corridorH":39.1,"landMeanH":33,"crestCrossings":32,"crestHit":0.906,"crestSag":3.3,"passUnder":62,"nearMiss":256,"anchorMinDist":0.995,"tunnelCells":471,"corridorCells":754}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-a","variant":"pairset-subterranean-only","ms":13,"routes":26,"cells":406,"length":3863,"overlap":0.424,"overlapLand":0.414,"waterShare":0.015,"parallel":0.751,"exactEdge":0.118,"alongEdge":0.394,"bandShare":0.203,"medianRoadDistance":0.75,"surfaceOnlyContact":64,"dualIdentityContact":3,"multiRecordCells":32,"surfaceOnlyHubs":5,"dualIdentityHubs":0,"otherHubs":27,"bandByEndpointKind":{"dual":{"shared":0,"band":0,"share":0},"fully-subterranean":{"shared":174,"band":41,"share":0.23563218390804597},"junction":{"shared":30,"band":11,"share":0.36666666666666664}},"histogram":[172,177,45,12],"burgsServed":29,"violations":41,"repairs":0,"serviceViolations":41,"boundaryViolations":0,"records":26,"directness":1.281,"directness125":0.346,"directness150":0.192,"directnessMax":1.783,"directnessRecords":26,"wander":4.76,"wanderMax":28.27,"tunnelH":38.2,"corridorH":34.5,"landMeanH":33,"crestCrossings":11,"crestHit":0.909,"crestSag":-1.5,"passUnder":64,"nearMiss":202,"anchorMinDist":0.156,"tunnelCells":406,"corridorCells":542}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+BIOME {"seed":"measure-a","variant":"baseline-production","6:Temperate deciduous forest":{"cells":161,"tunnel":0.281,"land":0.176},"4:Grassland":{"cells":113,"tunnel":0.197,"land":0.144},"5:Tropical seasonal forest":{"cells":107,"tunnel":0.187,"land":0.157},"3:Savanna":{"cells":68,"tunnel":0.119,"land":0.139},"8:Temperate rainforest":{"cells":62,"tunnel":0.108,"land":0.095},"9:Taiga":{"cells":26,"tunnel":0.045,"land":0.11},"1:Hot desert":{"cells":12,"tunnel":0.021,"land":0.035},"12:Wetland":{"cells":9,"tunnel":0.016,"land":0.054},"7:Tropical rainforest":{"cells":8,"tunnel":0.014,"land":0.025},"2:Cold desert":{"cells":5,"tunnel":0.009,"land":0.005},"10:Tundra":{"cells":2,"tunnel":0.003,"land":0.035}}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-a","variant":"baseline-production","records":57,"roads":573,"same":2,"viaBurg":6,"roadCopies":2,"roadCopiesExpanded":8,"copyCells":171}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":8,"kind":"same-connection","connects":[852,678],"cells":4,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":11,"kind":"pass-under-burg","connects":[51,616],"cells":5,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":12,"kind":"pass-under-burg","connects":[172,299],"cells":40,"road":49,"burg":575}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":15,"kind":"pass-under-burg","connects":[51,573],"cells":3,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":16,"kind":"pass-under-burg","connects":[51,248],"cells":31,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":21,"kind":"same-connection","connects":[416,852],"cells":11,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":34,"kind":"pass-under-burg","connects":[844,59],"cells":29,"road":275,"burg":737}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":51,"kind":"pass-under-burg","connects":[804,553],"cells":48,"road":462,"burg":823}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-a","variant":"baseline-production","records":57,"roads":573,"same":2,"viaBurg":6,"roadCopies":2,"roadCopiesExpanded":8,"copyCells":171}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":8,"kind":"same-connection","connects":[852,678],"cells":4,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":11,"kind":"pass-under-burg","connects":[51,616],"cells":5,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":12,"kind":"pass-under-burg","connects":[172,299],"cells":40,"road":49,"burg":575}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":15,"kind":"pass-under-burg","connects":[51,573],"cells":3,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":16,"kind":"pass-under-burg","connects":[51,248],"cells":31,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":21,"kind":"same-connection","connects":[416,852],"cells":11,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":34,"kind":"pass-under-burg","connects":[844,59],"cells":29,"road":275,"burg":737}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"baseline-production","tunnel":51,"kind":"pass-under-burg","connects":[804,553],"cells":48,"road":462,"burg":823}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-a","variant":"replica-production","records":57,"roads":573,"same":2,"viaBurg":6,"roadCopies":2,"roadCopiesExpanded":8,"copyCells":171}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production","tunnel":8,"kind":"same-connection","connects":[852,678],"cells":4,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production","tunnel":11,"kind":"pass-under-burg","connects":[51,616],"cells":5,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production","tunnel":12,"kind":"pass-under-burg","connects":[172,299],"cells":40,"road":49,"burg":575}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production","tunnel":15,"kind":"pass-under-burg","connects":[51,573],"cells":3,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production","tunnel":16,"kind":"pass-under-burg","connects":[51,248],"cells":31,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production","tunnel":21,"kind":"same-connection","connects":[416,852],"cells":11,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production","tunnel":34,"kind":"pass-under-burg","connects":[844,59],"cells":29,"road":275,"burg":737}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production","tunnel":51,"kind":"pass-under-burg","connects":[804,553],"cells":48,"road":462,"burg":823}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-a","variant":"replica-production-2","records":57,"roads":573,"same":2,"viaBurg":6,"roadCopies":2,"roadCopiesExpanded":8,"copyCells":171}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production-2","tunnel":8,"kind":"same-connection","connects":[852,678],"cells":4,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production-2","tunnel":11,"kind":"pass-under-burg","connects":[51,616],"cells":5,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production-2","tunnel":12,"kind":"pass-under-burg","connects":[172,299],"cells":40,"road":49,"burg":575}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production-2","tunnel":15,"kind":"pass-under-burg","connects":[51,573],"cells":3,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production-2","tunnel":16,"kind":"pass-under-burg","connects":[51,248],"cells":31,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production-2","tunnel":21,"kind":"same-connection","connects":[416,852],"cells":11,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production-2","tunnel":34,"kind":"pass-under-burg","connects":[844,59],"cells":29,"road":275,"burg":737}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"replica-production-2","tunnel":51,"kind":"pass-under-burg","connects":[804,553],"cells":48,"road":462,"burg":823}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-a","variant":"pairset-backbone-mst","records":75,"roads":573,"same":4,"viaBurg":3,"roadCopies":4,"roadCopiesExpanded":7,"copyCells":66}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"pairset-backbone-mst","tunnel":11,"kind":"same-connection","connects":[90,852],"cells":8,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"pairset-backbone-mst","tunnel":15,"kind":"pass-under-burg","connects":[51,616],"cells":5,"road":55,"burg":312}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"pairset-backbone-mst","tunnel":18,"kind":"same-connection","connects":[834,852],"cells":7,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"pairset-backbone-mst","tunnel":23,"kind":"same-connection","connects":[10,852],"cells":9,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"pairset-backbone-mst","tunnel":29,"kind":"same-connection","connects":[416,852],"cells":11,"road":25}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"pairset-backbone-mst","tunnel":48,"kind":"pass-under-burg","connects":[329,412],"cells":4,"road":421,"burg":580}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"pairset-backbone-mst","tunnel":69,"kind":"pass-under-burg","connects":[133,553],"cells":22,"road":444,"burg":773}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-a","variant":"pairset-subterranean-only","records":26,"roads":573,"same":0,"viaBurg":1,"roadCopies":0,"roadCopiesExpanded":1,"copyCells":18}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-a","variant":"pairset-subterranean-only","tunnel":7,"kind":"pass-under-burg","connects":[585,678],"cells":18,"road":26,"burg":818}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+WATER-CENSUS {"seed":"measure-a","production":{"legs":4,"waterCells":6,"spans":{"1":3,"3":1},"meanSpan":1.5,"maxSpan":3,"legLength":3},"boundMinus3":{"legs":0,"waterCells":0,"spans":{},"meanSpan":0,"maxSpan":0,"legLength":0},"directCrossingPairs":6,"crossings":[{"direct":200,"crossed":3,"actual":218,"bypass":231,"waterDetour":1.09,"landPenalty":1.06},{"direct":58,"crossed":1,"actual":65,"bypass":67,"waterDetour":1.121,"landPenalty":1.031},{"direct":160,"crossed":6,"actual":190,"bypass":190,"waterDetour":1.188,"landPenalty":1},{"direct":113,"crossed":4,"actual":139,"bypass":139,"waterDetour":1.23,"landPenalty":1},{"direct":62,"crossed":1,"actual":79,"bypass":79,"waterDetour":1.274,"landPenalty":1},{"direct":57,"crossed":2,"actual":69,"bypass":69,"waterDetour":1.211,"landPenalty":1}]}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-a","variant":"replica-production","productionRoutes":57,"replicaRoutes":57,"productionCells":578,"replicaCells":578,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-a","variant":"replica-production-2","productionRoutes":57,"replicaRoutes":57,"productionCells":578,"replicaCells":578,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR-ANCHOR {"seed":"measure-a","passUnder":75,"replicaPassUnder":75,"nearMiss":316,"replicaNearMiss":316,"anchorMinDist":0.531,"dDirectness":0.067,"dTunnelH":0,"dCrestHit":0,"dTunnelCells":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+SEED measure-b cells=5970 land=4220 water=1750 burgs=801 subterranean=80 surfaceRoutes=577 {"roads":14,"trails":492,"searoutes":71} surfaceCells=2498 landRouteCells=1747 productionRoutes=40 longest=64
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR definitions {"directness":"per record: drawn-path length (points[0],points[1] polyline) over the straight-line distance between the record's own first and last drawn anchor; records shorter than 1 cell-width are dropped","elevProfile":"mean h of the record's land cells (h>=20) against the mean h of the direct-corridor cells, where the corridor is every cell within 1.5 cell-widths of the record's own direct segment (sampled every half cell-width) and the land mean is the whole map's land cells","crestHit":"for records whose direct corridor holds a cell with h>=50 (the crossing set): crestSag is the corridor's highest h minus the record's own highest h, and a hit is a sag of at most 10 — the record came up to the crest instead of bending around it. The sag is the primary reading: a distance radius on the crest cell cannot separate reach from a detour, because the corridor's own width puts the crest near any chain that stays on the line","biomeShare":"share of the record set's distinct land cells in each biome, against that biome's share of all land cells","passUnder":"distinct tunnel cells that are surface-only burg cells (burg with ground-level presence and no below-level presence) — the F7.2 audit definition","nearMiss":"distinct tunnel cells that are not surface-only burg cells but have such a burg cell among their neighbours","anchorMinDist":"per record, the smallest distance (in cell-widths) from any drawn point to any surface-only burg dot; the mean over records is reported"}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR fields seed=measure-b cellWidth=6.399 landMeanH=31.5 surfaceOnlyBurgs=721 landCells=4220
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR variants seed=measure-b ["baseline-production","replica-production","replica-production-2","pairset-backbone-mst","pairset-subterranean-only"]
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-b","variant":"baseline-production","ms":0,"routes":40,"cells":532,"length":5013,"overlap":0.438,"overlapLand":0.415,"waterShare":0.077,"parallel":0.73,"exactEdge":0.12,"alongEdge":0.42,"bandShare":0.296,"medianRoadDistance":0.77,"surfaceOnlyContact":57,"dualIdentityContact":40,"multiRecordCells":51,"surfaceOnlyHubs":1,"dualIdentityHubs":22,"otherHubs":28,"bandByEndpointKind":{"dual":{"shared":66,"band":28,"share":0.42424242424242425},"fully-subterranean":{"shared":70,"band":21,"share":0.3},"junction":{"shared":138,"band":45,"share":0.32608695652173914}},"histogram":[233,207,74,18],"burgsServed":52,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":40,"directness":1.207,"directness125":0.3,"directness150":0.075,"directnessMax":2.205,"directnessRecords":40,"wander":3.11,"wanderMax":17.6,"tunnelH":35.7,"corridorH":34.8,"landMeanH":31.5,"crestCrossings":17,"crestHit":0.941,"crestSag":1.5,"passUnder":57,"nearMiss":258,"anchorMinDist":0.4,"tunnelCells":532,"corridorCells":771}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+DEBUG replica stages: raw 90 routes/532 cells -> merged 40 routes -> pruned 40 routes/532 cells
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-b","variant":"replica-production","ms":17,"routes":40,"cells":532,"length":5013,"overlap":0.438,"overlapLand":0.415,"waterShare":0.077,"parallel":0.73,"exactEdge":0.12,"alongEdge":0.42,"bandShare":0.296,"medianRoadDistance":0.77,"surfaceOnlyContact":57,"dualIdentityContact":40,"multiRecordCells":51,"surfaceOnlyHubs":1,"dualIdentityHubs":22,"otherHubs":28,"bandByEndpointKind":{"dual":{"shared":66,"band":28,"share":0.42424242424242425},"fully-subterranean":{"shared":70,"band":21,"share":0.3},"junction":{"shared":138,"band":45,"share":0.32608695652173914}},"histogram":[233,207,74,18],"burgsServed":52,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":40,"directness":1.266,"directness125":0.325,"directness150":0.125,"directnessMax":2.341,"directnessRecords":40,"wander":3.12,"wanderMax":17.6,"tunnelH":35.7,"corridorH":34.8,"landMeanH":31.5,"crestCrossings":17,"crestHit":0.941,"crestSag":1.5,"passUnder":57,"nearMiss":258,"anchorMinDist":0.423,"tunnelCells":532,"corridorCells":773}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-b","variant":"replica-production-2","ms":16,"routes":40,"cells":532,"length":5013,"overlap":0.438,"overlapLand":0.415,"waterShare":0.077,"parallel":0.73,"exactEdge":0.12,"alongEdge":0.42,"bandShare":0.296,"medianRoadDistance":0.77,"surfaceOnlyContact":57,"dualIdentityContact":40,"multiRecordCells":51,"surfaceOnlyHubs":1,"dualIdentityHubs":22,"otherHubs":28,"bandByEndpointKind":{"dual":{"shared":66,"band":28,"share":0.42424242424242425},"fully-subterranean":{"shared":70,"band":21,"share":0.3},"junction":{"shared":138,"band":45,"share":0.32608695652173914}},"histogram":[233,207,74,18],"burgsServed":52,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":40,"directness":1.266,"directness125":0.325,"directness150":0.125,"directnessMax":2.341,"directnessRecords":40,"wander":3.12,"wanderMax":17.6,"tunnelH":35.7,"corridorH":34.8,"landMeanH":31.5,"crestCrossings":17,"crestHit":0.941,"crestSag":1.5,"passUnder":57,"nearMiss":258,"anchorMinDist":0.423,"tunnelCells":532,"corridorCells":773}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-b","variant":"pairset-backbone-mst","ms":10,"routes":58,"cells":461,"length":4251,"overlap":0.464,"overlapLand":0.445,"waterShare":0.076,"parallel":0.77,"exactEdge":0.131,"alongEdge":0.403,"bandShare":0.449,"medianRoadDistance":0.74,"surfaceOnlyContact":46,"dualIdentityContact":40,"multiRecordCells":56,"surfaceOnlyHubs":1,"dualIdentityHubs":29,"otherHubs":26,"bandByEndpointKind":{"dual":{"shared":135,"band":70,"share":0.5185185185185185},"fully-subterranean":{"shared":68,"band":32,"share":0.47058823529411764},"junction":{"shared":63,"band":42,"share":0.6666666666666666}},"histogram":[214,168,65,14],"burgsServed":66,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":58,"directness":1.202,"directness125":0.31,"directness150":0.086,"directnessMax":1.736,"directnessRecords":58,"wander":1.96,"wanderMax":7.57,"tunnelH":36.4,"corridorH":35.2,"landMeanH":31.5,"crestCrossings":27,"crestHit":0.852,"crestSag":2.4,"passUnder":46,"nearMiss":231,"anchorMinDist":0.702,"tunnelCells":461,"corridorCells":745}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-b","variant":"pairset-subterranean-only","ms":14,"routes":16,"cells":367,"length":3815,"overlap":0.376,"overlapLand":0.338,"waterShare":0.09,"parallel":0.642,"exactEdge":0.066,"alongEdge":0.32,"bandShare":0.217,"medianRoadDistance":0.92,"surfaceOnlyContact":29,"dualIdentityContact":11,"multiRecordCells":54,"surfaceOnlyHubs":1,"dualIdentityHubs":1,"otherHubs":52,"bandByEndpointKind":{"dual":{"shared":0,"band":0,"share":0},"fully-subterranean":{"shared":154,"band":36,"share":0.23376623376623376},"junction":{"shared":2,"band":2,"share":1}},"histogram":[138,142,66,21],"burgsServed":23,"violations":29,"repairs":0,"serviceViolations":29,"boundaryViolations":0,"records":16,"directness":2.147,"directness125":0.438,"directness150":0.188,"directnessMax":14.077,"directnessRecords":16,"wander":8.05,"wanderMax":40.8,"tunnelH":37.9,"corridorH":37.2,"landMeanH":31.5,"crestCrossings":6,"crestHit":0.667,"crestSag":6,"passUnder":29,"nearMiss":164,"anchorMinDist":0.297,"tunnelCells":367,"corridorCells":349}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+BIOME {"seed":"measure-b","variant":"baseline-production","6:Temperate deciduous forest":{"cells":132,"tunnel":0.269,"land":0.177},"5:Tropical seasonal forest":{"cells":106,"tunnel":0.216,"land":0.181},"3:Savanna":{"cells":78,"tunnel":0.159,"land":0.16},"8:Temperate rainforest":{"cells":69,"tunnel":0.141,"land":0.128},"4:Grassland":{"cells":51,"tunnel":0.104,"land":0.095},"9:Taiga":{"cells":32,"tunnel":0.065,"land":0.083},"12:Wetland":{"cells":12,"tunnel":0.024,"land":0.056},"7:Tropical rainforest":{"cells":7,"tunnel":0.014,"land":0.025},"10:Tundra":{"cells":2,"tunnel":0.004,"land":0.028},"2:Cold desert":{"cells":1,"tunnel":0.002,"land":0.001},"1:Hot desert":{"cells":1,"tunnel":0.002,"land":0.001}}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-b","variant":"baseline-production","records":40,"roads":577,"same":0,"viaBurg":5,"roadCopies":0,"roadCopiesExpanded":5,"copyCells":41}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"baseline-production","tunnel":6,"kind":"pass-under-burg","connects":[719,446],"cells":7,"road":113,"burg":60}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"baseline-production","tunnel":12,"kind":"pass-under-burg","connects":[39,542],"cells":6,"road":161,"burg":355}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"baseline-production","tunnel":14,"kind":"pass-under-burg","connects":[385,28],"cells":10,"road":145,"burg":186}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"baseline-production","tunnel":17,"kind":"pass-under-burg","connects":[647,234],"cells":6,"road":135,"burg":166}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"baseline-production","tunnel":24,"kind":"pass-under-burg","connects":[129,587],"cells":12,"road":185,"burg":648}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-b","variant":"baseline-production","records":40,"roads":577,"same":0,"viaBurg":5,"roadCopies":0,"roadCopiesExpanded":5,"copyCells":41}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"baseline-production","tunnel":6,"kind":"pass-under-burg","connects":[719,446],"cells":7,"road":113,"burg":60}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"baseline-production","tunnel":12,"kind":"pass-under-burg","connects":[39,542],"cells":6,"road":161,"burg":355}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"baseline-production","tunnel":14,"kind":"pass-under-burg","connects":[385,28],"cells":10,"road":145,"burg":186}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"baseline-production","tunnel":17,"kind":"pass-under-burg","connects":[647,234],"cells":6,"road":135,"burg":166}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"baseline-production","tunnel":24,"kind":"pass-under-burg","connects":[129,587],"cells":12,"road":185,"burg":648}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-b","variant":"replica-production","records":40,"roads":577,"same":0,"viaBurg":5,"roadCopies":0,"roadCopiesExpanded":5,"copyCells":41}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"replica-production","tunnel":6,"kind":"pass-under-burg","connects":[719,446],"cells":7,"road":113,"burg":60}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"replica-production","tunnel":12,"kind":"pass-under-burg","connects":[39,542],"cells":6,"road":161,"burg":355}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"replica-production","tunnel":14,"kind":"pass-under-burg","connects":[385,28],"cells":10,"road":145,"burg":186}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"replica-production","tunnel":17,"kind":"pass-under-burg","connects":[647,234],"cells":6,"road":135,"burg":166}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"replica-production","tunnel":24,"kind":"pass-under-burg","connects":[129,587],"cells":12,"road":185,"burg":648}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-b","variant":"replica-production-2","records":40,"roads":577,"same":0,"viaBurg":5,"roadCopies":0,"roadCopiesExpanded":5,"copyCells":41}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"replica-production-2","tunnel":6,"kind":"pass-under-burg","connects":[719,446],"cells":7,"road":113,"burg":60}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"replica-production-2","tunnel":12,"kind":"pass-under-burg","connects":[39,542],"cells":6,"road":161,"burg":355}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"replica-production-2","tunnel":14,"kind":"pass-under-burg","connects":[385,28],"cells":10,"road":145,"burg":186}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"replica-production-2","tunnel":17,"kind":"pass-under-burg","connects":[647,234],"cells":6,"road":135,"burg":166}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"replica-production-2","tunnel":24,"kind":"pass-under-burg","connects":[129,587],"cells":12,"road":185,"burg":648}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-b","variant":"pairset-backbone-mst","records":58,"roads":577,"same":3,"viaBurg":9,"roadCopies":3,"roadCopiesExpanded":12,"copyCells":68}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":5,"kind":"same-connection","connects":[502,766],"cells":5,"road":388}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":9,"kind":"same-connection","connects":[67,587],"cells":3,"road":162}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":11,"kind":"pass-under-burg","connects":[78,479],"cells":5,"road":122,"burg":772}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":13,"kind":"pass-under-burg","connects":[39,619],"cells":6,"road":160,"burg":63}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":22,"kind":"pass-under-burg","connects":[329,478],"cells":4,"road":438,"burg":338}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":24,"kind":"same-connection","connects":[152,478],"cells":3,"road":446}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":27,"kind":"pass-under-burg","connects":[385,441],"cells":4,"road":131,"burg":439}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":29,"kind":"pass-under-burg","connects":[40,58],"cells":4,"road":361,"burg":376}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":34,"kind":"pass-under-burg","connects":[39,542],"cells":6,"road":161,"burg":355}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":43,"kind":"pass-under-burg","connects":[40],"cells":3,"road":361,"burg":376}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":44,"kind":"pass-under-burg","connects":[40,494],"cells":13,"road":361,"burg":376}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-b","variant":"pairset-backbone-mst","tunnel":48,"kind":"pass-under-burg","connects":[129,587],"cells":12,"road":185,"burg":648}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-b","variant":"pairset-subterranean-only","records":16,"roads":577,"same":0,"viaBurg":0,"roadCopies":0,"roadCopiesExpanded":0,"copyCells":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+WATER-CENSUS {"seed":"measure-b","production":{"legs":9,"waterCells":42,"spans":{"1":2,"2":1,"4":1,"5":2,"6":1,"7":1,"11":1},"meanSpan":4.67,"maxSpan":11,"legLength":26},"boundMinus3":{"legs":0,"waterCells":0,"spans":{},"meanSpan":0,"maxSpan":0,"legLength":0},"directCrossingPairs":9,"crossings":[{"direct":77,"crossed":5,"actual":97,"bypass":232,"waterDetour":1.26,"landPenalty":2.392},{"direct":101,"crossed":1,"actual":130,"bypass":130,"waterDetour":1.287,"landPenalty":1},{"direct":105,"crossed":3,"actual":165,"bypass":130,"waterDetour":1.571,"landPenalty":0.788},{"direct":128,"crossed":3,"actual":169,"bypass":169,"waterDetour":1.32,"landPenalty":1},{"direct":73,"crossed":1,"actual":82,"bypass":83,"waterDetour":1.123,"landPenalty":1.012},{"direct":68,"crossed":4,"actual":78,"bypass":364,"waterDetour":1.147,"landPenalty":4.667},{"direct":88,"crossed":8,"actual":121,"bypass":121,"waterDetour":1.375,"landPenalty":1},{"direct":63,"crossed":1,"actual":78,"bypass":78,"waterDetour":1.238,"landPenalty":1},{"direct":129,"crossed":1,"actual":154,"bypass":146,"waterDetour":1.194,"landPenalty":0.948}]}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-b","variant":"replica-production","productionRoutes":40,"replicaRoutes":40,"productionCells":532,"replicaCells":532,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-b","variant":"replica-production-2","productionRoutes":40,"replicaRoutes":40,"productionCells":532,"replicaCells":532,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR-ANCHOR {"seed":"measure-b","passUnder":57,"replicaPassUnder":57,"nearMiss":258,"replicaNearMiss":258,"anchorMinDist":0.4,"dDirectness":0.06,"dTunnelH":0,"dCrestHit":0,"dTunnelCells":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+SEED measure-c cells=5601 land=4077 water=1524 burgs=815 subterranean=82 surfaceRoutes=565 {"roads":9,"trails":478,"searoutes":78} surfaceCells=2216 landRouteCells=1661 productionRoutes=47 longest=67
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR definitions {"directness":"per record: drawn-path length (points[0],points[1] polyline) over the straight-line distance between the record's own first and last drawn anchor; records shorter than 1 cell-width are dropped","elevProfile":"mean h of the record's land cells (h>=20) against the mean h of the direct-corridor cells, where the corridor is every cell within 1.5 cell-widths of the record's own direct segment (sampled every half cell-width) and the land mean is the whole map's land cells","crestHit":"for records whose direct corridor holds a cell with h>=50 (the crossing set): crestSag is the corridor's highest h minus the record's own highest h, and a hit is a sag of at most 10 — the record came up to the crest instead of bending around it. The sag is the primary reading: a distance radius on the crest cell cannot separate reach from a detour, because the corridor's own width puts the crest near any chain that stays on the line","biomeShare":"share of the record set's distinct land cells in each biome, against that biome's share of all land cells","passUnder":"distinct tunnel cells that are surface-only burg cells (burg with ground-level presence and no below-level presence) — the F7.2 audit definition","nearMiss":"distinct tunnel cells that are not surface-only burg cells but have such a burg cell among their neighbours","anchorMinDist":"per record, the smallest distance (in cell-widths) from any drawn point to any surface-only burg dot; the mean over records is reported"}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR fields seed=measure-c cellWidth=6.405 landMeanH=31.9 surfaceOnlyBurgs=733 landCells=4077
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR variants seed=measure-c ["baseline-production","replica-production","replica-production-2","pairset-backbone-mst","pairset-subterranean-only"]
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-c","variant":"baseline-production","ms":0,"routes":47,"cells":559,"length":6219,"overlap":0.419,"overlapLand":0.41,"waterShare":0.011,"parallel":0.726,"exactEdge":0.12,"alongEdge":0.442,"bandShare":0.342,"medianRoadDistance":0.79,"surfaceOnlyContact":75,"dualIdentityContact":41,"multiRecordCells":102,"surfaceOnlyHubs":5,"dualIdentityHubs":26,"otherHubs":71,"bandByEndpointKind":{"dual":{"shared":104,"band":38,"share":0.36538461538461536},"fully-subterranean":{"shared":64,"band":19,"share":0.296875},"junction":{"shared":138,"band":59,"share":0.427536231884058}},"histogram":[234,232,70,23],"burgsServed":53,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":47,"directness":1.365,"directness125":0.404,"directness150":0.298,"directnessMax":2.868,"directnessRecords":47,"wander":4.21,"wanderMax":24.82,"tunnelH":37.5,"corridorH":38.2,"landMeanH":31.9,"crestCrossings":21,"crestHit":0.905,"crestSag":3.4,"passUnder":75,"nearMiss":304,"anchorMinDist":0.391,"tunnelCells":559,"corridorCells":720}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+DEBUG replica stages: raw 164 routes/559 cells -> merged 47 routes -> pruned 47 routes/559 cells
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-c","variant":"replica-production","ms":17,"routes":47,"cells":559,"length":6219,"overlap":0.419,"overlapLand":0.41,"waterShare":0.011,"parallel":0.726,"exactEdge":0.12,"alongEdge":0.442,"bandShare":0.342,"medianRoadDistance":0.79,"surfaceOnlyContact":75,"dualIdentityContact":41,"multiRecordCells":102,"surfaceOnlyHubs":5,"dualIdentityHubs":26,"otherHubs":71,"bandByEndpointKind":{"dual":{"shared":104,"band":38,"share":0.36538461538461536},"fully-subterranean":{"shared":64,"band":19,"share":0.296875},"junction":{"shared":138,"band":59,"share":0.427536231884058}},"histogram":[234,232,70,23],"burgsServed":53,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":47,"directness":1.423,"directness125":0.468,"directness150":0.319,"directnessMax":2.969,"directnessRecords":47,"wander":4.19,"wanderMax":24.82,"tunnelH":37.5,"corridorH":38.2,"landMeanH":31.9,"crestCrossings":21,"crestHit":0.905,"crestSag":3.4,"passUnder":75,"nearMiss":304,"anchorMinDist":0.398,"tunnelCells":559,"corridorCells":722}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-c","variant":"replica-production-2","ms":16,"routes":47,"cells":559,"length":6219,"overlap":0.419,"overlapLand":0.41,"waterShare":0.011,"parallel":0.726,"exactEdge":0.12,"alongEdge":0.442,"bandShare":0.342,"medianRoadDistance":0.79,"surfaceOnlyContact":75,"dualIdentityContact":41,"multiRecordCells":102,"surfaceOnlyHubs":5,"dualIdentityHubs":26,"otherHubs":71,"bandByEndpointKind":{"dual":{"shared":104,"band":38,"share":0.36538461538461536},"fully-subterranean":{"shared":64,"band":19,"share":0.296875},"junction":{"shared":138,"band":59,"share":0.427536231884058}},"histogram":[234,232,70,23],"burgsServed":53,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":47,"directness":1.423,"directness125":0.468,"directness150":0.319,"directnessMax":2.969,"directnessRecords":47,"wander":4.19,"wanderMax":24.82,"tunnelH":37.5,"corridorH":38.2,"landMeanH":31.9,"crestCrossings":21,"crestHit":0.905,"crestSag":3.4,"passUnder":75,"nearMiss":304,"anchorMinDist":0.398,"tunnelCells":559,"corridorCells":722}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-c","variant":"pairset-backbone-mst","ms":9,"routes":64,"cells":442,"length":4121,"overlap":0.48,"overlapLand":0.468,"waterShare":0.011,"parallel":0.798,"exactEdge":0.135,"alongEdge":0.49,"bandShare":0.458,"medianRoadDistance":0.68,"surfaceOnlyContact":60,"dualIdentityContact":41,"multiRecordCells":60,"surfaceOnlyHubs":0,"dualIdentityHubs":26,"otherHubs":34,"bandByEndpointKind":{"dual":{"shared":81,"band":52,"share":0.6419753086419753},"fully-subterranean":{"shared":78,"band":30,"share":0.38461538461538464},"junction":{"shared":105,"band":65,"share":0.6190476190476191}},"histogram":[212,175,39,16],"burgsServed":70,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":64,"directness":1.196,"directness125":0.281,"directness150":0.047,"directnessMax":1.913,"directnessRecords":64,"wander":1.68,"wanderMax":8.33,"tunnelH":36.9,"corridorH":36.7,"landMeanH":31.9,"crestCrossings":18,"crestHit":0.944,"crestSag":1.9,"passUnder":60,"nearMiss":260,"anchorMinDist":0.599,"tunnelCells":442,"corridorCells":680}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-c","variant":"pairset-subterranean-only","ms":17,"routes":27,"cells":406,"length":4225,"overlap":0.367,"overlapLand":0.362,"waterShare":0,"parallel":0.671,"exactEdge":0.099,"alongEdge":0.36,"bandShare":0.235,"medianRoadDistance":0.94,"surfaceOnlyContact":52,"dualIdentityContact":9,"multiRecordCells":65,"surfaceOnlyHubs":4,"dualIdentityHubs":1,"otherHubs":60,"bandByEndpointKind":{"dual":{"shared":0,"band":0,"share":0},"fully-subterranean":{"shared":175,"band":47,"share":0.26857142857142857},"junction":{"shared":13,"band":10,"share":0.7692307692307693}},"histogram":[149,163,65,29],"burgsServed":30,"violations":32,"repairs":0,"serviceViolations":32,"boundaryViolations":0,"records":27,"directness":1.319,"directness125":0.296,"directness150":0.259,"directnessMax":2.456,"directnessRecords":27,"wander":4.29,"wanderMax":18.67,"tunnelH":36.8,"corridorH":36.8,"landMeanH":31.9,"crestCrossings":11,"crestHit":0.727,"crestSag":6.1,"passUnder":52,"nearMiss":198,"anchorMinDist":0.456,"tunnelCells":406,"corridorCells":530}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+BIOME {"seed":"measure-c","variant":"baseline-production","6:Temperate deciduous forest":{"cells":141,"tunnel":0.255,"land":0.19},"4:Grassland":{"cells":123,"tunnel":0.222,"land":0.133},"3:Savanna":{"cells":112,"tunnel":0.203,"land":0.24},"5:Tropical seasonal forest":{"cells":95,"tunnel":0.172,"land":0.118},"8:Temperate rainforest":{"cells":39,"tunnel":0.071,"land":0.081},"12:Wetland":{"cells":21,"tunnel":0.038,"land":0.053},"7:Tropical rainforest":{"cells":12,"tunnel":0.022,"land":0.019},"9:Taiga":{"cells":6,"tunnel":0.011,"land":0.114},"1:Hot desert":{"cells":4,"tunnel":0.007,"land":0.008}}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-c","variant":"baseline-production","records":47,"roads":565,"same":2,"viaBurg":4,"roadCopies":2,"roadCopiesExpanded":6,"copyCells":66}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":2,"kind":"pass-under-burg","connects":[490,711],"cells":15,"road":51,"burg":615}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":9,"kind":"pass-under-burg","connects":[65,12],"cells":5,"road":62,"burg":67}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":11,"kind":"same-connection","connects":[67,65],"cells":2,"road":62}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":29,"kind":"pass-under-burg","connects":[716,397],"cells":11,"road":247,"burg":775}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":42,"kind":"same-connection","connects":[295,357],"cells":2,"road":310}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":44,"kind":"pass-under-burg","connects":[448,725],"cells":31,"road":244,"burg":1}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-c","variant":"baseline-production","records":47,"roads":565,"same":2,"viaBurg":4,"roadCopies":2,"roadCopiesExpanded":6,"copyCells":66}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":2,"kind":"pass-under-burg","connects":[490,711],"cells":15,"road":51,"burg":615}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":9,"kind":"pass-under-burg","connects":[65,12],"cells":5,"road":62,"burg":67}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":11,"kind":"same-connection","connects":[67,65],"cells":2,"road":62}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":29,"kind":"pass-under-burg","connects":[716,397],"cells":11,"road":247,"burg":775}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":42,"kind":"same-connection","connects":[295,357],"cells":2,"road":310}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"baseline-production","tunnel":44,"kind":"pass-under-burg","connects":[448,725],"cells":31,"road":244,"burg":1}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-c","variant":"replica-production","records":47,"roads":565,"same":2,"viaBurg":4,"roadCopies":2,"roadCopiesExpanded":6,"copyCells":66}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production","tunnel":2,"kind":"pass-under-burg","connects":[490,711],"cells":15,"road":51,"burg":615}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production","tunnel":9,"kind":"pass-under-burg","connects":[65,12],"cells":5,"road":62,"burg":67}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production","tunnel":11,"kind":"same-connection","connects":[67,65],"cells":2,"road":62}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production","tunnel":29,"kind":"pass-under-burg","connects":[716,397],"cells":11,"road":247,"burg":775}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production","tunnel":42,"kind":"same-connection","connects":[295,357],"cells":2,"road":310}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production","tunnel":44,"kind":"pass-under-burg","connects":[448,725],"cells":31,"road":244,"burg":1}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-c","variant":"replica-production-2","records":47,"roads":565,"same":2,"viaBurg":4,"roadCopies":2,"roadCopiesExpanded":6,"copyCells":66}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production-2","tunnel":2,"kind":"pass-under-burg","connects":[490,711],"cells":15,"road":51,"burg":615}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production-2","tunnel":9,"kind":"pass-under-burg","connects":[65,12],"cells":5,"road":62,"burg":67}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production-2","tunnel":11,"kind":"same-connection","connects":[67,65],"cells":2,"road":62}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production-2","tunnel":29,"kind":"pass-under-burg","connects":[716,397],"cells":11,"road":247,"burg":775}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production-2","tunnel":42,"kind":"same-connection","connects":[295,357],"cells":2,"road":310}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"replica-production-2","tunnel":44,"kind":"pass-under-burg","connects":[448,725],"cells":31,"road":244,"burg":1}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-c","variant":"pairset-backbone-mst","records":64,"roads":565,"same":2,"viaBurg":4,"roadCopies":2,"roadCopiesExpanded":6,"copyCells":38}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"pairset-backbone-mst","tunnel":0,"kind":"same-connection","connects":[170,708],"cells":4,"road":186}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"pairset-backbone-mst","tunnel":5,"kind":"same-connection","connects":[170,634],"cells":5,"road":186}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"pairset-backbone-mst","tunnel":14,"kind":"pass-under-burg","connects":[230,490],"cells":8,"road":111,"burg":630}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"pairset-backbone-mst","tunnel":15,"kind":"pass-under-burg","connects":[230,711],"cells":8,"road":117,"burg":654}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"pairset-backbone-mst","tunnel":37,"kind":"pass-under-burg","connects":[226,645],"cells":4,"road":398,"burg":812}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"pairset-backbone-mst","tunnel":52,"kind":"pass-under-burg","connects":[155,459],"cells":9,"road":262,"burg":225}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-c","variant":"pairset-subterranean-only","records":27,"roads":565,"same":0,"viaBurg":1,"roadCopies":0,"roadCopiesExpanded":1,"copyCells":21}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-c","variant":"pairset-subterranean-only","tunnel":13,"kind":"pass-under-burg","connects":[254,325],"cells":21,"road":236,"burg":152}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+WATER-CENSUS {"seed":"measure-c","production":{"legs":3,"waterCells":6,"spans":{"1":2,"4":1},"meanSpan":2,"maxSpan":4,"legLength":7},"boundMinus3":{"legs":0,"waterCells":0,"spans":{},"meanSpan":0,"maxSpan":0,"legLength":0},"directCrossingPairs":2,"crossings":[{"direct":115,"crossed":6,"actual":139,"bypass":149,"waterDetour":1.209,"landPenalty":1.072},{"direct":74,"crossed":2,"actual":88,"bypass":88,"waterDetour":1.189,"landPenalty":1}]}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-c","variant":"replica-production","productionRoutes":47,"replicaRoutes":47,"productionCells":559,"replicaCells":559,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-c","variant":"replica-production-2","productionRoutes":47,"replicaRoutes":47,"productionCells":559,"replicaCells":559,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR-ANCHOR {"seed":"measure-c","passUnder":75,"replicaPassUnder":75,"nearMiss":304,"replicaNearMiss":304,"anchorMinDist":0.391,"dDirectness":0.058,"dTunnelH":0,"dCrestHit":0,"dTunnelCells":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+SEED measure-d cells=5958 land=4354 water=1604 burgs=888 subterranean=88 surfaceRoutes=594 {"roads":11,"trails":498,"searoutes":85} surfaceCells=2931 landRouteCells=1946 productionRoutes=63 longest=54
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR definitions {"directness":"per record: drawn-path length (points[0],points[1] polyline) over the straight-line distance between the record's own first and last drawn anchor; records shorter than 1 cell-width are dropped","elevProfile":"mean h of the record's land cells (h>=20) against the mean h of the direct-corridor cells, where the corridor is every cell within 1.5 cell-widths of the record's own direct segment (sampled every half cell-width) and the land mean is the whole map's land cells","crestHit":"for records whose direct corridor holds a cell with h>=50 (the crossing set): crestSag is the corridor's highest h minus the record's own highest h, and a hit is a sag of at most 10 — the record came up to the crest instead of bending around it. The sag is the primary reading: a distance radius on the crest cell cannot separate reach from a detour, because the corridor's own width puts the crest near any chain that stays on the line","biomeShare":"share of the record set's distinct land cells in each biome, against that biome's share of all land cells","passUnder":"distinct tunnel cells that are surface-only burg cells (burg with ground-level presence and no below-level presence) — the F7.2 audit definition","nearMiss":"distinct tunnel cells that are not surface-only burg cells but have such a burg cell among their neighbours","anchorMinDist":"per record, the smallest distance (in cell-widths) from any drawn point to any surface-only burg dot; the mean over records is reported"}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR fields seed=measure-d cellWidth=6.382 landMeanH=33.1 surfaceOnlyBurgs=800 landCells=4354
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR variants seed=measure-d ["baseline-production","replica-production","replica-production-2","pairset-backbone-mst","pairset-subterranean-only"]
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-d","variant":"baseline-production","ms":0,"routes":63,"cells":625,"length":6139,"overlap":0.406,"overlapLand":0.384,"waterShare":0.03,"parallel":0.735,"exactEdge":0.108,"alongEdge":0.409,"bandShare":0.37,"medianRoadDistance":0.75,"surfaceOnlyContact":71,"dualIdentityContact":44,"multiRecordCells":83,"surfaceOnlyHubs":4,"dualIdentityHubs":32,"otherHubs":47,"bandByEndpointKind":{"dual":{"shared":94,"band":53,"share":0.5638297872340425},"fully-subterranean":{"shared":104,"band":27,"share":0.25961538461538464},"junction":{"shared":123,"band":59,"share":0.4796747967479675}},"histogram":[254,287,69,15],"burgsServed":73,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":63,"directness":1.219,"directness125":0.213,"directness150":0.082,"directnessMax":2.559,"directnessRecords":61,"wander":2.97,"wanderMax":25.52,"tunnelH":38.5,"corridorH":39.3,"landMeanH":33.1,"crestCrossings":26,"crestHit":1,"crestSag":2.6,"passUnder":71,"nearMiss":300,"anchorMinDist":0.586,"tunnelCells":625,"corridorCells":842}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+DEBUG replica stages: raw 116 routes/625 cells -> merged 63 routes -> pruned 63 routes/625 cells
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-d","variant":"replica-production","ms":17,"routes":63,"cells":625,"length":6139,"overlap":0.406,"overlapLand":0.384,"waterShare":0.03,"parallel":0.735,"exactEdge":0.108,"alongEdge":0.409,"bandShare":0.37,"medianRoadDistance":0.75,"surfaceOnlyContact":71,"dualIdentityContact":44,"multiRecordCells":83,"surfaceOnlyHubs":4,"dualIdentityHubs":32,"otherHubs":47,"bandByEndpointKind":{"dual":{"shared":94,"band":53,"share":0.5638297872340425},"fully-subterranean":{"shared":104,"band":27,"share":0.25961538461538464},"junction":{"shared":123,"band":59,"share":0.4796747967479675}},"histogram":[254,287,69,15],"burgsServed":73,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":63,"directness":1.288,"directness125":0.344,"directness150":0.115,"directnessMax":2.743,"directnessRecords":61,"wander":2.95,"wanderMax":25.5,"tunnelH":38.5,"corridorH":39.3,"landMeanH":33.1,"crestCrossings":27,"crestHit":1,"crestSag":2.9,"passUnder":71,"nearMiss":300,"anchorMinDist":0.609,"tunnelCells":625,"corridorCells":840}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-d","variant":"replica-production-2","ms":15,"routes":63,"cells":625,"length":6139,"overlap":0.406,"overlapLand":0.384,"waterShare":0.03,"parallel":0.735,"exactEdge":0.108,"alongEdge":0.409,"bandShare":0.37,"medianRoadDistance":0.75,"surfaceOnlyContact":71,"dualIdentityContact":44,"multiRecordCells":83,"surfaceOnlyHubs":4,"dualIdentityHubs":32,"otherHubs":47,"bandByEndpointKind":{"dual":{"shared":94,"band":53,"share":0.5638297872340425},"fully-subterranean":{"shared":104,"band":27,"share":0.25961538461538464},"junction":{"shared":123,"band":59,"share":0.4796747967479675}},"histogram":[254,287,69,15],"burgsServed":73,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":63,"directness":1.288,"directness125":0.344,"directness150":0.115,"directnessMax":2.743,"directnessRecords":61,"wander":2.95,"wanderMax":25.5,"tunnelH":38.5,"corridorH":39.3,"landMeanH":33.1,"crestCrossings":27,"crestHit":1,"crestSag":2.9,"passUnder":71,"nearMiss":300,"anchorMinDist":0.609,"tunnelCells":625,"corridorCells":840}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-d","variant":"pairset-backbone-mst","ms":11,"routes":71,"cells":503,"length":4716,"overlap":0.416,"overlapLand":0.394,"waterShare":0.038,"parallel":0.738,"exactEdge":0.122,"alongEdge":0.43,"bandShare":0.493,"medianRoadDistance":0.75,"surfaceOnlyContact":58,"dualIdentityContact":44,"multiRecordCells":64,"surfaceOnlyHubs":0,"dualIdentityHubs":30,"otherHubs":34,"bandByEndpointKind":{"dual":{"shared":68,"band":45,"share":0.6617647058823529},"fully-subterranean":{"shared":45,"band":20,"share":0.4444444444444444},"junction":{"shared":145,"band":81,"share":0.5586206896551724}},"histogram":[209,221,62,11],"burgsServed":84,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":71,"directness":1.2,"directness125":0.271,"directness150":0.043,"directnessMax":2.003,"directnessRecords":70,"wander":1.71,"wanderMax":6.53,"tunnelH":38.8,"corridorH":38.5,"landMeanH":33.1,"crestCrossings":31,"crestHit":0.968,"crestSag":3.6,"passUnder":58,"nearMiss":249,"anchorMinDist":0.84,"tunnelCells":503,"corridorCells":815}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-d","variant":"pairset-subterranean-only","ms":17,"routes":30,"cells":459,"length":4719,"overlap":0.359,"overlapLand":0.322,"waterShare":0.041,"parallel":0.656,"exactEdge":0.081,"alongEdge":0.346,"bandShare":0.224,"medianRoadDistance":0.9,"surfaceOnlyContact":48,"dualIdentityContact":7,"multiRecordCells":48,"surfaceOnlyHubs":3,"dualIdentityHubs":1,"otherHubs":44,"bandByEndpointKind":{"dual":{"shared":0,"band":0,"share":0},"fully-subterranean":{"shared":194,"band":41,"share":0.211340206185567},"junction":{"shared":6,"band":6,"share":1}},"histogram":[165,202,64,28],"burgsServed":37,"violations":37,"repairs":0,"serviceViolations":37,"boundaryViolations":0,"records":30,"directness":1.524,"directness125":0.467,"directness150":0.133,"directnessMax":8.808,"directnessRecords":30,"wander":4.39,"wanderMax":35.91,"tunnelH":38.1,"corridorH":38.2,"landMeanH":33.1,"crestCrossings":14,"crestHit":1,"crestSag":2.4,"passUnder":48,"nearMiss":220,"anchorMinDist":0.417,"tunnelCells":459,"corridorCells":548}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+BIOME {"seed":"measure-d","variant":"baseline-production","5:Tropical seasonal forest":{"cells":212,"tunnel":0.35,"land":0.361},"3:Savanna":{"cells":207,"tunnel":0.342,"land":0.308},"6:Temperate deciduous forest":{"cells":93,"tunnel":0.153,"land":0.073},"4:Grassland":{"cells":46,"tunnel":0.076,"land":0.038},"7:Tropical rainforest":{"cells":17,"tunnel":0.028,"land":0.115},"8:Temperate rainforest":{"cells":14,"tunnel":0.023,"land":0.027},"12:Wetland":{"cells":7,"tunnel":0.012,"land":0.062},"9:Taiga":{"cells":3,"tunnel":0.005,"land":0.003},"2:Cold desert":{"cells":3,"tunnel":0.005,"land":0.006},"10:Tundra":{"cells":3,"tunnel":0.005,"land":0.001},"1:Hot desert":{"cells":1,"tunnel":0.002,"land":0.005}}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-d","variant":"baseline-production","records":63,"roads":594,"same":2,"viaBurg":7,"roadCopies":2,"roadCopiesExpanded":9,"copyCells":75}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":1,"kind":"same-connection","connects":[388,479],"cells":11,"road":24}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":2,"kind":"pass-under-burg","connects":[355,632],"cells":8,"road":31,"burg":47}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":6,"kind":"pass-under-burg","connects":[142,152],"cells":10,"road":50,"burg":777}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":15,"kind":"same-connection","connects":[317,36],"cells":3,"road":113}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":18,"kind":"pass-under-burg","connects":[123,182],"cells":5,"road":118,"burg":858}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":23,"kind":"pass-under-burg","connects":[645,380],"cells":14,"road":117,"burg":506}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":27,"kind":"pass-under-burg","connects":[727,694],"cells":5,"road":520,"burg":415}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":48,"kind":"pass-under-burg","connects":[213,575],"cells":4,"road":322,"burg":119}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":60,"kind":"pass-under-burg","connects":[724,159],"cells":15,"road":351,"burg":499}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-d","variant":"baseline-production","records":63,"roads":594,"same":2,"viaBurg":7,"roadCopies":2,"roadCopiesExpanded":9,"copyCells":75}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":1,"kind":"same-connection","connects":[388,479],"cells":11,"road":24}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":2,"kind":"pass-under-burg","connects":[355,632],"cells":8,"road":31,"burg":47}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":6,"kind":"pass-under-burg","connects":[142,152],"cells":10,"road":50,"burg":777}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":15,"kind":"same-connection","connects":[317,36],"cells":3,"road":113}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":18,"kind":"pass-under-burg","connects":[123,182],"cells":5,"road":118,"burg":858}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":23,"kind":"pass-under-burg","connects":[645,380],"cells":14,"road":117,"burg":506}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":27,"kind":"pass-under-burg","connects":[727,694],"cells":5,"road":520,"burg":415}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":48,"kind":"pass-under-burg","connects":[213,575],"cells":4,"road":322,"burg":119}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"baseline-production","tunnel":60,"kind":"pass-under-burg","connects":[724,159],"cells":15,"road":351,"burg":499}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-d","variant":"replica-production","records":63,"roads":594,"same":2,"viaBurg":7,"roadCopies":2,"roadCopiesExpanded":9,"copyCells":75}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production","tunnel":1,"kind":"same-connection","connects":[388,479],"cells":11,"road":24}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production","tunnel":2,"kind":"pass-under-burg","connects":[355,632],"cells":8,"road":31,"burg":47}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production","tunnel":6,"kind":"pass-under-burg","connects":[142,152],"cells":10,"road":50,"burg":777}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production","tunnel":15,"kind":"same-connection","connects":[317,36],"cells":3,"road":113}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production","tunnel":18,"kind":"pass-under-burg","connects":[123,182],"cells":5,"road":118,"burg":858}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production","tunnel":23,"kind":"pass-under-burg","connects":[645,380],"cells":14,"road":117,"burg":506}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production","tunnel":27,"kind":"pass-under-burg","connects":[727,694],"cells":5,"road":520,"burg":415}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production","tunnel":48,"kind":"pass-under-burg","connects":[213,575],"cells":4,"road":322,"burg":119}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production","tunnel":60,"kind":"pass-under-burg","connects":[724,159],"cells":15,"road":351,"burg":499}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-d","variant":"replica-production-2","records":63,"roads":594,"same":2,"viaBurg":7,"roadCopies":2,"roadCopiesExpanded":9,"copyCells":75}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production-2","tunnel":1,"kind":"same-connection","connects":[388,479],"cells":11,"road":24}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production-2","tunnel":2,"kind":"pass-under-burg","connects":[355,632],"cells":8,"road":31,"burg":47}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production-2","tunnel":6,"kind":"pass-under-burg","connects":[142,152],"cells":10,"road":50,"burg":777}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production-2","tunnel":15,"kind":"same-connection","connects":[317,36],"cells":3,"road":113}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production-2","tunnel":18,"kind":"pass-under-burg","connects":[123,182],"cells":5,"road":118,"burg":858}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production-2","tunnel":23,"kind":"pass-under-burg","connects":[645,380],"cells":14,"road":117,"burg":506}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production-2","tunnel":27,"kind":"pass-under-burg","connects":[727,694],"cells":5,"road":520,"burg":415}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production-2","tunnel":48,"kind":"pass-under-burg","connects":[213,575],"cells":4,"road":322,"burg":119}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"replica-production-2","tunnel":60,"kind":"pass-under-burg","connects":[724,159],"cells":15,"road":351,"burg":499}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-d","variant":"pairset-backbone-mst","records":71,"roads":594,"same":3,"viaBurg":5,"roadCopies":3,"roadCopiesExpanded":8,"copyCells":50}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"pairset-backbone-mst","tunnel":3,"kind":"same-connection","connects":[36,209],"cells":2,"road":113}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"pairset-backbone-mst","tunnel":7,"kind":"pass-under-burg","connects":[3,152],"cells":3,"road":89,"burg":75}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"pairset-backbone-mst","tunnel":9,"kind":"same-connection","connects":[428,479],"cells":4,"road":24}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"pairset-backbone-mst","tunnel":26,"kind":"same-connection","connects":[74,479],"cells":6,"road":24}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"pairset-backbone-mst","tunnel":28,"kind":"pass-under-burg","connects":[178,393],"cells":6,"road":136,"burg":624}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"pairset-backbone-mst","tunnel":33,"kind":"pass-under-burg","connects":[142,152],"cells":10,"road":50,"burg":777}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"pairset-backbone-mst","tunnel":52,"kind":"pass-under-burg","connects":[102,872],"cells":7,"road":316,"burg":194}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"pairset-backbone-mst","tunnel":64,"kind":"pass-under-burg","connects":[102,806],"cells":12,"road":328,"burg":508}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-d","variant":"pairset-subterranean-only","records":30,"roads":594,"same":1,"viaBurg":0,"roadCopies":1,"roadCopiesExpanded":1,"copyCells":8}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-d","variant":"pairset-subterranean-only","tunnel":0,"kind":"same-connection","connects":[479,74],"cells":8,"road":24}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+WATER-CENSUS {"seed":"measure-d","production":{"legs":7,"waterCells":19,"spans":{"1":2,"2":1,"3":1,"4":3},"meanSpan":2.71,"maxSpan":4,"legLength":10},"boundMinus3":{"legs":0,"waterCells":0,"spans":{},"meanSpan":0,"maxSpan":0,"legLength":0},"directCrossingPairs":7,"crossings":[{"direct":77,"crossed":5,"actual":94,"bypass":102,"waterDetour":1.221,"landPenalty":1.085},{"direct":30,"crossed":1,"actual":33,"bypass":33,"waterDetour":1.1,"landPenalty":1},{"direct":82,"crossed":2,"actual":88,"bypass":118,"waterDetour":1.073,"landPenalty":1.341},{"direct":184,"crossed":7,"actual":221,"bypass":256,"waterDetour":1.201,"landPenalty":1.158},{"direct":69,"crossed":4,"actual":81,"bypass":79,"waterDetour":1.174,"landPenalty":0.975},{"direct":143,"crossed":1,"actual":173,"bypass":221,"waterDetour":1.21,"landPenalty":1.277},{"direct":92,"crossed":5,"actual":104,"bypass":133,"waterDetour":1.13,"landPenalty":1.279}]}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-d","variant":"replica-production","productionRoutes":63,"replicaRoutes":63,"productionCells":625,"replicaCells":625,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-d","variant":"replica-production-2","productionRoutes":63,"replicaRoutes":63,"productionCells":625,"replicaCells":625,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR-ANCHOR {"seed":"measure-d","passUnder":71,"replicaPassUnder":71,"nearMiss":300,"replicaNearMiss":300,"anchorMinDist":0.586,"dDirectness":0.069,"dTunnelH":0,"dCrestHit":0,"dTunnelCells":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+SEED measure-e cells=5892 land=4439 water=1453 burgs=902 subterranean=90 surfaceRoutes=661 {"roads":12,"trails":536,"searoutes":113} surfaceCells=2753 landRouteCells=1923 productionRoutes=57 longest=100
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR definitions {"directness":"per record: drawn-path length (points[0],points[1] polyline) over the straight-line distance between the record's own first and last drawn anchor; records shorter than 1 cell-width are dropped","elevProfile":"mean h of the record's land cells (h>=20) against the mean h of the direct-corridor cells, where the corridor is every cell within 1.5 cell-widths of the record's own direct segment (sampled every half cell-width) and the land mean is the whole map's land cells","crestHit":"for records whose direct corridor holds a cell with h>=50 (the crossing set): crestSag is the corridor's highest h minus the record's own highest h, and a hit is a sag of at most 10 — the record came up to the crest instead of bending around it. The sag is the primary reading: a distance radius on the crest cell cannot separate reach from a detour, because the corridor's own width puts the crest near any chain that stays on the line","biomeShare":"share of the record set's distinct land cells in each biome, against that biome's share of all land cells","passUnder":"distinct tunnel cells that are surface-only burg cells (burg with ground-level presence and no below-level presence) — the F7.2 audit definition","nearMiss":"distinct tunnel cells that are not surface-only burg cells but have such a burg cell among their neighbours","anchorMinDist":"per record, the smallest distance (in cell-widths) from any drawn point to any surface-only burg dot; the mean over records is reported"}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR fields seed=measure-e cellWidth=6.363 landMeanH=32.4 surfaceOnlyBurgs=812 landCells=4439
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR variants seed=measure-e ["baseline-production","replica-production","replica-production-2","pairset-backbone-mst","pairset-subterranean-only"]
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-e","variant":"baseline-production","ms":0,"routes":57,"cells":610,"length":6083,"overlap":0.439,"overlapLand":0.393,"waterShare":0.048,"parallel":0.801,"exactEdge":0.148,"alongEdge":0.512,"bandShare":0.343,"medianRoadDistance":0.7,"surfaceOnlyContact":79,"dualIdentityContact":45,"multiRecordCells":91,"surfaceOnlyHubs":9,"dualIdentityHubs":27,"otherHubs":55,"bandByEndpointKind":{"dual":{"shared":59,"band":37,"share":0.6271186440677966},"fully-subterranean":{"shared":74,"band":23,"share":0.3108108108108108},"junction":{"shared":225,"band":75,"share":0.3333333333333333}},"histogram":[268,271,55,16],"burgsServed":65,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":57,"directness":1.364,"directness125":0.357,"directness150":0.196,"directnessMax":3.298,"directnessRecords":56,"wander":3.69,"wanderMax":33.17,"tunnelH":36.4,"corridorH":39.2,"landMeanH":32.4,"crestCrossings":31,"crestHit":0.968,"crestSag":2.2,"passUnder":79,"nearMiss":298,"anchorMinDist":0.687,"tunnelCells":610,"corridorCells":693}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+DEBUG replica stages: raw 144 routes/612 cells -> merged 57 routes -> pruned 57 routes/612 cells
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-e","variant":"replica-production","ms":18,"routes":57,"cells":612,"length":6088,"overlap":0.438,"overlapLand":0.394,"waterShare":0.046,"parallel":0.798,"exactEdge":0.146,"alongEdge":0.51,"bandShare":0.343,"medianRoadDistance":0.71,"surfaceOnlyContact":80,"dualIdentityContact":45,"multiRecordCells":90,"surfaceOnlyHubs":9,"dualIdentityHubs":27,"otherHubs":54,"bandByEndpointKind":{"dual":{"shared":59,"band":37,"share":0.6271186440677966},"fully-subterranean":{"shared":74,"band":23,"share":0.3108108108108108},"junction":{"shared":225,"band":75,"share":0.3333333333333333}},"histogram":[268,272,56,16],"burgsServed":65,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":57,"directness":1.442,"directness125":0.509,"directness150":0.228,"directnessMax":3.47,"directnessRecords":57,"wander":3.68,"wanderMax":33.19,"tunnelH":36.3,"corridorH":39.2,"landMeanH":32.4,"crestCrossings":30,"crestHit":0.967,"crestSag":2,"passUnder":80,"nearMiss":301,"anchorMinDist":0.685,"tunnelCells":612,"corridorCells":680}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-e","variant":"replica-production-2","ms":16,"routes":57,"cells":610,"length":6083,"overlap":0.439,"overlapLand":0.393,"waterShare":0.048,"parallel":0.801,"exactEdge":0.148,"alongEdge":0.512,"bandShare":0.343,"medianRoadDistance":0.7,"surfaceOnlyContact":79,"dualIdentityContact":45,"multiRecordCells":91,"surfaceOnlyHubs":9,"dualIdentityHubs":27,"otherHubs":55,"bandByEndpointKind":{"dual":{"shared":59,"band":37,"share":0.6271186440677966},"fully-subterranean":{"shared":74,"band":23,"share":0.3108108108108108},"junction":{"shared":225,"band":75,"share":0.3333333333333333}},"histogram":[268,271,55,16],"burgsServed":65,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":57,"directness":1.442,"directness125":0.509,"directness150":0.228,"directnessMax":3.47,"directnessRecords":57,"wander":3.68,"wanderMax":33.19,"tunnelH":36.4,"corridorH":39.2,"landMeanH":32.4,"crestCrossings":30,"crestHit":0.967,"crestSag":2,"passUnder":79,"nearMiss":298,"anchorMinDist":0.685,"tunnelCells":610,"corridorCells":680}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-e","variant":"pairset-backbone-mst","ms":12,"routes":67,"cells":509,"length":4552,"overlap":0.468,"overlapLand":0.415,"waterShare":0.057,"parallel":0.811,"exactEdge":0.161,"alongEdge":0.47,"bandShare":0.458,"medianRoadDistance":0.67,"surfaceOnlyContact":67,"dualIdentityContact":45,"multiRecordCells":62,"surfaceOnlyHubs":0,"dualIdentityHubs":26,"otherHubs":36,"bandByEndpointKind":{"dual":{"shared":100,"band":47,"share":0.47},"fully-subterranean":{"shared":53,"band":26,"share":0.49056603773584906},"junction":{"shared":135,"band":82,"share":0.6074074074074074}},"histogram":[238,213,45,13],"burgsServed":78,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":67,"directness":1.234,"directness125":0.313,"directness150":0.104,"directnessMax":2.18,"directnessRecords":67,"wander":2.01,"wanderMax":12.54,"tunnelH":38,"corridorH":38.3,"landMeanH":32.4,"crestCrossings":33,"crestHit":0.97,"crestSag":1.2,"passUnder":67,"nearMiss":256,"anchorMinDist":0.828,"tunnelCells":509,"corridorCells":731}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-e","variant":"pairset-subterranean-only","ms":10,"routes":22,"cells":349,"length":3190,"overlap":0.355,"overlapLand":0.352,"waterShare":0.006,"parallel":0.722,"exactEdge":0.079,"alongEdge":0.357,"bandShare":0.266,"medianRoadDistance":0.83,"surfaceOnlyContact":37,"dualIdentityContact":10,"multiRecordCells":22,"surfaceOnlyHubs":0,"dualIdentityHubs":0,"otherHubs":22,"bandByEndpointKind":{"dual":{"shared":0,"band":0,"share":0},"fully-subterranean":{"shared":135,"band":41,"share":0.3037037037037037},"junction":{"shared":0,"band":0,"share":0}},"histogram":[124,173,39,13],"burgsServed":32,"violations":35,"repairs":0,"serviceViolations":35,"boundaryViolations":0,"records":22,"directness":1.368,"directness125":0.545,"directness150":0.182,"directnessMax":3.168,"directnessRecords":22,"wander":4.97,"wanderMax":24.54,"tunnelH":38.9,"corridorH":39.6,"landMeanH":32.4,"crestCrossings":14,"crestHit":0.929,"crestSag":3.9,"passUnder":37,"nearMiss":173,"anchorMinDist":0.565,"tunnelCells":349,"corridorCells":445}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+BIOME {"seed":"measure-e","variant":"baseline-production","6:Temperate deciduous forest":{"cells":136,"tunnel":0.234,"land":0.145},"3:Savanna":{"cells":135,"tunnel":0.232,"land":0.26},"4:Grassland":{"cells":98,"tunnel":0.169,"land":0.147},"5:Tropical seasonal forest":{"cells":67,"tunnel":0.115,"land":0.185},"8:Temperate rainforest":{"cells":52,"tunnel":0.09,"land":0.057},"9:Taiga":{"cells":42,"tunnel":0.072,"land":0.051},"12:Wetland":{"cells":26,"tunnel":0.045,"land":0.057},"7:Tropical rainforest":{"cells":21,"tunnel":0.036,"land":0.049},"1:Hot desert":{"cells":4,"tunnel":0.007,"land":0.026}}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-e","variant":"baseline-production","records":57,"roads":661,"same":5,"viaBurg":8,"roadCopies":5,"roadCopiesExpanded":13,"copyCells":209}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":9,"kind":"pass-under-burg","connects":[307,233],"cells":7,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":10,"kind":"pass-under-burg","connects":[294,196],"cells":14,"road":109,"burg":232}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":12,"kind":"pass-under-burg","connects":[307],"cells":3,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":13,"kind":"pass-under-burg","connects":[307,294],"cells":6,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":17,"kind":"pass-under-burg","connects":[307,800],"cells":11,"road":156,"burg":837}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":22,"kind":"same-connection","connects":[33,302],"cells":11,"road":275}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":23,"kind":"same-connection","connects":[484,409],"cells":4,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":24,"kind":"same-connection","connects":[484,387],"cells":100,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":26,"kind":"same-connection","connects":[484,562],"cells":4,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":31,"kind":"same-connection","connects":[606,873],"cells":6,"road":390}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":45,"kind":"pass-under-burg","connects":[337,843],"cells":4,"road":379,"burg":439}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":46,"kind":"pass-under-burg","connects":[554,163],"cells":8,"road":367,"burg":320}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":55,"kind":"pass-under-burg","connects":[645,92],"cells":31,"road":454,"burg":277}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-e","variant":"baseline-production","records":57,"roads":661,"same":5,"viaBurg":8,"roadCopies":5,"roadCopiesExpanded":13,"copyCells":209}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":9,"kind":"pass-under-burg","connects":[307,233],"cells":7,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":10,"kind":"pass-under-burg","connects":[294,196],"cells":14,"road":109,"burg":232}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":12,"kind":"pass-under-burg","connects":[307],"cells":3,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":13,"kind":"pass-under-burg","connects":[307,294],"cells":6,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":17,"kind":"pass-under-burg","connects":[307,800],"cells":11,"road":156,"burg":837}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":22,"kind":"same-connection","connects":[33,302],"cells":11,"road":275}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":23,"kind":"same-connection","connects":[484,409],"cells":4,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":24,"kind":"same-connection","connects":[484,387],"cells":100,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":26,"kind":"same-connection","connects":[484,562],"cells":4,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":31,"kind":"same-connection","connects":[606,873],"cells":6,"road":390}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":45,"kind":"pass-under-burg","connects":[337,843],"cells":4,"road":379,"burg":439}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":46,"kind":"pass-under-burg","connects":[554,163],"cells":8,"road":367,"burg":320}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"baseline-production","tunnel":55,"kind":"pass-under-burg","connects":[645,92],"cells":31,"road":454,"burg":277}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-e","variant":"replica-production","records":57,"roads":661,"same":5,"viaBurg":8,"roadCopies":5,"roadCopiesExpanded":13,"copyCells":210}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":9,"kind":"pass-under-burg","connects":[307,233],"cells":7,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":10,"kind":"pass-under-burg","connects":[294,196],"cells":14,"road":109,"burg":232}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":12,"kind":"pass-under-burg","connects":[307],"cells":3,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":13,"kind":"pass-under-burg","connects":[307,294],"cells":6,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":17,"kind":"pass-under-burg","connects":[307,800],"cells":11,"road":156,"burg":837}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":22,"kind":"same-connection","connects":[33,302],"cells":11,"road":275}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":23,"kind":"same-connection","connects":[484,409],"cells":4,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":24,"kind":"same-connection","connects":[484,387],"cells":102,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":26,"kind":"same-connection","connects":[484,562],"cells":4,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":31,"kind":"same-connection","connects":[606,873],"cells":6,"road":390}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":45,"kind":"pass-under-burg","connects":[337,843],"cells":4,"road":379,"burg":439}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":46,"kind":"pass-under-burg","connects":[554,163],"cells":8,"road":367,"burg":320}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production","tunnel":55,"kind":"pass-under-burg","connects":[645,92],"cells":30,"road":454,"burg":277}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-e","variant":"replica-production-2","records":57,"roads":661,"same":5,"viaBurg":8,"roadCopies":5,"roadCopiesExpanded":13,"copyCells":209}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":9,"kind":"pass-under-burg","connects":[307,233],"cells":7,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":10,"kind":"pass-under-burg","connects":[294,196],"cells":14,"road":109,"burg":232}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":12,"kind":"pass-under-burg","connects":[307],"cells":3,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":13,"kind":"pass-under-burg","connects":[307,294],"cells":6,"road":142,"burg":577}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":17,"kind":"pass-under-burg","connects":[307,800],"cells":11,"road":156,"burg":837}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":22,"kind":"same-connection","connects":[33,302],"cells":11,"road":275}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":23,"kind":"same-connection","connects":[484,409],"cells":4,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":24,"kind":"same-connection","connects":[484,387],"cells":100,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":26,"kind":"same-connection","connects":[484,562],"cells":4,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":31,"kind":"same-connection","connects":[606,873],"cells":6,"road":390}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":45,"kind":"pass-under-burg","connects":[337,843],"cells":4,"road":379,"burg":439}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":46,"kind":"pass-under-burg","connects":[554,163],"cells":8,"road":367,"burg":320}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"replica-production-2","tunnel":55,"kind":"pass-under-burg","connects":[645,92],"cells":31,"road":454,"burg":277}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-e","variant":"pairset-backbone-mst","records":67,"roads":661,"same":5,"viaBurg":2,"roadCopies":5,"roadCopiesExpanded":7,"copyCells":35}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-backbone-mst","tunnel":33,"kind":"same-connection","connects":[33,750],"cells":10,"road":275}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-backbone-mst","tunnel":38,"kind":"same-connection","connects":[484,562],"cells":3,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-backbone-mst","tunnel":41,"kind":"pass-under-burg","connects":[40,368],"cells":3,"road":259,"burg":68}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-backbone-mst","tunnel":45,"kind":"same-connection","connects":[312,792],"cells":3,"road":258}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-backbone-mst","tunnel":50,"kind":"pass-under-burg","connects":[337,843],"cells":4,"road":379,"burg":439}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-backbone-mst","tunnel":53,"kind":"same-connection","connects":[33,889],"cells":6,"road":275}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-backbone-mst","tunnel":56,"kind":"same-connection","connects":[606,873],"cells":6,"road":390}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-e","variant":"pairset-subterranean-only","records":22,"roads":661,"same":4,"viaBurg":0,"roadCopies":4,"roadCopiesExpanded":4,"copyCells":72}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-subterranean-only","tunnel":9,"kind":"same-connection","connects":[33,251],"cells":44,"road":275}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-subterranean-only","tunnel":10,"kind":"same-connection","connects":[889,484],"cells":9,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-subterranean-only","tunnel":11,"kind":"same-connection","connects":[140,484],"cells":7,"road":9}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-e","variant":"pairset-subterranean-only","tunnel":12,"kind":"same-connection","connects":[249,606],"cells":12,"road":390}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+WATER-CENSUS {"seed":"measure-e","production":{"legs":9,"waterCells":31,"spans":{"1":5,"2":2,"7":1,"15":1},"meanSpan":3.44,"maxSpan":15,"legLength":16},"boundMinus3":{"legs":0,"waterCells":0,"spans":{},"meanSpan":0,"maxSpan":0,"legLength":0},"directCrossingPairs":6,"crossings":[{"direct":60,"crossed":1,"actual":63,"bypass":76,"waterDetour":1.05,"landPenalty":1.206},{"direct":95,"crossed":7,"actual":139,"bypass":181,"waterDetour":1.463,"landPenalty":1.302},{"direct":77,"crossed":3,"actual":92,"bypass":93,"waterDetour":1.195,"landPenalty":1.011},{"direct":134,"crossed":7,"actual":147,"bypass":334,"waterDetour":1.097,"landPenalty":2.272},{"direct":64,"crossed":1,"actual":70,"bypass":75,"waterDetour":1.094,"landPenalty":1.071},{"direct":139,"crossed":4,"actual":158,"bypass":158,"waterDetour":1.137,"landPenalty":1}]}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-e","variant":"replica-production","productionRoutes":57,"replicaRoutes":57,"productionCells":610,"replicaCells":612,"driftCells":2,"exact":false}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-e","variant":"replica-production-2","productionRoutes":57,"replicaRoutes":57,"productionCells":610,"replicaCells":610,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR-ANCHOR {"seed":"measure-e","passUnder":79,"replicaPassUnder":80,"nearMiss":298,"replicaNearMiss":301,"anchorMinDist":0.687,"dDirectness":0.079,"dTunnelH":-0.051,"dCrestHit":-0.001,"dTunnelCells":2}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+SEED measure-f cells=6478 land=4526 water=1952 burgs=874 subterranean=88 surfaceRoutes=610 {"roads":14,"trails":496,"searoutes":100} surfaceCells=2727 landRouteCells=1843 productionRoutes=54 longest=59
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR definitions {"directness":"per record: drawn-path length (points[0],points[1] polyline) over the straight-line distance between the record's own first and last drawn anchor; records shorter than 1 cell-width are dropped","elevProfile":"mean h of the record's land cells (h>=20) against the mean h of the direct-corridor cells, where the corridor is every cell within 1.5 cell-widths of the record's own direct segment (sampled every half cell-width) and the land mean is the whole map's land cells","crestHit":"for records whose direct corridor holds a cell with h>=50 (the crossing set): crestSag is the corridor's highest h minus the record's own highest h, and a hit is a sag of at most 10 — the record came up to the crest instead of bending around it. The sag is the primary reading: a distance radius on the crest cell cannot separate reach from a detour, because the corridor's own width puts the crest near any chain that stays on the line","biomeShare":"share of the record set's distinct land cells in each biome, against that biome's share of all land cells","passUnder":"distinct tunnel cells that are surface-only burg cells (burg with ground-level presence and no below-level presence) — the F7.2 audit definition","nearMiss":"distinct tunnel cells that are not surface-only burg cells but have such a burg cell among their neighbours","anchorMinDist":"per record, the smallest distance (in cell-widths) from any drawn point to any surface-only burg dot; the mean over records is reported"}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR fields seed=measure-f cellWidth=6.349 landMeanH=31.1 surfaceOnlyBurgs=786 landCells=4526
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR variants seed=measure-f ["baseline-production","replica-production","replica-production-2","pairset-backbone-mst","pairset-subterranean-only"]
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-f","variant":"baseline-production","ms":0,"routes":54,"cells":554,"length":5615,"overlap":0.417,"overlapLand":0.386,"waterShare":0.061,"parallel":0.806,"exactEdge":0.106,"alongEdge":0.469,"bandShare":0.372,"medianRoadDistance":0.72,"surfaceOnlyContact":59,"dualIdentityContact":43,"multiRecordCells":82,"surfaceOnlyHubs":5,"dualIdentityHubs":24,"otherHubs":53,"bandByEndpointKind":{"dual":{"shared":75,"band":29,"share":0.38666666666666666},"fully-subterranean":{"shared":135,"band":34,"share":0.2518518518518518},"junction":{"shared":91,"band":59,"share":0.6483516483516484}},"histogram":[231,258,56,9],"burgsServed":65,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":54,"directness":1.272,"directness125":0.315,"directness150":0.204,"directnessMax":2.554,"directnessRecords":54,"wander":3.52,"wanderMax":25.74,"tunnelH":35.8,"corridorH":36.7,"landMeanH":31.1,"crestCrossings":21,"crestHit":0.667,"crestSag":6.4,"passUnder":59,"nearMiss":295,"anchorMinDist":0.567,"tunnelCells":554,"corridorCells":742}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+DEBUG replica stages: raw 124 routes/553 cells -> merged 54 routes -> pruned 54 routes/553 cells
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-f","variant":"replica-production","ms":15,"routes":54,"cells":553,"length":5603,"overlap":0.418,"overlapLand":0.387,"waterShare":0.058,"parallel":0.806,"exactEdge":0.107,"alongEdge":0.473,"bandShare":0.372,"medianRoadDistance":0.71,"surfaceOnlyContact":59,"dualIdentityContact":43,"multiRecordCells":81,"surfaceOnlyHubs":5,"dualIdentityHubs":24,"otherHubs":52,"bandByEndpointKind":{"dual":{"shared":75,"band":29,"share":0.38666666666666666},"fully-subterranean":{"shared":135,"band":34,"share":0.2518518518518518},"junction":{"shared":90,"band":59,"share":0.6555555555555556}},"histogram":[231,258,55,9],"burgsServed":65,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":54,"directness":1.331,"directness125":0.352,"directness150":0.204,"directnessMax":2.698,"directnessRecords":54,"wander":3.49,"wanderMax":25.68,"tunnelH":35.8,"corridorH":36.7,"landMeanH":31.1,"crestCrossings":21,"crestHit":0.667,"crestSag":6.4,"passUnder":59,"nearMiss":295,"anchorMinDist":0.56,"tunnelCells":553,"corridorCells":739}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-f","variant":"replica-production-2","ms":13,"routes":54,"cells":554,"length":5615,"overlap":0.417,"overlapLand":0.386,"waterShare":0.061,"parallel":0.806,"exactEdge":0.106,"alongEdge":0.469,"bandShare":0.372,"medianRoadDistance":0.72,"surfaceOnlyContact":59,"dualIdentityContact":43,"multiRecordCells":82,"surfaceOnlyHubs":5,"dualIdentityHubs":24,"otherHubs":53,"bandByEndpointKind":{"dual":{"shared":75,"band":29,"share":0.38666666666666666},"fully-subterranean":{"shared":135,"band":34,"share":0.2518518518518518},"junction":{"shared":91,"band":59,"share":0.6483516483516484}},"histogram":[231,258,56,9],"burgsServed":65,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":54,"directness":1.334,"directness125":0.352,"directness150":0.204,"directnessMax":2.698,"directnessRecords":54,"wander":3.5,"wanderMax":25.68,"tunnelH":35.8,"corridorH":36.7,"landMeanH":31.1,"crestCrossings":21,"crestHit":0.667,"crestSag":6.4,"passUnder":59,"nearMiss":295,"anchorMinDist":0.56,"tunnelCells":554,"corridorCells":739}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-f","variant":"pairset-backbone-mst","ms":8,"routes":69,"cells":425,"length":4095,"overlap":0.471,"overlapLand":0.442,"waterShare":0.031,"parallel":0.841,"exactEdge":0.101,"alongEdge":0.493,"bandShare":0.58,"medianRoadDistance":0.61,"surfaceOnlyContact":44,"dualIdentityContact":43,"multiRecordCells":62,"surfaceOnlyHubs":0,"dualIdentityHubs":26,"otherHubs":36,"bandByEndpointKind":{"dual":{"shared":58,"band":39,"share":0.6724137931034483},"fully-subterranean":{"shared":67,"band":44,"share":0.6567164179104478},"junction":{"shared":134,"band":88,"share":0.6567164179104478}},"histogram":[200,192,32,1],"burgsServed":77,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":69,"directness":1.194,"directness125":0.217,"directness150":0.087,"directnessMax":1.853,"directnessRecords":69,"wander":1.56,"wanderMax":8.53,"tunnelH":36.1,"corridorH":35.4,"landMeanH":31.1,"crestCrossings":26,"crestHit":0.846,"crestSag":5.3,"passUnder":44,"nearMiss":249,"anchorMinDist":0.816,"tunnelCells":425,"corridorCells":684}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-f","variant":"pairset-subterranean-only","ms":14,"routes":27,"cells":395,"length":3729,"overlap":0.433,"overlapLand":0.392,"waterShare":0.058,"parallel":0.818,"exactEdge":0.118,"alongEdge":0.473,"bandShare":0.31,"medianRoadDistance":0.69,"surfaceOnlyContact":49,"dualIdentityContact":13,"multiRecordCells":36,"surfaceOnlyHubs":2,"dualIdentityHubs":1,"otherHubs":33,"bandByEndpointKind":{"dual":{"shared":0,"band":0,"share":0},"fully-subterranean":{"shared":202,"band":67,"share":0.3316831683168317},"junction":{"shared":3,"band":3,"share":1}},"histogram":[171,179,40,5],"burgsServed":38,"violations":31,"repairs":0,"serviceViolations":31,"boundaryViolations":0,"records":27,"directness":1.367,"directness125":0.37,"directness150":0.259,"directnessMax":2.183,"directnessRecords":27,"wander":4.64,"wanderMax":21.71,"tunnelH":34.8,"corridorH":34.8,"landMeanH":31.1,"crestCrossings":8,"crestHit":0.75,"crestSag":6.1,"passUnder":49,"nearMiss":224,"anchorMinDist":0.356,"tunnelCells":395,"corridorCells":559}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+BIOME {"seed":"measure-f","variant":"baseline-production","6:Temperate deciduous forest":{"cells":157,"tunnel":0.302,"land":0.19},"5:Tropical seasonal forest":{"cells":86,"tunnel":0.165,"land":0.186},"4:Grassland":{"cells":76,"tunnel":0.146,"land":0.099},"3:Savanna":{"cells":73,"tunnel":0.14,"land":0.106},"8:Temperate rainforest":{"cells":53,"tunnel":0.102,"land":0.097},"1:Hot desert":{"cells":23,"tunnel":0.044,"land":0.014},"7:Tropical rainforest":{"cells":21,"tunnel":0.04,"land":0.036},"9:Taiga":{"cells":14,"tunnel":0.027,"land":0.115},"2:Cold desert":{"cells":12,"tunnel":0.023,"land":0.014},"12:Wetland":{"cells":3,"tunnel":0.006,"land":0.044},"10:Tundra":{"cells":2,"tunnel":0.004,"land":0.057}}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-f","variant":"baseline-production","records":54,"roads":610,"same":6,"viaBurg":2,"roadCopies":6,"roadCopiesExpanded":8,"copyCells":61}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":14,"kind":"same-connection","connects":[371,606],"cells":10,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":16,"kind":"same-connection","connects":[371,2],"cells":7,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":17,"kind":"same-connection","connects":[244,371],"cells":5,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":23,"kind":"same-connection","connects":[364,246],"cells":4,"road":271}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":26,"kind":"same-connection","connects":[853,264],"cells":5,"road":274}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":27,"kind":"same-connection","connects":[3,364],"cells":5,"road":271}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":29,"kind":"pass-under-burg","connects":[578,739],"cells":15,"road":322,"burg":794}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":38,"kind":"pass-under-burg","connects":[841,866],"cells":10,"road":350,"burg":704}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-f","variant":"baseline-production","records":54,"roads":610,"same":6,"viaBurg":2,"roadCopies":6,"roadCopiesExpanded":8,"copyCells":61}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":14,"kind":"same-connection","connects":[371,606],"cells":10,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":16,"kind":"same-connection","connects":[371,2],"cells":7,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":17,"kind":"same-connection","connects":[244,371],"cells":5,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":23,"kind":"same-connection","connects":[364,246],"cells":4,"road":271}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":26,"kind":"same-connection","connects":[853,264],"cells":5,"road":274}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":27,"kind":"same-connection","connects":[3,364],"cells":5,"road":271}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":29,"kind":"pass-under-burg","connects":[578,739],"cells":15,"road":322,"burg":794}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"baseline-production","tunnel":38,"kind":"pass-under-burg","connects":[841,866],"cells":10,"road":350,"burg":704}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-f","variant":"replica-production","records":54,"roads":610,"same":6,"viaBurg":2,"roadCopies":6,"roadCopiesExpanded":8,"copyCells":61}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production","tunnel":14,"kind":"same-connection","connects":[371,606],"cells":10,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production","tunnel":16,"kind":"same-connection","connects":[371,2],"cells":7,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production","tunnel":17,"kind":"same-connection","connects":[244,371],"cells":5,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production","tunnel":23,"kind":"same-connection","connects":[364,246],"cells":4,"road":271}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production","tunnel":26,"kind":"same-connection","connects":[853,264],"cells":5,"road":274}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production","tunnel":27,"kind":"same-connection","connects":[3,364],"cells":5,"road":271}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production","tunnel":29,"kind":"pass-under-burg","connects":[578,739],"cells":15,"road":322,"burg":794}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production","tunnel":38,"kind":"pass-under-burg","connects":[841,866],"cells":10,"road":350,"burg":704}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-f","variant":"replica-production-2","records":54,"roads":610,"same":6,"viaBurg":2,"roadCopies":6,"roadCopiesExpanded":8,"copyCells":61}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production-2","tunnel":14,"kind":"same-connection","connects":[371,606],"cells":10,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production-2","tunnel":16,"kind":"same-connection","connects":[371,2],"cells":7,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production-2","tunnel":17,"kind":"same-connection","connects":[244,371],"cells":5,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production-2","tunnel":23,"kind":"same-connection","connects":[364,246],"cells":4,"road":271}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production-2","tunnel":26,"kind":"same-connection","connects":[853,264],"cells":5,"road":274}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production-2","tunnel":27,"kind":"same-connection","connects":[3,364],"cells":5,"road":271}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production-2","tunnel":29,"kind":"pass-under-burg","connects":[578,739],"cells":15,"road":322,"burg":794}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"replica-production-2","tunnel":38,"kind":"pass-under-burg","connects":[841,866],"cells":10,"road":350,"burg":704}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-f","variant":"pairset-backbone-mst","records":69,"roads":610,"same":10,"viaBurg":5,"roadCopies":10,"roadCopiesExpanded":15,"copyCells":99}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":1,"kind":"same-connection","connects":[149,357],"cells":3,"road":65}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":13,"kind":"same-connection","connects":[244,371],"cells":5,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":17,"kind":"same-connection","connects":[2,371],"cells":7,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":23,"kind":"same-connection","connects":[157,364],"cells":6,"road":271}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":24,"kind":"same-connection","connects":[246,411],"cells":2,"road":265}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":30,"kind":"same-connection","connects":[853,864],"cells":5,"road":274}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":34,"kind":"same-connection","connects":[3,364],"cells":5,"road":271}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":36,"kind":"same-connection","connects":[101,564],"cells":5,"road":382}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":43,"kind":"pass-under-burg","connects":[578,866],"cells":6,"road":322,"burg":794}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":48,"kind":"pass-under-burg","connects":[177,783],"cells":7,"road":440,"burg":223}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":51,"kind":"same-connection","connects":[264,853],"cells":7,"road":274}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":56,"kind":"pass-under-burg","connects":[374,841],"cells":8,"road":331,"burg":106}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":57,"kind":"pass-under-burg","connects":[471,864],"cells":16,"road":283,"burg":531}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":58,"kind":"pass-under-burg","connects":[336,616],"cells":8,"road":262,"burg":91}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-backbone-mst","tunnel":66,"kind":"same-connection","connects":[41,853],"cells":9,"road":274}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-f","variant":"pairset-subterranean-only","records":27,"roads":610,"same":5,"viaBurg":0,"roadCopies":5,"roadCopiesExpanded":5,"copyCells":65}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-subterranean-only","tunnel":6,"kind":"same-connection","connects":[171,371],"cells":15,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-subterranean-only","tunnel":7,"kind":"same-connection","connects":[371],"cells":3,"road":178}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-subterranean-only","tunnel":10,"kind":"same-connection","connects":[853,264],"cells":5,"road":274}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-subterranean-only","tunnel":12,"kind":"same-connection","connects":[853,473],"cells":27,"road":274}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-f","variant":"pairset-subterranean-only","tunnel":13,"kind":"same-connection","connects":[853,471],"cells":15,"road":274}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+WATER-CENSUS {"seed":"measure-f","production":{"legs":12,"waterCells":39,"spans":{"1":6,"3":1,"5":2,"6":2,"8":1},"meanSpan":3.25,"maxSpan":8,"legLength":13},"boundMinus3":{"legs":0,"waterCells":0,"spans":{},"meanSpan":0,"maxSpan":0,"legLength":0},"directCrossingPairs":9,"crossings":[{"direct":35,"crossed":5,"actual":48,"bypass":54,"waterDetour":1.371,"landPenalty":1.125},{"direct":62,"crossed":5,"actual":76,"bypass":88,"waterDetour":1.226,"landPenalty":1.158},{"direct":68,"crossed":5,"actual":99,"bypass":142,"waterDetour":1.456,"landPenalty":1.434},{"direct":147,"crossed":4,"actual":161,"bypass":218,"waterDetour":1.095,"landPenalty":1.354},{"direct":88,"crossed":1,"actual":97,"bypass":568,"waterDetour":1.102,"landPenalty":5.856},{"direct":81,"crossed":6,"actual":90,"bypass":448,"waterDetour":1.111,"landPenalty":4.978},{"direct":36,"crossed":1,"actual":37,"bypass":61,"waterDetour":1.028,"landPenalty":1.649},{"direct":78,"crossed":1,"actual":91,"bypass":98,"waterDetour":1.167,"landPenalty":1.077},{"direct":59,"crossed":1,"actual":74,"bypass":74,"waterDetour":1.254,"landPenalty":1}]}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-f","variant":"replica-production","productionRoutes":54,"replicaRoutes":54,"productionCells":554,"replicaCells":553,"driftCells":-1,"exact":false}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-f","variant":"replica-production-2","productionRoutes":54,"replicaRoutes":54,"productionCells":554,"replicaCells":554,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR-ANCHOR {"seed":"measure-f","passUnder":59,"replicaPassUnder":59,"nearMiss":295,"replicaNearMiss":295,"anchorMinDist":0.567,"dDirectness":0.059,"dTunnelH":-0.016,"dCrestHit":0,"dTunnelCells":-1}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+SEED measure-g cells=5581 land=4091 water=1490 burgs=811 subterranean=82 surfaceRoutes=592 {"roads":9,"trails":494,"searoutes":89} surfaceCells=2501 landRouteCells=1751 productionRoutes=52 longest=45
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR definitions {"directness":"per record: drawn-path length (points[0],points[1] polyline) over the straight-line distance between the record's own first and last drawn anchor; records shorter than 1 cell-width are dropped","elevProfile":"mean h of the record's land cells (h>=20) against the mean h of the direct-corridor cells, where the corridor is every cell within 1.5 cell-widths of the record's own direct segment (sampled every half cell-width) and the land mean is the whole map's land cells","crestHit":"for records whose direct corridor holds a cell with h>=50 (the crossing set): crestSag is the corridor's highest h minus the record's own highest h, and a hit is a sag of at most 10 — the record came up to the crest instead of bending around it. The sag is the primary reading: a distance radius on the crest cell cannot separate reach from a detour, because the corridor's own width puts the crest near any chain that stays on the line","biomeShare":"share of the record set's distinct land cells in each biome, against that biome's share of all land cells","passUnder":"distinct tunnel cells that are surface-only burg cells (burg with ground-level presence and no below-level presence) — the F7.2 audit definition","nearMiss":"distinct tunnel cells that are not surface-only burg cells but have such a burg cell among their neighbours","anchorMinDist":"per record, the smallest distance (in cell-widths) from any drawn point to any surface-only burg dot; the mean over records is reported"}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR fields seed=measure-g cellWidth=6.391 landMeanH=32.6 surfaceOnlyBurgs=729 landCells=4091
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR variants seed=measure-g ["baseline-production","replica-production","replica-production-2","pairset-backbone-mst","pairset-subterranean-only"]
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-g","variant":"baseline-production","ms":0,"routes":52,"cells":630,"length":6044,"overlap":0.405,"overlapLand":0.378,"waterShare":0.046,"parallel":0.752,"exactEdge":0.148,"alongEdge":0.449,"bandShare":0.329,"medianRoadDistance":0.78,"surfaceOnlyContact":81,"dualIdentityContact":41,"multiRecordCells":82,"surfaceOnlyHubs":6,"dualIdentityHubs":29,"otherHubs":47,"bandByEndpointKind":{"dual":{"shared":79,"band":33,"share":0.4177215189873418},"fully-subterranean":{"shared":65,"band":24,"share":0.36923076923076925},"junction":{"shared":179,"band":62,"share":0.3463687150837989}},"histogram":[255,277,77,21],"burgsServed":59,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":52,"directness":1.283,"directness125":0.385,"directness150":0.154,"directnessMax":3.233,"directnessRecords":52,"wander":3.38,"wanderMax":16.72,"tunnelH":34.4,"corridorH":33.6,"landMeanH":32.6,"crestCrossings":14,"crestHit":1,"crestSag":0.4,"passUnder":81,"nearMiss":308,"anchorMinDist":0.757,"tunnelCells":630,"corridorCells":836}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+DEBUG replica stages: raw 114 routes/630 cells -> merged 52 routes -> pruned 52 routes/630 cells
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-g","variant":"replica-production","ms":20,"routes":52,"cells":630,"length":6044,"overlap":0.405,"overlapLand":0.378,"waterShare":0.046,"parallel":0.752,"exactEdge":0.148,"alongEdge":0.449,"bandShare":0.329,"medianRoadDistance":0.78,"surfaceOnlyContact":81,"dualIdentityContact":41,"multiRecordCells":82,"surfaceOnlyHubs":6,"dualIdentityHubs":29,"otherHubs":47,"bandByEndpointKind":{"dual":{"shared":79,"band":33,"share":0.4177215189873418},"fully-subterranean":{"shared":65,"band":24,"share":0.36923076923076925},"junction":{"shared":179,"band":62,"share":0.3463687150837989}},"histogram":[255,277,77,21],"burgsServed":59,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":52,"directness":1.348,"directness125":0.481,"directness150":0.173,"directnessMax":3.199,"directnessRecords":52,"wander":3.37,"wanderMax":16.72,"tunnelH":34.4,"corridorH":33.6,"landMeanH":32.6,"crestCrossings":14,"crestHit":1,"crestSag":0.4,"passUnder":81,"nearMiss":308,"anchorMinDist":0.787,"tunnelCells":630,"corridorCells":826}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-g","variant":"replica-production-2","ms":19,"routes":52,"cells":630,"length":6044,"overlap":0.405,"overlapLand":0.378,"waterShare":0.046,"parallel":0.752,"exactEdge":0.148,"alongEdge":0.449,"bandShare":0.329,"medianRoadDistance":0.78,"surfaceOnlyContact":81,"dualIdentityContact":41,"multiRecordCells":82,"surfaceOnlyHubs":6,"dualIdentityHubs":29,"otherHubs":47,"bandByEndpointKind":{"dual":{"shared":79,"band":33,"share":0.4177215189873418},"fully-subterranean":{"shared":65,"band":24,"share":0.36923076923076925},"junction":{"shared":179,"band":62,"share":0.3463687150837989}},"histogram":[255,277,77,21],"burgsServed":59,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":52,"directness":1.348,"directness125":0.481,"directness150":0.173,"directnessMax":3.199,"directnessRecords":52,"wander":3.37,"wanderMax":16.72,"tunnelH":34.4,"corridorH":33.6,"landMeanH":32.6,"crestCrossings":14,"crestHit":1,"crestSag":0.4,"passUnder":81,"nearMiss":308,"anchorMinDist":0.787,"tunnelCells":630,"corridorCells":826}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-g","variant":"pairset-backbone-mst","ms":11,"routes":66,"cells":496,"length":4436,"overlap":0.458,"overlapLand":0.411,"waterShare":0.048,"parallel":0.776,"exactEdge":0.161,"alongEdge":0.455,"bandShare":0.454,"medianRoadDistance":0.74,"surfaceOnlyContact":60,"dualIdentityContact":41,"multiRecordCells":61,"surfaceOnlyHubs":3,"dualIdentityHubs":25,"otherHubs":33,"bandByEndpointKind":{"dual":{"shared":84,"band":54,"share":0.6428571428571429},"fully-subterranean":{"shared":85,"band":28,"share":0.32941176470588235},"junction":{"shared":115,"band":75,"share":0.6521739130434783}},"histogram":[227,192,54,23],"burgsServed":73,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":66,"directness":1.216,"directness125":0.318,"directness150":0.106,"directnessMax":1.76,"directnessRecords":66,"wander":1.73,"wanderMax":8.13,"tunnelH":34.6,"corridorH":34.7,"landMeanH":32.6,"crestCrossings":13,"crestHit":0.769,"crestSag":4.8,"passUnder":60,"nearMiss":248,"anchorMinDist":0.736,"tunnelCells":496,"corridorCells":733}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-g","variant":"pairset-subterranean-only","ms":19,"routes":25,"cells":441,"length":4153,"overlap":0.379,"overlapLand":0.345,"waterShare":0.036,"parallel":0.717,"exactEdge":0.106,"alongEdge":0.413,"bandShare":0.144,"medianRoadDistance":0.84,"surfaceOnlyContact":48,"dualIdentityContact":9,"multiRecordCells":34,"surfaceOnlyHubs":2,"dualIdentityHubs":0,"otherHubs":32,"bandByEndpointKind":{"dual":{"shared":0,"band":0,"share":0},"fully-subterranean":{"shared":185,"band":31,"share":0.16756756756756758},"junction":{"shared":4,"band":4,"share":1}},"histogram":[167,196,60,18],"burgsServed":27,"violations":33,"repairs":0,"serviceViolations":33,"boundaryViolations":0,"records":25,"directness":1.211,"directness125":0.32,"directness150":0.08,"directnessMax":1.542,"directnessRecords":25,"wander":3.63,"wanderMax":13.4,"tunnelH":36,"corridorH":35.1,"landMeanH":32.6,"crestCrossings":11,"crestHit":1,"crestSag":1.3,"passUnder":48,"nearMiss":229,"anchorMinDist":0.519,"tunnelCells":441,"corridorCells":645}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+BIOME {"seed":"measure-g","variant":"baseline-production","6:Temperate deciduous forest":{"cells":200,"tunnel":0.333,"land":0.209},"5:Tropical seasonal forest":{"cells":122,"tunnel":0.203,"land":0.152},"3:Savanna":{"cells":97,"tunnel":0.161,"land":0.163},"4:Grassland":{"cells":94,"tunnel":0.156,"land":0.148},"8:Temperate rainforest":{"cells":38,"tunnel":0.063,"land":0.087},"9:Taiga":{"cells":18,"tunnel":0.03,"land":0.124},"12:Wetland":{"cells":14,"tunnel":0.023,"land":0.054},"7:Tropical rainforest":{"cells":9,"tunnel":0.015,"land":0.024},"1:Hot desert":{"cells":7,"tunnel":0.012,"land":0.014},"2:Cold desert":{"cells":2,"tunnel":0.003,"land":0.002}}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-g","variant":"baseline-production","records":52,"roads":592,"same":4,"viaBurg":1,"roadCopies":4,"roadCopiesExpanded":5,"copyCells":70}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"baseline-production","tunnel":7,"kind":"pass-under-burg","connects":[46,196],"cells":4,"road":54,"burg":286}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"baseline-production","tunnel":9,"kind":"same-connection","connects":[350,307],"cells":25,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"baseline-production","tunnel":13,"kind":"same-connection","connects":[350,307],"cells":29,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"baseline-production","tunnel":21,"kind":"same-connection","connects":[307],"cells":5,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"baseline-production","tunnel":51,"kind":"same-connection","connects":[125,538],"cells":7,"road":502}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-g","variant":"baseline-production","records":52,"roads":592,"same":4,"viaBurg":1,"roadCopies":4,"roadCopiesExpanded":5,"copyCells":70}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"baseline-production","tunnel":7,"kind":"pass-under-burg","connects":[46,196],"cells":4,"road":54,"burg":286}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"baseline-production","tunnel":9,"kind":"same-connection","connects":[350,307],"cells":25,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"baseline-production","tunnel":13,"kind":"same-connection","connects":[350,307],"cells":29,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"baseline-production","tunnel":21,"kind":"same-connection","connects":[307],"cells":5,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"baseline-production","tunnel":51,"kind":"same-connection","connects":[125,538],"cells":7,"road":502}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-g","variant":"replica-production","records":52,"roads":592,"same":4,"viaBurg":1,"roadCopies":4,"roadCopiesExpanded":5,"copyCells":70}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"replica-production","tunnel":7,"kind":"pass-under-burg","connects":[46,196],"cells":4,"road":54,"burg":286}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"replica-production","tunnel":9,"kind":"same-connection","connects":[350,307],"cells":25,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"replica-production","tunnel":13,"kind":"same-connection","connects":[350,307],"cells":29,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"replica-production","tunnel":21,"kind":"same-connection","connects":[307],"cells":5,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"replica-production","tunnel":51,"kind":"same-connection","connects":[125,538],"cells":7,"road":502}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-g","variant":"replica-production-2","records":52,"roads":592,"same":4,"viaBurg":1,"roadCopies":4,"roadCopiesExpanded":5,"copyCells":70}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"replica-production-2","tunnel":7,"kind":"pass-under-burg","connects":[46,196],"cells":4,"road":54,"burg":286}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"replica-production-2","tunnel":9,"kind":"same-connection","connects":[350,307],"cells":25,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"replica-production-2","tunnel":13,"kind":"same-connection","connects":[350,307],"cells":29,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"replica-production-2","tunnel":21,"kind":"same-connection","connects":[307],"cells":5,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"replica-production-2","tunnel":51,"kind":"same-connection","connects":[125,538],"cells":7,"road":502}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-g","variant":"pairset-backbone-mst","records":66,"roads":592,"same":4,"viaBurg":2,"roadCopies":4,"roadCopiesExpanded":6,"copyCells":48}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"pairset-backbone-mst","tunnel":10,"kind":"same-connection","connects":[57,86],"cells":6,"road":279}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"pairset-backbone-mst","tunnel":20,"kind":"same-connection","connects":[307,615],"cells":7,"road":245}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"pairset-backbone-mst","tunnel":25,"kind":"pass-under-burg","connects":[31,646],"cells":11,"road":203,"burg":255}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"pairset-backbone-mst","tunnel":47,"kind":"same-connection","connects":[635,654],"cells":5,"road":285}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"pairset-backbone-mst","tunnel":56,"kind":"pass-under-burg","connects":[237,786],"cells":12,"road":461,"burg":419}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"pairset-backbone-mst","tunnel":65,"kind":"same-connection","connects":[125,538],"cells":7,"road":502}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-g","variant":"pairset-subterranean-only","records":25,"roads":592,"same":2,"viaBurg":0,"roadCopies":2,"roadCopiesExpanded":2,"copyCells":44}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"pairset-subterranean-only","tunnel":9,"kind":"same-connection","connects":[726,318],"cells":29,"road":416}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-g","variant":"pairset-subterranean-only","tunnel":10,"kind":"same-connection","connects":[684,318],"cells":15,"road":416}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+WATER-CENSUS {"seed":"measure-g","production":{"legs":7,"waterCells":29,"spans":{"1":1,"2":1,"3":1,"5":2,"6":1,"7":1},"meanSpan":4.14,"maxSpan":7,"legLength":21},"boundMinus3":{"legs":0,"waterCells":0,"spans":{},"meanSpan":0,"maxSpan":0,"legLength":0},"directCrossingPairs":9,"crossings":[{"direct":86,"crossed":1,"actual":96,"bypass":123,"waterDetour":1.116,"landPenalty":1.281},{"direct":65,"crossed":1,"actual":75,"bypass":75,"waterDetour":1.154,"landPenalty":1},{"direct":96,"crossed":2,"actual":114,"bypass":114,"waterDetour":1.188,"landPenalty":1},{"direct":75,"crossed":5,"actual":87,"bypass":191,"waterDetour":1.16,"landPenalty":2.195},{"direct":79,"crossed":1,"actual":97,"bypass":97,"waterDetour":1.228,"landPenalty":1},{"direct":40,"crossed":2,"actual":51,"bypass":51,"waterDetour":1.275,"landPenalty":1},{"direct":54,"crossed":3,"actual":60,"bypass":71,"waterDetour":1.111,"landPenalty":1.183},{"direct":178,"crossed":11,"actual":225,"bypass":226,"waterDetour":1.264,"landPenalty":1.004},{"direct":93,"crossed":7,"actual":124,"bypass":124,"waterDetour":1.333,"landPenalty":1}]}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-g","variant":"replica-production","productionRoutes":52,"replicaRoutes":52,"productionCells":630,"replicaCells":630,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-g","variant":"replica-production-2","productionRoutes":52,"replicaRoutes":52,"productionCells":630,"replicaCells":630,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR-ANCHOR {"seed":"measure-g","passUnder":81,"replicaPassUnder":81,"nearMiss":308,"replicaNearMiss":308,"anchorMinDist":0.757,"dDirectness":0.065,"dTunnelH":0,"dCrestHit":0,"dTunnelCells":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+SEED measure-h cells=5468 land=4119 water=1349 burgs=835 subterranean=84 surfaceRoutes=554 {"roads":14,"trails":449,"searoutes":91} surfaceCells=2696 landRouteCells=1897 productionRoutes=49 longest=40
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR definitions {"directness":"per record: drawn-path length (points[0],points[1] polyline) over the straight-line distance between the record's own first and last drawn anchor; records shorter than 1 cell-width are dropped","elevProfile":"mean h of the record's land cells (h>=20) against the mean h of the direct-corridor cells, where the corridor is every cell within 1.5 cell-widths of the record's own direct segment (sampled every half cell-width) and the land mean is the whole map's land cells","crestHit":"for records whose direct corridor holds a cell with h>=50 (the crossing set): crestSag is the corridor's highest h minus the record's own highest h, and a hit is a sag of at most 10 — the record came up to the crest instead of bending around it. The sag is the primary reading: a distance radius on the crest cell cannot separate reach from a detour, because the corridor's own width puts the crest near any chain that stays on the line","biomeShare":"share of the record set's distinct land cells in each biome, against that biome's share of all land cells","passUnder":"distinct tunnel cells that are surface-only burg cells (burg with ground-level presence and no below-level presence) — the F7.2 audit definition","nearMiss":"distinct tunnel cells that are not surface-only burg cells but have such a burg cell among their neighbours","anchorMinDist":"per record, the smallest distance (in cell-widths) from any drawn point to any surface-only burg dot; the mean over records is reported"}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR fields seed=measure-h cellWidth=6.411 landMeanH=36.1 surfaceOnlyBurgs=751 landCells=4119
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR variants seed=measure-h ["baseline-production","replica-production","replica-production-2","pairset-backbone-mst","pairset-subterranean-only"]
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-h","variant":"baseline-production","ms":0,"routes":49,"cells":427,"length":4342,"overlap":0.405,"overlapLand":0.386,"waterShare":0.016,"parallel":0.732,"exactEdge":0.104,"alongEdge":0.433,"bandShare":0.416,"medianRoadDistance":0.78,"surfaceOnlyContact":39,"dualIdentityContact":42,"multiRecordCells":61,"surfaceOnlyHubs":2,"dualIdentityHubs":22,"otherHubs":37,"bandByEndpointKind":{"dual":{"shared":21,"band":19,"share":0.9047619047619048},"fully-subterranean":{"shared":77,"band":39,"share":0.5064935064935064},"junction":{"shared":126,"band":52,"share":0.4126984126984127}},"histogram":[173,186,56,12],"burgsServed":60,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":49,"directness":1.23,"directness125":0.286,"directness150":0.184,"directnessMax":1.954,"directnessRecords":49,"wander":2.66,"wanderMax":13.9,"tunnelH":44.4,"corridorH":42.7,"landMeanH":36.1,"crestCrossings":31,"crestHit":0.968,"crestSag":2.2,"passUnder":39,"nearMiss":227,"anchorMinDist":0.732,"tunnelCells":427,"corridorCells":606}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+DEBUG replica stages: raw 102 routes/427 cells -> merged 49 routes -> pruned 49 routes/427 cells
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-h","variant":"replica-production","ms":12,"routes":49,"cells":427,"length":4342,"overlap":0.405,"overlapLand":0.386,"waterShare":0.016,"parallel":0.732,"exactEdge":0.104,"alongEdge":0.433,"bandShare":0.416,"medianRoadDistance":0.78,"surfaceOnlyContact":39,"dualIdentityContact":42,"multiRecordCells":61,"surfaceOnlyHubs":2,"dualIdentityHubs":22,"otherHubs":37,"bandByEndpointKind":{"dual":{"shared":21,"band":19,"share":0.9047619047619048},"fully-subterranean":{"shared":77,"band":39,"share":0.5064935064935064},"junction":{"shared":126,"band":52,"share":0.4126984126984127}},"histogram":[173,186,56,12],"burgsServed":60,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":49,"directness":1.292,"directness125":0.388,"directness150":0.245,"directnessMax":2.111,"directnessRecords":49,"wander":2.66,"wanderMax":13.9,"tunnelH":44.4,"corridorH":42.7,"landMeanH":36.1,"crestCrossings":30,"crestHit":0.967,"crestSag":2.2,"passUnder":39,"nearMiss":227,"anchorMinDist":0.737,"tunnelCells":427,"corridorCells":606}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-h","variant":"replica-production-2","ms":11,"routes":49,"cells":427,"length":4342,"overlap":0.405,"overlapLand":0.386,"waterShare":0.016,"parallel":0.732,"exactEdge":0.104,"alongEdge":0.433,"bandShare":0.416,"medianRoadDistance":0.78,"surfaceOnlyContact":39,"dualIdentityContact":42,"multiRecordCells":61,"surfaceOnlyHubs":2,"dualIdentityHubs":22,"otherHubs":37,"bandByEndpointKind":{"dual":{"shared":21,"band":19,"share":0.9047619047619048},"fully-subterranean":{"shared":77,"band":39,"share":0.5064935064935064},"junction":{"shared":126,"band":52,"share":0.4126984126984127}},"histogram":[173,186,56,12],"burgsServed":60,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":49,"directness":1.292,"directness125":0.388,"directness150":0.245,"directnessMax":2.111,"directnessRecords":49,"wander":2.66,"wanderMax":13.9,"tunnelH":44.4,"corridorH":42.7,"landMeanH":36.1,"crestCrossings":30,"crestHit":0.967,"crestSag":2.2,"passUnder":39,"nearMiss":227,"anchorMinDist":0.737,"tunnelCells":427,"corridorCells":606}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-h","variant":"pairset-backbone-mst","ms":7,"routes":68,"cells":358,"length":3536,"overlap":0.455,"overlapLand":0.433,"waterShare":0.025,"parallel":0.783,"exactEdge":0.122,"alongEdge":0.418,"bandShare":0.577,"medianRoadDistance":0.7,"surfaceOnlyContact":35,"dualIdentityContact":42,"multiRecordCells":62,"surfaceOnlyHubs":3,"dualIdentityHubs":27,"otherHubs":32,"bandByEndpointKind":{"dual":{"shared":55,"band":39,"share":0.7090909090909091},"fully-subterranean":{"shared":53,"band":40,"share":0.7547169811320755},"junction":{"shared":115,"band":74,"share":0.6434782608695652}},"histogram":[163,151,32,12],"burgsServed":73,"violations":0,"repairs":0,"serviceViolations":0,"boundaryViolations":0,"records":68,"directness":1.172,"directness125":0.258,"directness150":0.03,"directnessMax":1.768,"directnessRecords":66,"wander":1.23,"wanderMax":6.66,"tunnelH":44,"corridorH":43.5,"landMeanH":36.1,"crestCrossings":42,"crestHit":0.929,"crestSag":4.1,"passUnder":35,"nearMiss":211,"anchorMinDist":0.843,"tunnelCells":358,"corridorCells":582}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROW {"seed":"measure-h","variant":"pairset-subterranean-only","ms":11,"routes":28,"cells":331,"length":3460,"overlap":0.372,"overlapLand":0.363,"waterShare":0.018,"parallel":0.7,"exactEdge":0.125,"alongEdge":0.443,"bandShare":0.293,"medianRoadDistance":0.85,"surfaceOnlyContact":35,"dualIdentityContact":7,"multiRecordCells":54,"surfaceOnlyHubs":4,"dualIdentityHubs":1,"otherHubs":49,"bandByEndpointKind":{"dual":{"shared":0,"band":0,"share":0},"fully-subterranean":{"shared":144,"band":42,"share":0.2916666666666667},"junction":{"shared":11,"band":11,"share":1}},"histogram":[123,148,46,14],"burgsServed":30,"violations":35,"repairs":0,"serviceViolations":35,"boundaryViolations":0,"records":28,"directness":1.362,"directness125":0.481,"directness150":0.259,"directnessMax":2.529,"directnessRecords":27,"wander":3.91,"wanderMax":17.05,"tunnelH":44.4,"corridorH":46.2,"landMeanH":36.1,"crestCrossings":21,"crestHit":0.952,"crestSag":2.4,"passUnder":35,"nearMiss":167,"anchorMinDist":0.48,"tunnelCells":331,"corridorCells":446}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+BIOME {"seed":"measure-h","variant":"baseline-production","6:Temperate deciduous forest":{"cells":204,"tunnel":0.486,"land":0.24},"4:Grassland":{"cells":80,"tunnel":0.19,"land":0.119},"3:Savanna":{"cells":51,"tunnel":0.121,"land":0.244},"5:Tropical seasonal forest":{"cells":40,"tunnel":0.095,"land":0.143},"8:Temperate rainforest":{"cells":12,"tunnel":0.029,"land":0.08},"7:Tropical rainforest":{"cells":10,"tunnel":0.024,"land":0.061},"9:Taiga":{"cells":8,"tunnel":0.019,"land":0.006},"1:Hot desert":{"cells":7,"tunnel":0.017,"land":0.041},"12:Wetland":{"cells":5,"tunnel":0.012,"land":0.053},"10:Tundra":{"cells":3,"tunnel":0.007,"land":0.001}}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-h","variant":"baseline-production","records":49,"roads":554,"same":0,"viaBurg":1,"roadCopies":0,"roadCopiesExpanded":1,"copyCells":13}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-h","variant":"baseline-production","tunnel":45,"kind":"pass-under-burg","connects":[676,648],"cells":13,"road":428,"burg":399}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-h","variant":"baseline-production","records":49,"roads":554,"same":0,"viaBurg":1,"roadCopies":0,"roadCopiesExpanded":1,"copyCells":13}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-h","variant":"baseline-production","tunnel":45,"kind":"pass-under-burg","connects":[676,648],"cells":13,"road":428,"burg":399}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-h","variant":"replica-production","records":49,"roads":554,"same":0,"viaBurg":1,"roadCopies":0,"roadCopiesExpanded":1,"copyCells":13}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-h","variant":"replica-production","tunnel":45,"kind":"pass-under-burg","connects":[676,648],"cells":13,"road":428,"burg":399}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-h","variant":"replica-production-2","records":49,"roads":554,"same":0,"viaBurg":1,"roadCopies":0,"roadCopiesExpanded":1,"copyCells":13}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-h","variant":"replica-production-2","tunnel":45,"kind":"pass-under-burg","connects":[676,648],"cells":13,"road":428,"burg":399}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-h","variant":"pairset-backbone-mst","records":68,"roads":554,"same":4,"viaBurg":2,"roadCopies":4,"roadCopiesExpanded":6,"copyCells":43}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-h","variant":"pairset-backbone-mst","tunnel":6,"kind":"same-connection","connects":[47,723],"cells":7,"road":425}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-h","variant":"pairset-backbone-mst","tunnel":8,"kind":"same-connection","connects":[116,299],"cells":2,"road":95}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-h","variant":"pairset-backbone-mst","tunnel":10,"kind":"pass-under-burg","connects":[29,814],"cells":5,"road":334,"burg":712}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-h","variant":"pairset-backbone-mst","tunnel":47,"kind":"same-connection","connects":[47,520],"cells":10,"road":425}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-h","variant":"pairset-backbone-mst","tunnel":52,"kind":"pass-under-burg","connects":[83,134],"cells":12,"road":487,"burg":565}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY-DETAIL {"seed":"measure-h","variant":"pairset-backbone-mst","tunnel":53,"kind":"same-connection","connects":[116,687],"cells":7,"road":95}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+ROAD-COPY {"seed":"measure-h","variant":"pairset-subterranean-only","records":28,"roads":554,"same":0,"viaBurg":0,"roadCopies":0,"roadCopiesExpanded":0,"copyCells":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+WATER-CENSUS {"seed":"measure-h","production":{"legs":4,"waterCells":7,"spans":{"1":3,"4":1},"meanSpan":1.75,"maxSpan":4,"legLength":8},"boundMinus3":{"legs":0,"waterCells":0,"spans":{},"meanSpan":0,"maxSpan":0,"legLength":0},"directCrossingPairs":5,"crossings":[{"direct":71,"crossed":5,"actual":106,"bypass":490,"waterDetour":1.493,"landPenalty":4.623},{"direct":28,"crossed":1,"actual":30,"bypass":90,"waterDetour":1.071,"landPenalty":3},{"direct":63,"crossed":1,"actual":102,"bypass":102,"waterDetour":1.619,"landPenalty":1},{"direct":56,"crossed":1,"actual":71,"bypass":77,"waterDetour":1.268,"landPenalty":1.085},{"direct":94,"crossed":2,"actual":115,"bypass":115,"waterDetour":1.223,"landPenalty":1}]}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-h","variant":"replica-production","productionRoutes":49,"replicaRoutes":49,"productionCells":427,"replicaCells":427,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+FIDELITY {"seed":"measure-h","variant":"replica-production-2","productionRoutes":49,"replicaRoutes":49,"productionCells":427,"replicaCells":427,"driftCells":0,"exact":true}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+CHAR-ANCHOR {"seed":"measure-h","passUnder":39,"replicaPassUnder":39,"nearMiss":227,"replicaNearMiss":227,"anchorMinDist":0.732,"dDirectness":0.062,"dTunnelH":0,"dCrestHit":-0.001,"dTunnelCells":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+AGG {"variant":"baseline-production","seeds":8,"overlap":0.422,"overlapLand":0.399,"waterShare":0.037,"parallel":0.764,"exactEdge":0.125,"alongEdge":0.451,"ms":0,"burgsServed":0.724,"bandByEndpointKind":{"dual":{"shared":595,"band":277,"share":0.466},"fully-subterranean":{"shared":625,"band":203,"share":0.325},"junction":{"shared":1243,"band":496,"share":0.399}},"lengthOverlap":0.617,"bandShare":0.353,"medianRoadDistance":0.75,"surfaceOnlyContact":67,"dualIdentityContact":42.5,"multiRecordCells":81.1,"surfaceOnlyHubs":5.1,"dualIdentityHubs":26,"otherHubs":50,"cells":564,"routes":52,"violations":0,"repairs":0,"length":5685,"lengthRatio":1,"directness":1.278,"directness125":0.32,"directness150":0.167,"directnessMax":3.298,"directnessRecords":52,"wander":3.31,"wanderMax":21.56,"tunnelH":37.8,"corridorH":38.1,"landMeanH":32.7,"tunnelAboveLand":5.1,"tunnelAboveCorridor":-0.3,"crestCrossings":24,"crestHit":0.923,"crestSag":2.6,"passUnder":67,"nearMiss":288.3,"anchorMinDist":0.581,"tunnelCells":564,"dDirectness":0,"dDirectnessRange":{"min":0,"max":0},"dTunnelH":0,"dTunnelHRange":{"min":0,"max":0},"dCrestHit":0,"dPassUnder":0,"dPassUnderRange":{"min":0,"max":0},"dNearMiss":0,"dOverlap":0,"dParallel":0,"worstOverlapDelta":0,"bestOverlapDelta":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+AGG {"variant":"replica-production","seeds":8,"overlap":0.422,"overlapLand":0.399,"waterShare":0.037,"parallel":0.764,"exactEdge":0.125,"alongEdge":0.451,"ms":17,"burgsServed":0.724,"bandByEndpointKind":{"dual":{"shared":595,"band":277,"share":0.466},"fully-subterranean":{"shared":625,"band":203,"share":0.325},"junction":{"shared":1242,"band":496,"share":0.399}},"lengthOverlap":0.617,"bandShare":0.353,"medianRoadDistance":0.75,"surfaceOnlyContact":67.1,"dualIdentityContact":42.5,"multiRecordCells":80.9,"surfaceOnlyHubs":5.1,"dualIdentityHubs":26,"otherHubs":49.8,"cells":565,"routes":52,"violations":0,"repairs":0,"length":5684,"lengthRatio":1,"directness":1.343,"directness125":0.412,"directness150":0.194,"directnessMax":3.47,"directnessRecords":52,"wander":3.31,"wanderMax":21.55,"tunnelH":37.8,"corridorH":38.1,"landMeanH":32.7,"tunnelAboveLand":5.1,"tunnelAboveCorridor":-0.3,"crestCrossings":24,"crestHit":0.922,"crestSag":2.6,"passUnder":67.1,"nearMiss":288.6,"anchorMinDist":0.594,"tunnelCells":565,"dDirectness":0.065,"dDirectnessRange":{"min":0.058,"max":0.079},"dTunnelH":-0.008,"dTunnelHRange":{"min":-0.051,"max":0},"dCrestHit":0,"dPassUnder":0.125,"dPassUnderRange":{"min":0,"max":1},"dNearMiss":0.375,"dOverlap":0,"dParallel":0,"worstOverlapDelta":0.001,"bestOverlapDelta":-0.001}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+AGG {"variant":"replica-production-2","seeds":8,"overlap":0.422,"overlapLand":0.399,"waterShare":0.037,"parallel":0.764,"exactEdge":0.125,"alongEdge":0.451,"ms":15,"burgsServed":0.724,"bandByEndpointKind":{"dual":{"shared":595,"band":277,"share":0.466},"fully-subterranean":{"shared":625,"band":203,"share":0.325},"junction":{"shared":1243,"band":496,"share":0.399}},"lengthOverlap":0.617,"bandShare":0.353,"medianRoadDistance":0.75,"surfaceOnlyContact":67,"dualIdentityContact":42.5,"multiRecordCells":81.1,"surfaceOnlyHubs":5.1,"dualIdentityHubs":26,"otherHubs":50,"cells":564,"routes":52,"violations":0,"repairs":0,"length":5685,"lengthRatio":1,"directness":1.343,"directness125":0.412,"directness150":0.194,"directnessMax":3.47,"directnessRecords":52,"wander":3.31,"wanderMax":21.55,"tunnelH":37.8,"corridorH":38.1,"landMeanH":32.7,"tunnelAboveLand":5.1,"tunnelAboveCorridor":-0.3,"crestCrossings":24,"crestHit":0.922,"crestSag":2.6,"passUnder":67,"nearMiss":288.3,"anchorMinDist":0.594,"tunnelCells":564,"dDirectness":0.065,"dDirectnessRange":{"min":0.058,"max":0.078},"dTunnelH":0,"dTunnelHRange":{"min":0,"max":0},"dCrestHit":0,"dPassUnder":0,"dPassUnderRange":{"min":0,"max":0},"dNearMiss":0,"dOverlap":0,"dParallel":0,"worstOverlapDelta":0,"bestOverlapDelta":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+AGG {"variant":"pairset-backbone-mst","seeds":8,"overlap":0.459,"overlapLand":0.433,"waterShare":0.037,"parallel":0.792,"exactEdge":0.133,"alongEdge":0.448,"ms":10,"burgsServed":0.883,"bandByEndpointKind":{"dual":{"shared":652,"band":396,"share":0.607},"fully-subterranean":{"shared":522,"band":256,"share":0.49},"junction":{"shared":956,"band":596,"share":0.623}},"lengthOverlap":0.648,"bandShare":0.499,"medianRoadDistance":0.69,"surfaceOnlyContact":54,"dualIdentityContact":42.5,"multiRecordCells":63.1,"surfaceOnlyHubs":1.1,"dualIdentityHubs":27.4,"otherHubs":34.6,"cells":458,"routes":67,"violations":0,"repairs":0,"length":4271,"lengthRatio":0.756,"directness":1.201,"directness125":0.286,"directness150":0.07,"directnessMax":2.18,"directnessRecords":67,"wander":1.7,"wanderMax":8.23,"tunnelH":38,"corridorH":37.7,"landMeanH":32.7,"tunnelAboveLand":5.3,"tunnelAboveCorridor":0.3,"crestCrossings":28,"crestHit":0.898,"crestSag":3.3,"passUnder":54,"nearMiss":245,"anchorMinDist":0.795,"tunnelCells":458,"dDirectness":-0.077,"dDirectnessRange":{"min":-0.168,"max":-0.005},"dTunnelH":0.182,"dTunnelHRange":{"min":-0.642,"max":1.652},"dCrestHit":-0.025,"dPassUnder":-13,"dPassUnderRange":{"min":-21,"max":-4},"dNearMiss":-43.25,"dOverlap":0.037,"dParallel":0.028,"worstOverlapDelta":0.061,"bestOverlapDelta":0}
+stdout | src/generators/underground-measure.dom.test.ts:1570:1 > measures underground alignment variants
+AGG {"variant":"pairset-subterranean-only","seeds":8,"overlap":0.383,"overlapLand":0.361,"waterShare":0.033,"parallel":0.71,"exactEdge":0.099,"alongEdge":0.388,"ms":14,"burgsServed":0.36,"bandByEndpointKind":{"dual":{"shared":0,"band":0,"share":0},"fully-subterranean":{"shared":1363,"band":346,"share":0.254},"junction":{"shared":69,"band":47,"share":0.681}},"lengthOverlap":0.546,"bandShare":0.237,"medianRoadDistance":0.84,"surfaceOnlyContact":45.3,"dualIdentityContact":8.6,"multiRecordCells":43.1,"surfaceOnlyHubs":2.6,"dualIdentityHubs":0.6,"otherHubs":39.9,"cells":394,"routes":25,"violations":34.13,"repairs":0,"length":3894,"lengthRatio":0.69,"directness":1.447,"directness125":0.408,"directness150":0.194,"directnessMax":14.077,"directnessRecords":25,"wander":4.83,"wanderMax":25.05,"tunnelH":38.2,"corridorH":37.8,"landMeanH":32.7,"tunnelAboveLand":5.5,"tunnelAboveCorridor":0.4,"crestCrossings":12,"crestHit":0.867,"crestSag":3.3,"passUnder":45.3,"nearMiss":197.1,"anchorMinDist":0.406,"tunnelCells":394,"dDirectness":0.169,"dDirectnessRange":{"min":-0.072,"max":0.94},"dTunnelH":0.372,"dTunnelHRange":{"min":-1.305,"max":2.569},"dCrestHit":-0.056,"dPassUnder":-21.75,"dPassUnderRange":{"min":-42,"max":-4},"dNearMiss":-91.125,"dOverlap":-0.039,"dParallel":-0.054,"worstOverlapDelta":0.016,"bestOverlapDelta":-0.084}
+ ✓ |chromium| src/generators/underground-measure.dom.test.ts (1 test) 6143ms
+   ✓ measures underground alignment variants  6142ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  22:28:45
+   Duration  9.88s (transform 0ms, setup 0ms, import 150ms, tests 6.14s, environment 0ms)
+

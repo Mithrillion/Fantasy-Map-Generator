@@ -55,29 +55,27 @@
 
 ## Status
 
-Cycle open 2026-09-29. **Rungs 1 and 2 both shipped.** Rung 1 (surface separation) took overlap
-0.708 → 0.560, archived; rung 2 (burg attraction 3 → 2) took the current build **0.561 → 0.516**, every
-seed improving, at ×0.956 mean length — the network did not grow. The plane-hardening change between them
-is archived and its requirements are in the main specs. The metaplan was mistakenly archived on
-2026-09-29 and restored 2026-09-30 — the CH1/CH2 archive state below is correct.
+Cycle open. **Rungs 1-3 shipped and archived** (CH2 2026-09-29; CH5 and CH6 2026-09-30): overlap
+0.708 → 0.430 on 8 paired seeds, zero plane violations throughout. On 2026-09-30 the user reported three
+issues after the water-crossing change that form a **new objective — tunnel character, not alignment**:
+pass-under of surface-only burgs still reads too high (F8.3); tunnels curve like roads and sag to lower
+elevations instead of boring under range tops (F8.1); and an audit request on neutral/uninhabitable-cell
+avoidance (F8.2 — no affiliation term exists; two surface-biome terms and one water quirk remain). D18
+re-orders the ladder: rung 4 = character diagnostic (harness metrics), rung 5 = cheap spec-clean trio
+(narrow burg repulsion + height reshape + biome-blind cost), rung 6 = direct-line deviation penalty (spec
+delta); endpoint gates (H3) queue behind. **Open user calls: the glacier gate (keep vs bore under ice) and
+the water bound (keep `t >= -2` vs widen as calibration).** Next child: CH7 diagnostic (prototyping),
+scaffolded as `measure-tunnel-character` with proposal/sketch/tasks done — apply opens with the harness
+smoke run. Re-measure paired, never inherit a length figure (F6.1).
 
 Children:
 
 - CH1 `measure-underground-alignment` (prototyping) — diagnostic complete; evidence F1.1-F4.3.
 - CH2 `underground-highways-avoid-surface-corridors` (semi-test-driven) — rung 1 shipped, 25/25, **archived 2026-09-29**; delta merged into `openspec/specs/underground-highways`.
+- CH5 `weaken-underground-burg-attraction` (semi-test-driven) — rung 2 shipped, 17/17, **archived 2026-09-30**; `skip_specs` (no requirement text mentions the term).
+- CH6 `plane-aware-burg-attraction` (semi-test-driven) — rung 3 shipped, 36/36, **archived 2026-09-30**; the split contact metric landed and the plane-aware attraction is adopted (F7.2). The user's pass-under and hub report is F7.1, continued as F8.3.
+- CH7 character diagnostic (prototyping) — **next**, scaffolded as `measure-tunnel-character` (rung 4 of D18).
 - CH3 topology sparsification — superseded (D14); CH4 display separation — superseded (D15).
-- CH5 `weaken-underground-burg-attraction` (semi-test-driven) — **rung 2 shipped 2026-09-30**, 17/17,
-  valid, not archived; `skip_specs` (no requirement text mentions the term).
-- CH6 `plane-aware-burg-attraction` (semi-test-driven) — **rung 3 shipped 2026-09-30**, 36/36, valid, not
-  archived; the split contact metric landed and the plane-aware attraction is adopted (F7.2). The user's
-  pass-under and hub report is F7.1.
-
-Next session must know: the ladder is **open, not finished** — the floor is **0.430** (was 0.516). The
-neutralize rung halved settlement contact and thinned the settlement crossroads, but moved the crossings
-onto plain cells (multi-record cells +4.2, none of it on settlements) — that residual is the live question
-and repulsion is still the pre-authorized escalation (D17). Rung 4 is endpoint gates (H3, re-ordered by
-D17). CH6's evidence is its `verification.md` and `measure/rung3-paired.log`; its reverse control
-reproduced CH5's shipped rung-2 column exactly. Re-measure paired, never inherit a length figure (F6.1).
 
 ## Findings
 
@@ -236,6 +234,53 @@ Full table in `child-log.md`. Means over 8 seeds:
   Tests 1300 → 1308; the gateway fixture gained a glacier so the junction scenarios stay exercisable
   (`verification.md`, "Deliberate deviations").
 
+### F8.1 — The tunnel cost is still road-shaped: the burg pull beats terrain everywhere and the height term cannot buy a detour (exploration 2026-09-30; D18 rungs 4-6)
+
+- Static diagnosis of `getUndergroundPathCost` (`routes-generator.ts:366-393`), not a measurement — rung 4
+  must turn it into numbers.
+- The burg term dominates terrain: a below-level burg cell prices `1 x height`, any other cell `2 x height`
+  — height cancels in the ratio, and land height maxes ~1.62, so every below-level burg cell beats every
+  plain cell at any elevation. Tunnels string through burg cells in valleys regardless of the range between.
+- The height term `1 + max(50-h,0)/50` plateaus at h>=50: crest-vs-saddle differs ~0.2-0.6 per cell
+  (~20-60 units at ~100/step) while one detour cell costs ~100, so it pays for ~half a cell of deviation —
+  paths clip saddles instead of boring under tops. The equal-length pin (test :323) still passes.
+- Separation (up to 3x) is the strongest single shaper, and roads cross ranges at their LOWEST pass, so
+  the halo displaces tunnels sideways to the next-lowest corridor — the reported "bends towards lower
+  elevation parts of the range" is this displacement plus the weak height gradient.
+- Water shortcuts are plausibly under-used: the `t >= -2` bound caps spans at ~4-5 cells and bay cells pay
+  depth (1.62-2.0) plus the coastal-trail separation halo (the water change's D5 gave water no carve-out).
+- Full anatomy, worked arithmetic, lever/pin table and the tension diagram: `child-log.md`, the
+  tunnel-character section.
+
+### F8.2 — Affiliation/biome audit: no affiliation term exists anywhere; two surface-biome terms and one water quirk remain (exploration 2026-09-30; rung 5, glacier call)
+
+- No state, culture, province or population term exists in any route cost — `routes-generator.ts` reads
+  none of them. The only affiliation-ish pricing is the burg term's two classes: below-level 1x, all else
+  2x, uniformly — a neutral burg's cell prices exactly as an empty plain cell (rung 3's work).
+- Surface-biome term (a): the habitabilityModifier [1,1.1] (`:378`) — hot desert/tundra ~1.096, taiga and
+  wetland ~1.088: an above-ground fertility concept a tunnel has no reason to pay.
+- Surface-biome term (b): the glacier gate (`:373-374`, test :310) — tunnels cannot bore under glaciers,
+  though the water change's own D3 logic calls surface habitability "not a tunnelling statement", and
+  `markUndergroundSettlements` weights inhospitable sites (`burgs-generator.ts:220-223`), so served burgs
+  cluster near harsh terrain and the tunnel detours around it. Dropping it needs a spec delta (the gate is
+  the passability baseline of the separation scenario); keeping it is defensible. OPEN user call.
+- Quirk: water steps pay the full 1.1 — marine habitability is 0 and the water change made the gate
+  conditional but not the modifier (pinned by test :442's `distance * 1.1 * 1.62 * 2`). Looks unintended.
+
+### F8.3 — Pass-under residual: neutral pricing has no push, the funnel concentrates crossings, the anchor draws them big (exploration 2026-09-30; rung 5 repulsion)
+
+- Rung 3 made surface-only burg cells plain-priced: no pull any more, but no push either — nothing moves
+  the path off them; the measured residual is 72 cells/seed mean (F7.2) and the user reports it still
+  reads as too much.
+- The 0.5x shared-pair discount funnels tunnels onto hub cells; multi-record cells rose after rung 3
+  (92.6 → 96.9, F7.2), so crossings concentrate rather than scatter.
+- The renderer amplifies the reading: `getCellAnchor` (`:825-831`) passes through the burg's exact
+  position, and ~90% of crossings were drawn through the burg dot (F5.1) — near-misses read as pass-through.
+- Repulsion (pricing surface-only burgs ABOVE plain) is pre-authorized (D17) and already spec-clean ("MAY
+  be higher", *Underground highways are attracted only to the settlements they serve*); the design choice
+  is cell-only vs a narrow halo (halo = a second BFS field and likely a delta). Test :1026 pins the
+  equality and needs the same re-aim rung 3 performed.
+
 ## Decisions
 
 <!-- APPEND-ONLY, <= ~3 lines per entry. Child-scoped rulings are one-liners here only. -->
@@ -257,6 +302,7 @@ Full table in `child-log.md`. Means over 8 seeds:
 - **D15 — Styling is not the problem; display separation is dropped as a child.** Binds: CH4 (superseded), `tasks.md` 3.4. The tunnel style is already distinct (F4.2); the objective is the generated geometry, so no display-only child will be created. Text of record: user ruling 2026-09-29 (verbatim: "styling is not the issue"). Status: binding.
 - **D16 — Ladder: rung 1 is the surface-repulsion term, rung 2 weakens the burg attraction, rung 3 adds endpoint gates.** Binds: CH2 and its successors. Rationale: F3.2s — repulsion gives −14.8 points for ×1.08 length (best per unit), the burg term −13.1 for ×1.19 (spec-clean), gates −8.6 for ×1.15 (and ×1.34 worst seed). Rung 1 therefore buys the spec delta (F1.8) in exchange for the least network growth. Text of record: F3.2s (agent-inferred 2026-09-29; the user may reorder). Status: binding — rung 3 slot **[superseded by D17, 2026-09-30]**; rungs 1-2 stand.
 - **D17 — Rung 3 is the plane-aware burg attraction: below-level burgs keep the pull, surface-only burg cells are priced as plain cells; repulsion is the pre-authorized escalation; endpoint gates move to rung 4.** Binds: CH6, the ladder order (amends D16). Evidence: F7.1. Text of record: user ruling 2026-09-30 (exploration choice: "Neutralize first, escalate if needed"). Status: binding — rung 3 measured and adopted 2026-09-30 (F7.2); repulsion not triggered, still pre-authorized.
+- **D18 — The ladder re-orders onto tunnel character (amends D17's rung-4 slot): rung 4 = the character diagnostic (the harness gains directness, elevation-profile, crest-share, biome-share and pass-under metrics; 8 paired seeds), rung 5 = the cheap spec-clean trio (narrow surface-only burg repulsion; height reshape without the h>=50 plateau, water depth kept; biome-blind cost — modifier dropped, water 1.1 quirk fixed), rung 6 = the direct-line deviation penalty (needs a delta); endpoint gates (H3) queue behind.** Binds: CH7 and successors. Text of record: user report of three issues plus selection of the re-ordered capture, 2026-09-30 (paraphrased); mechanisms F8.1-F8.3; the glacier gate and the water bound remain open. Status: binding.
 
 ## Architecture
 
@@ -318,7 +364,7 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
   CLOSED: rung 1 does not suffice — the user opened rung 2 on 2026-09-30 (CH5, D16 rung 2).
   Pointers: the change's `verification.md`, `measure-after.log`; this file's D16 and F3.2s.
 
-- [x] 5. **`weaken-underground-burg-attraction`** (schema: `semi-test-driven`; **rung 2, D16**) — **shipped 2026-09-30**, 17/17 tasks, valid, not archived.
+- [x] 5. **`weaken-underground-burg-attraction`** (schema: `semi-test-driven`; **rung 2, D16**) — **shipped 2026-09-30**, 17/17 tasks, valid, archived 2026-09-30.
   Delivered: the burg attraction in `getUndergroundPathCost` 3 → 2 as `UNDERGROUND_BURG_ATTRACTION`; the
   surface cost's own 3× term untouched so the measurement reference stays fixed; docs updated; two new
   unit tests that pin both terms by making two destination cells identical but for the burg map.
@@ -332,7 +378,7 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
   Pointers: the change's `verification.md`, `measure/rung2-production.log`, `measure/plane-audit.log`;
   this file's F6.1, F7.1, H2, H3.
 
-- [x] 6. **CH6 — `plane-aware-burg-attraction`** (schema: `semi-test-driven`; **rung 3, D17**) — **shipped 2026-09-30**, 36/36, valid, not archived.
+- [x] 6. **CH6 — `plane-aware-burg-attraction`** (schema: `semi-test-driven`; **rung 3, D17**) — **shipped 2026-09-30**, 36/36, valid, archived 2026-09-30.
   Delivered: the burg term in `getUndergroundPathCost` made plane-aware (a below-level burg keeps the pull,
   a surface-only or missing/removed record prices as plain, the surface cost untouched); `PlaneReport.contact`
   split into surface-only / dual-identity plus multi-record cells, each figure printed; doc updated; 8 tests.
@@ -340,8 +386,16 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
   contact 127 → 72, settlement crossroads 13.1 → 8.9, length ×0.997 / worst ×1.020**; the reverse control
   reproduced CH5's column exactly. Plane audit: zero violations, `repairs=0`.
   Residual: the global multi-record figure rose 92.6 → 96.9, all of it plain-cell crossings — left to
-  repulsion (D17) rather than adopted away. Unblocks rung 4 (endpoint gates, H3) from a floor of **0.430**.
+  repulsion (D17) rather than adopted away. Unblocked rung 4 from a floor of **0.430**. [Re-ordered by
+  D18, 2026-09-30: rung 4 is the character diagnostic; endpoint gates (H3) queue behind the new rungs.]
   Pointers: the change's `verification.md`, `measure/rung3-paired.log`, `measure/plane-audit.log`; F7.2.
+
+- [ ] 7. **CH7 — character diagnostic** (schema: `prototyping`; **rung 4, D18**) — **scaffolded 2026-09-30** as `measure-tunnel-character`: proposal/sketch/tasks done, `skip_specs`; evidence.md fills during apply.
+  Planned: extend the harness (`harness/underground-measure.dom.test.ts.txt`, H6) with the character
+  metrics — directness ratio (path length over direct distance), tunnel elevation vs the direct corridor,
+  crest-hit share, biome share, pass-under counts incl. 1-cell near-misses — and run the 8 paired seeds on
+  the current build, so F8.1-F8.3's mechanisms become numbers and rung 5's trio measures against a
+  character baseline. Delta: none (spec-free, like CH1). Re-measure paired, never inherit (F6.1).
 
 - [ ] 3. **CH3 — topology sparsification** (schema: `spec-driven`; **superseded by D14**).
   Superseded 2026-09-29: the user ruled the underground network keeps connecting the same burgs, so the
@@ -355,7 +409,7 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
 
 ## Notes registry
 
-- `child-log.md` — declared companion (unmanaged). Holds the offload tier: the measurement harness, the raw 8-seed run output, and the full comparison tables. Cited by: F1.1-F1.8, F3.2, F3.3, F4.2.
+- `child-log.md` — declared companion (unmanaged). Holds the offload tier: the measurement harness, the raw 8-seed run output, the full comparison tables, and the tunnel-character exploration (2026-09-30). Cited by: F1.1-F1.8, F3.2, F3.3, F4.2, F8.1-F8.3.
 - `harness/underground-measure.dom.test.ts.txt` — the measuring instrument for every rung (H6); `harness/*.log` the rung-1 raw output. Cited by: F1.1-F4.3, F3.2s, H6, F5.1.
 - `openspec/changes/archive/2026-09-29-underground-highways-avoid-surface-corridors/` — CH2's full record (rung 1). Cited by: H1, CH2 checklist entry.
 - `openspec/changes/archive/2026-09-30-harden-underground-plane-integrity/` — the plane-hardening change and its `verification.md` (per-seed audit table, mutation check, pass-under measurement). Cited by: F5.1, CH5 gate.
@@ -383,7 +437,8 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
 
 - Source: measurement · measured 2026-09-29 via the harness path variants (F3.2, F1.3, D12).
 - Rationale: the gate is the burg cell's neighbour with the fewest surface route steps (tie-break toward high ground), constraining only the first and last step; the burg cell stays the endpoint, so the endpoint requirement holds. Alone it measured −8.6 overlap / −5.0 parallel, with one seed at ×1.337 length — so it needs a length budget or a weaker gate rule.
-- Binds / suggests for next cycle: rung 4, after the plane-aware attraction (D17).
+- Binds / suggests for next cycle: rung 4, after the plane-aware attraction (D17). [Re-ordered by D18,
+  2026-09-30: the character diagnostic, trio and deviation penalty precede; endpoint gates queue behind.]
 
 ### H4 — The floor under the ladder is ~0.44-0.50 cell overlap; below it the constraint is structural
 

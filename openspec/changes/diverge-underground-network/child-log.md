@@ -121,3 +121,66 @@ Per-seed surface density (context for F1.5), from the `SEED` lines: land cells 4
 5468-6478 total; surface routes 589-691 (`roads` 14-24, `trails` 471-516, `searoutes` 104-154);
 cells touched by any surface route 2216-2931; cells touched by land routes 1649-1930 — i.e.
 **37-44% of land cells already carry a road or trail**.
+
+## Tunnel-character exploration (2026-09-30)
+
+Offload for metaplan F8.1-F8.3 and D18: the user reported three issues after the water-crossing change —
+(1) pass-under of above-ground burgs still too frequent, (2) tunnels curve like roads and miss obvious
+bores (they sag to lower elevations instead of boring under range tops), (3) audit whether tunnels avoid
+neutral/uninhabitable cells. Static reasoning over the current build, NOT a measurement — the rung-4
+diagnostic must turn it into numbers.
+
+### Cost anatomy (getUndergroundPathCost, routes-generator.ts:366-393)
+
+    cost(step) = distanceSquared x habitability x height x connection x burg x separation
+                   ~100/step        [1,1.1]      [1,2]    [0.5,1]   [1,2]   [1,3]
+
+- habitability — biome fertility, surface logic: hot desert/tundra (4) → ~1.096, taiga/wetland (12) →
+  ~1.088, forests ~1.0-1.02. Water steps pay 1.1: marine habitability is 0 and the water change made the
+  gate conditional but not the modifier (test :442 pins `distance * 1.1 * 1.62 * 2`). Looks unintended.
+- height — `1 + max(50-h,0)/50`: high ground cheaper, but the term PLATEAUS at h>=50; water depth rides
+  the same term (shore ~1.62, deep 2.0).
+- connection — 0.5 on cell pairs the underground network already covers (the funnel).
+- burg — below-level burgs 1x, everything else 2x (rung 3's plane-aware split).
+- separation — `1 + 2/(1+d)` for d < 4: up to 3x on a road corridor; the strongest single shaper.
+
+### Worked arithmetic (spacing ~10 → distanceSquared ~100 per step)
+
+- Below-level burg cell at h=21: 1 x 1.07 x 1.62 ≈ 1.73. Plain crest cell at h=80: 2 x 1.0 = 2.0. The
+  burg cell wins at ANY elevation — height cancels in the burg/plain ratio (1/2) and land height spans
+  only [1.0, 1.62], so the attraction beats the terrain preference everywhere. Tunnels string through
+  burg cells in valleys regardless of the range between.
+- Crest vs saddle: saddle h=35 prices 1.3 vs crest 1.0 → ~30 units saved per cell; one detour cell costs
+  ~100. The height term pays for ~half a cell of deviation → paths clip saddles instead of boring under
+  tops. (The equal-length pin, test :323, still passes.)
+- Separation displacement: roads cross a range at its LOWEST pass (their height term punishes elevation,
+  [1,3]); the x3 halo makes that corridor the dearest place for a tunnel, which dodges sideways to the
+  next-lowest crossing instead of the crest — the reported "bends towards lower elevation parts".
+- Water under-use: a bay crossing pays depth (1.62-2.0) x marine-quirk 1.1 x burg 2 x separation
+  1.67-3.0 (coastal trails and searoutes halo the bay; the water change's D5 gave water no carve-out),
+  and the `t >= -2` bound caps spans at ~4-5 cells. An obvious bay shortcut can lose to a haloed land
+  detour; calibration would be one constant.
+
+### Lever table (pin status per lever)
+
+| lever | buys | pin cost |
+|---|---|---|
+| narrow surface-only burg repulsion (cell-only 3x, or burg cell + ring via a second BFS field) | issue 1: a push, not just no-pull | cell-only: spec-clean today ("MAY be higher", *attracted only to the settlements they serve*); re-aim equality test :1026. Halo: second field + likely delta |
+| height reshape — monotone in elevation on land, no h>=50 plateau; keep water depth pricing | issue 2: crest-seeking | spec-clean: strengthens *prefer high ground*; equal-length scenario (test :323) still passes |
+| biome-blind cost — drop the habitabilityModifier from the tunnel; fix the water 1.1 quirk | issue 3: removes biome noise | re-aim test :442 and any other modifier-reading tests; no spec requirement mentions the modifier |
+| direct-line deviation penalty (per-pair cross-track term inside createUndergroundCost) | issue 2: the bore | NEW spec requirement ("tunnels prefer the direct line between their endpoints"); analytic, no BFS |
+| glacier gate drop (tunnels bore under ice) | issue 3 | spec delta — the gate is the passability baseline in the separation scenario; test :310. OPEN user call |
+| water bound widen (t >= -3) | issue 2: more bay shortcuts | one constant (water design D1's calibration note). OPEN user call |
+| separation trim (strength/range) | straighter tunnels | directly trades away rung 1's overlap win; measure only inside a combination |
+| burg attraction 2 → 1.5 | less valley-stringing | measured -4.1 overlap at x1.10 length (F3.2s); tension with the network's purpose |
+
+### Tension between the new issues
+
+    straighter bores  <------------------------>  fewer pass-unders / less overlap
+         ^                                              ^
+    deviation penalty +                          narrow burg repulsion (adds a
+    weaker separation                            bending force) + separation kept
+    (remove bending forces)                      (adds bending force)
+
+They are compatible only if the repulsion is narrow and the straightness lever dominates the pushers —
+a measurement question for rung 4, not a taste call.

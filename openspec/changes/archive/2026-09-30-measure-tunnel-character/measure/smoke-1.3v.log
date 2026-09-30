@@ -1,0 +1,26 @@
+npm warn Unknown env config "manage-package-manager-versions". This will error in a future major version of npm. See `npm help npmrc` for supported config options.
+npm notice run fantasy-map-generator@1.154.0 npx
+npm notice run 'vitest' run --config vitest.browser.config.ts generators/underground-measure.dom.test.ts
+
+ RUN  v4.1.11 /mnt/Mega/TestSpace/Fantasy-Map-Generator
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: Failed to connect to the browser session "da36cb31-aa8c-40b8-9261-7c3226949eb4" [chromium] within the timeout.
+ ❯ Timeout._onTimeout node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:465:33
+ ❯ listOnTimeout node:internal/timers:605:17
+ ❯ processTimers node:internal/timers:541:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files   (1)
+      Tests  no tests
+     Errors  1 error
+   Start at  20:56:00
+   Duration  60.03s (transform 0ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+

@@ -1,0 +1,2181 @@
+/**
+ * TEMPORARY diagnostic harness for the `measure-tunnel-character` prototyping change.
+ * Not kept in src/: run it, record the numbers in evidence.md, delete it (H6 recipe).
+ *
+ *   CHROMIUM_PATH=/usr/bin/chromium npx vitest run --config vitest.browser.config.ts generators/underground-measure.dom.test.ts
+ *   VITE_MEASURE_SEEDS=measure-a   # smoke run on one seed
+ *
+ * Measures the tunnel network's character (directness, elevation profile, crest hits, biome share,
+ * pass-unders) beside the standing alignment columns. Variants run through the production pathfinder
+ * and the production segment/discount bookkeeping; only the pair set and the cost differ.
+ */
+import Delaunator from "delaunator";
+import { it } from "vitest";
+import { distanceSquared } from "@/utils";
+import { findPath } from "@/utils/pathUtils";
+import "@/components/options-model"; // installs the `options` global in browser mode
+import { hasBelowLevelPresence, hasGroundLevelPresence } from "./burg-classification";
+import "./index";
+import { GenerationPipeline } from "./generation-pipeline";
+import { auditPlanes } from "./plane-integrity";
+
+type Point = [number, number];
+type CellRoute = { points: number[][]; underground?: boolean };
+type Burg = {
+  i: number;
+  removed?: boolean;
+  cell: number;
+  x: number;
+  y: number;
+  feature?: number;
+  underground?: boolean;
+  subterranean?: boolean;
+};
+/** a pair with the feature it belongs to: production prices each pair on its own landmass */
+type Pair = [number, number, number];
+type Pairs = Pair[];
+
+/** the app loads public/libs/flatqueue.js as a plain script; browser-mode tests do not */
+class FlatQueue {
+  private ids: number[] = [];
+  private values: number[] = [];
+  get length() {
+    return this.ids.length;
+  }
+  push(id: number, value: number = id) {
+    this.ids.push(id);
+    this.values.push(value);
+    let index = this.ids.length - 1;
+    while (index > 0) {
+      const parent = (index - 1) >> 1;
+      if (this.values[parent] <= this.values[index]) break;
+      this.swap(index, parent);
+      index = parent;
+    }
+  }
+  pop() {
+    if (!this.ids.length) return undefined;
+    const id = this.ids[0];
+    const lastId = this.ids.pop() as number;
+    const lastValue = this.values.pop() as number;
+    if (this.ids.length) {
+      this.ids[0] = lastId;
+      this.values[0] = lastValue;
+      let index = 0;
+      for (;;) {
+        const left = index * 2 + 1;
+        const right = left + 1;
+        let smallest = index;
+        if (left < this.values.length && this.values[left] < this.values[smallest]) smallest = left;
+        if (right < this.values.length && this.values[right] < this.values[smallest]) smallest = right;
+        if (smallest === index) break;
+        this.swap(index, smallest);
+        index = smallest;
+      }
+    }
+    return id;
+  }
+  peekValue() {
+    return this.values[0];
+  }
+  private swap(a: number, b: number) {
+    [this.ids[a], this.ids[b]] = [this.ids[b], this.ids[a]];
+    [this.values[a], this.values[b]] = [this.values[b], this.values[a]];
+  }
+}
+
+// ---------------------------------------------------------------- topology replicas
+
+/** a copy of the generator's Urquhart graph, so variants can build their own pair sets */
+function urquhartEdges(points: Point[]): Array<[number, number]> {
+  if (points.length < 2) return [];
+  if (points.length === 2) return [[0, 1]];
+
+  const score = (p0: number, p1: number) => distanceSquared(points[p0], points[p1]);
+  const { halfedges, triangles } = Delaunator.from(points as unknown as number[][]);
+  const n = triangles.length;
+  const removed = new Uint8Array(n);
+  const edges: Array<[number, number]> = [];
+
+  for (let e = 0; e < n; e += 3) {
+    const p0 = triangles[e];
+    const p1 = triangles[e + 1];
+    const p2 = triangles[e + 2];
+    const p01 = score(p0, p1);
+    const p12 = score(p1, p2);
+    const p20 = score(p2, p0);
+    removed[
+      p20 > p01 && p20 > p12
+        ? Math.max(e + 2, halfedges[e + 2])
+        : p12 > p01 && p12 > p20
+          ? Math.max(e + 1, halfedges[e + 1])
+          : Math.max(e, halfedges[e])
+    ] = 1;
+  }
+
+  for (let e = 0; e < n; ++e) {
+    if (e > halfedges[e] && !removed[e]) {
+      const t0 = triangles[e];
+      const t1 = triangles[e % 3 === 2 ? e - 2 : e + 1];
+      edges.push([t0, t1]);
+    }
+  }
+  return edges;
+}
+
+/** minimum spanning tree over a small point set, as the connectivity backbone of a thinned graph */
+function mstEdges(points: Point[]): Array<[number, number]> {
+  const n = points.length;
+  const candidates: Array<[number, number, number]> = [];
+  for (let i = 0; i < n; i++)
+    for (let j = i + 1; j < n; j++) candidates.push([i, j, distanceSquared(points[i], points[j])]);
+  candidates.sort((a, b) => a[2] - b[2]);
+
+  const parent = Array.from({ length: n }, (_, i) => i);
+  const find = (x: number): number => {
+    const root = parent[x] === x ? x : find(parent[x]);
+    parent[x] = root;
+    return root;
+  };
+  const out: Array<[number, number]> = [];
+  for (const [i, j] of candidates) {
+    const a = find(i);
+    const b = find(j);
+    if (a !== b) {
+      parent[a] = b;
+      out.push([i, j]);
+    }
+  }
+  return out;
+}
+
+function subterraneanByFeature(): Record<string, Burg[]> {
+  const byFeature: Record<string, Burg[]> = {};
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || !hasBelowLevelPresence(burg as never) || burg.feature === undefined) continue;
+    const key = String(burg.feature);
+    if (!byFeature[key]) byFeature[key] = [];
+    byFeature[key].push(burg);
+  }
+  return byFeature;
+}
+
+type PairSets = { production: Pairs; subterraneanOnly: Pairs; steiner: Pairs; backboneMst: Pairs; longhaul: Pairs; trunk25: Pairs; trunk10: Pairs };
+
+function buildPairSets(): PairSets {
+  const sets: PairSets = { production: [], subterraneanOnly: [], steiner: [], backboneMst: [], longhaul: [], trunk25: [], trunk10: [] };
+
+  for (const [key, burgs] of Object.entries(subterraneanByFeature())) {
+    if (burgs.length < 2) continue;
+    const feature = Number(key);
+    const points = burgs.map(burg => [burg.x, burg.y] as Point);
+    const urquhart = urquhartEdges(points);
+    const mst = mstEdges(points);
+
+    // one tree over every below-level burg, which is the smallest pair set that can still satisfy the
+    // service rule: service names every below-level burg, so the tree has to span them all.
+    for (const [a, b] of mstEdges(points)) sets.backboneMst.push([burgs[a].cell, burgs[b].cell, feature]);
+
+    // the counterfactual: only the burgs with no above-ground presence at all. A dual-identity burg
+    // already reaches the surface network, so a tunnel ending there is not needed for its connectivity.
+    const fullySubterranean = burgs.filter(burg => burg.underground);
+    if (fullySubterranean.length >= 2) {
+      const subPoints = fullySubterranean.map(burg => [burg.x, burg.y] as Point);
+      for (const [a, b] of urquhartEdges(subPoints)) {
+        sets.subterraneanOnly.push([fullySubterranean[a].cell, fullySubterranean[b].cell, feature]);
+      }
+    }
+    const lengths = urquhart.map(([a, b]) => Math.sqrt(distanceSquared(points[a], points[b]))).sort((a, b) => a - b);
+    const median = lengths.length ? lengths[lengths.length >> 1] : 0;
+
+    for (const [a, b] of urquhart) sets.production.push([burgs[a].cell, burgs[b].cell, feature]);
+    // long connections keep the longer half of the neighbour graph, the MST keeps every burg attached
+    for (const [a, b] of urquhart) {
+      if (Math.sqrt(distanceSquared(points[a], points[b])) < median) continue;
+      sets.longhaul.push([burgs[a].cell, burgs[b].cell, feature]);
+    }
+    for (const [a, b] of mst) sets.longhaul.push([burgs[a].cell, burgs[b].cell, feature]);
+
+    // trunk: the highest share of the burgs is the backbone, every other burg joins its nearest trunk
+    const buildTrunk = (share: number, target: Pairs) => {
+      const byHeight = burgs.map((burg, index) => ({ index, h: pack.cells.h[burg.cell] })).sort((a, b) => b.h - a.h);
+      const trunkCount = Math.max(2, Math.round(burgs.length * share));
+      const trunkIndexes = byHeight.slice(0, trunkCount).map(entry => entry.index);
+      const trunkSet = new Set(trunkIndexes);
+      const trunkPoints = trunkIndexes.map(index => points[index]);
+      for (const [a, b] of mstEdges(trunkPoints))
+        target.push([burgs[trunkIndexes[a]].cell, burgs[trunkIndexes[b]].cell, feature]);
+      for (let index = 0; index < burgs.length; index++) {
+        if (trunkSet.has(index)) continue;
+        let best = trunkIndexes[0];
+        let bestDistance = Infinity;
+        for (const trunkIndex of trunkIndexes) {
+          const candidate = distanceSquared(points[index], points[trunkIndex]);
+          if (candidate < bestDistance) {
+            bestDistance = candidate;
+            best = trunkIndex;
+          }
+        }
+        target.push([burgs[index].cell, burgs[best].cell, feature]);
+      }
+    };
+
+    buildTrunk(0.25, sets.trunk25);
+    buildTrunk(0.1, sets.trunk10);
+  }
+
+  return sets;
+}
+
+// ---------------------------------------------------------------- variant costs
+
+type Cost = (current: number, next: number) => number;
+
+const passable = (cell: number) =>
+  pack.cells.h[cell] >= 20 && Boolean(pack.biomes[pack.cells.biome[cell]]?.habitability);
+const step = (current: number, next: number) => distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+
+function pointCost(current: number, next: number): number {
+  if (!passable(next)) return Infinity;
+  return step(current, next);
+}
+
+function pointBurgCost(current: number, next: number): number {
+  if (!passable(next)) return Infinity;
+  return step(current, next) * (pack.cells.burg[next] ? 1 : 3);
+}
+
+/** the ablation's discount term, applied on top of any base cost */
+function discounted(base: Cost, connections: Set<string>): Cost {
+  return (current, next) => {
+    const value = base(current, next);
+    if (value === Infinity) return Infinity;
+    return value * (connections.has(`${current}-${next}`) ? 0.5 : 1);
+  };
+}
+
+/** depth field smoothed over the cell graph: a regional signal instead of per-cell noise */
+function smoothedHeights(rounds = 3): Uint8Array {
+  const adjacency = pack.cells.c as unknown as number[][];
+  let field = Float64Array.from(pack.cells.h);
+  for (let round = 0; round < rounds; round++) {
+    const next = Float64Array.from(field);
+    for (let cell = 0; cell < field.length; cell++) {
+      let sum = field[cell];
+      let count = 1;
+      for (const neighbour of adjacency[cell] ?? []) {
+        sum += field[neighbour];
+        count++;
+      }
+      next[cell] = sum / count;
+    }
+    field = next;
+  }
+  return Uint8Array.from(field, value => Math.round(value));
+}
+
+/** multi-source BFS distance from the surface network, capped */
+function roadDistances(surfaceCells: Set<number>, adjacency: number[][], cap = 4): Uint8Array {
+  const distances = new Uint8Array(pack.cells.i.length).fill(cap);
+  const queue: number[] = [];
+  for (const cell of surfaceCells) {
+    distances[cell] = 0;
+    queue.push(cell);
+  }
+  for (let head = 0; head < queue.length; head++) {
+    const cell = queue[head];
+    if (distances[cell] >= cap - 1) continue;
+    for (const neighbour of adjacency[cell] ?? []) {
+      if (distances[neighbour] > distances[cell] + 1) {
+        distances[neighbour] = distances[cell] + 1;
+        queue.push(neighbour);
+      }
+    }
+  }
+  return distances;
+}
+
+/** for each burg cell, the neighbouring cell that carries the fewest surface route steps */
+function gateCells(surfaceDirs: Map<number, number[]>): Map<number, number> {
+  const gates = new Map<number, number>();
+  const adjacency = pack.cells.c as unknown as number[][];
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || !hasBelowLevelPresence(burg as never)) continue;
+    let best: number | undefined;
+    let bestScore = Infinity;
+    for (const neighbour of adjacency[burg.cell] ?? []) {
+      if (!passable(neighbour)) continue;
+      let score = (surfaceDirs.get(neighbour) ?? []).length;
+      for (const second of adjacency[neighbour] ?? []) score += (surfaceDirs.get(second) ?? []).length / 4;
+      score -= pack.cells.h[neighbour] / 100; // tie-break toward high ground, as the cost model does
+      if (score < bestScore) {
+        bestScore = score;
+        best = neighbour;
+      }
+    }
+    if (best !== undefined) gates.set(burg.cell, best);
+  }
+  return gates;
+}
+
+// ---------------------------------------------------------------- the replica pass
+
+/**
+ * Runs one variant: same production pathfinder, same production segment/discount bookkeeping,
+ * different pair set and/or cost. Returns the cell chains the pass would have produced, after the
+ * production merge and prune, so the union of cells is the one the generator would have kept.
+ */
+function runPairs(
+  pairs: Pairs,
+  makeCost: (start: number, exit: number, connections: Set<string>, feature: number) => Cost
+): number[][] {
+  const module = Routes as unknown as {
+    undergroundConnections: Set<string>;
+    getUndergroundSegments: (path: number[], edges: Set<string>) => number[][];
+    rememberEdges: (edges: Set<string>, cells: number[]) => void;
+    mergeRoutes: (routes: unknown[]) => Array<{ merged?: boolean; cells?: number[] }>;
+    pruneUndergroundHighways: () => number;
+  };
+  const undergroundEdges = new Set<string>();
+  const connections = new Set<string>();
+  module.undergroundConnections = connections; // the production cost reads its discount from here
+  const chains: number[][] = [];
+
+  for (const [start, exit, feature] of pairs) {
+    if (start === exit) continue;
+    const cost = makeCost(start, exit, connections, feature);
+    const pathCells = findPath(start, next => next === exit, cost, pack as never);
+    if (!pathCells) continue;
+    for (const segment of module.getUndergroundSegments(pathCells, undergroundEdges)) {
+      module.rememberEdges(undergroundEdges, segment);
+      module.rememberEdges(connections, segment);
+      chains.push(segment);
+    }
+  }
+
+  // mirror generateUndergroundHighways: merge touching segments into routes, REBUILD their points,
+  // then prune spurs that outlive no burg (prune reads points, so it must see the merged chains)
+  const module2 = module as unknown as {
+    mergeRoutes: (routes: unknown[]) => Array<{ merged?: boolean; cells?: number[] }>;
+    preparePointsArray: () => number[][];
+    getPoints: (group: string, cells: number[], points: number[][]) => number[][];
+  };
+  const asRoute = (cells: number[], index: number) => ({
+    i: index,
+    group: "roads",
+    feature: 0,
+    underground: true,
+    cells: [...cells]
+  });
+  const pointsArray = module2.preparePointsArray();
+  const merged = module2
+    .mergeRoutes(chains.map(asRoute))
+    .filter(route => !route.merged)
+    .map((route, index) => ({
+      i: index,
+      group: "roads",
+      feature: 0,
+      underground: true,
+      cells: route.cells,
+      points: module2.getPoints("roads", route.cells!, pointsArray)
+    }));
+
+  const saved = pack.routes;
+  pack.routes = merged as never;
+  const debug = (globalThis as unknown as { __variantDebug?: boolean }).__variantDebug;
+  module.pruneUndergroundHighways();
+  const kept = (pack.routes as unknown as CellRoute[]).map(route => route.points.map(point => point[2]));
+  if (debug) {
+    console.log(
+      `DEBUG replica stages: raw ${chains.length} routes/${new Set(chains.flat()).size} cells -> merged ${merged.length} routes -> pruned ${kept.length} routes/${new Set(kept.flat()).size} cells`
+    );
+  }
+  pack.routes = saved;
+
+  return kept;
+}
+
+// ---------------------------------------------------------------- metrics
+
+type SurfaceStep = { to: number; angle: number };
+type SurfaceIndex = {
+  cells: Set<number>;
+  dirs: Map<number, number[]>;
+  edges: Set<string>;
+  steps: Map<number, SurfaceStep[]>;
+};
+
+function indexSurface(routes: CellRoute[]): SurfaceIndex {
+  const cells = new Set<number>();
+  const dirs = new Map<number, number[]>();
+  const edges = new Set<string>();
+  const steps = new Map<number, SurfaceStep[]>();
+  const add = (cell: number, angle: number) => {
+    const list = dirs.get(cell);
+    if (list) list.push(angle);
+    else dirs.set(cell, [angle]);
+  };
+  const addStep = (from: number, to: number, angle: number) => {
+    const list = steps.get(from);
+    if (list) list.push({ to, angle });
+    else steps.set(from, [{ to, angle }]);
+  };
+
+  for (const route of routes) {
+    for (let i = 0; i < route.points.length; i++) {
+      const [x, y, cell] = route.points[i];
+      cells.add(cell);
+      const next = route.points[i + 1];
+      if (next) {
+        const angle = Math.atan2(next[1] - y, next[0] - x);
+        add(cell, angle);
+        addStep(cell, next[2], angle);
+        edges.add(`${cell}-${next[2]}`);
+      }
+      const previous = route.points[i - 1];
+      if (previous) add(cell, Math.atan2(previous[1] - y, previous[0] - x));
+    }
+  }
+
+  return { cells, dirs, edges, steps };
+}
+
+const angleGap = (a: number, b: number) => {
+  const gap = Math.abs(a - b) % (2 * Math.PI);
+  return gap > Math.PI ? 2 * Math.PI - gap : gap;
+};
+
+function measure(
+  chains: number[][],
+  surface: SurfaceIndex,
+  landSurface: SurfaceIndex,
+  roadDistance: Uint8Array,
+  adjacency: number[][],
+  subterraneanCells: Set<number>
+) {
+  const cells = new Set<number>();
+  const bandCells = new Set<number>();
+  let totalLength = 0;
+  let sharedLength = 0;
+  let cellParallelLength = 0; // permissive: a surface step within one cell, any similar direction
+  let exactEdgeLength = 0; // the tunnel step IS a surface step
+  let nearEdgeLength = 0; // a surface step between the tunnel step's cells or their neighbours, similar direction
+  // task 1.3: the endpoint band, split by the kind of settlement the chain ends at
+  const byKind: Record<string, { shared: number; band: number }> = {
+    dual: { shared: 0, band: 0 },
+    "fully-subterranean": { shared: 0, band: 0 },
+    junction: { shared: 0, band: 0 }
+  };
+
+  for (const chain of chains) {
+    const band = new Set(
+      [chain[0], chain[1], chain[chain.length - 2], chain[chain.length - 1]].filter(cell => cell !== undefined)
+    );
+    const kindOf = (cell: number | undefined) => {
+      const burgId = cell === undefined ? 0 : pack.cells.burg[cell];
+      const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+      if (!burg) return "junction";
+      return burg.underground ? "fully-subterranean" : "dual";
+    };
+    const startKind = kindOf(chain[0]);
+    const exitKind = kindOf(chain[chain.length - 1]);
+    const kind = startKind === exitKind ? startKind : "junction";
+
+    for (let i = 0; i < chain.length; i++) {
+      const cell = chain[i];
+      cells.add(cell);
+      if (band.has(cell)) bandCells.add(cell);
+      if (surface.cells.has(cell)) {
+        byKind[kind].shared++;
+        if (band.has(cell)) byKind[kind].band++;
+      }
+      const next = chain[i + 1];
+      if (next === undefined) continue;
+      const length = Math.sqrt(distanceSquared(pack.cells.p[cell], pack.cells.p[next]));
+      totalLength += length;
+      if (surface.cells.has(cell) || surface.cells.has(next)) sharedLength += length;
+
+      const angle = Math.atan2(
+        pack.cells.p[next][1] - pack.cells.p[cell][1],
+        pack.cells.p[next][0] - pack.cells.p[cell][0]
+      );
+      const candidates = [cell, next, ...(adjacency[cell] ?? []), ...(adjacency[next] ?? [])];
+      const cellParallel = candidates.some(candidate =>
+        (surface.dirs.get(candidate) ?? []).some(surfaceAngle => angleGap(angle, surfaceAngle) <= Math.PI / 6)
+      );
+      if (cellParallel) cellParallelLength += length;
+      if (surface.edges.has(`${cell}-${next}`)) exactEdgeLength += length;
+
+      // runs alongside: a surface step leaves the tunnel step's cell (or a neighbour of it) toward the
+      // tunnel step's next cell (or a neighbour of it) in a similar direction
+      const targets = new Set([next, ...(adjacency[next] ?? [])]);
+      const along = [cell, ...(adjacency[cell] ?? [])].some(from =>
+        (surface.steps.get(from) ?? []).some(
+          entry => targets.has(entry.to) && angleGap(angle, entry.angle) <= Math.PI / 6
+        )
+      );
+      if (along) nearEdgeLength += length;
+    }
+  }
+
+  const sharedCells = [...cells].filter(cell => surface.cells.has(cell)).length;
+  const bandSharedCells = [...bandCells].filter(cell => surface.cells.has(cell)).length;
+  const sharedLandCells = [...cells].filter(cell => landSurface.cells.has(cell)).length;
+  const waterCellCount = [...cells].filter(cell => pack.cells.h[cell] < 20).length;
+
+  for (const kind of Object.keys(byKind)) {
+    const entry = byKind[kind];
+    (entry as unknown as { share: number }).share = entry.shared ? entry.band / entry.shared : 0;
+  }
+
+  const histogram = [0, 0, 0, 0];
+  let distanceSum = 0;
+  for (const cell of cells) {
+    const distance = Math.min(roadDistance[cell], 3);
+    histogram[distance]++;
+    distanceSum += distance;
+  }
+
+  // does every subterranean burg still end a highway? (the implicit service guarantee)
+  const served = new Set<number>();
+  for (const chain of chains) {
+    for (const endpoint of [chain[0], chain[chain.length - 1]]) {
+      if (endpoint !== undefined && subterraneanCells.has(endpoint)) served.add(endpoint);
+    }
+  }
+
+  // the complaint's own metrics, read through the production audit from this variant's chains
+  const audit = auditPlanes(
+    pack,
+    chains.map((cells, index) => ({
+      i: index,
+      group: "roads",
+      feature: 0,
+      underground: true,
+      points: cells.map(cell => [...pack.cells.p[cell], cell])
+    })) as never
+  );
+  const contact = audit.contact;
+
+  // supporting detail: the multi-record cells split by what sits on them, because the complaint is
+  // a surface-only burg acting as the network's crossroads
+  const recordsByCell = new Map<number, Set<number>>();
+  chains.forEach((chain, index) => {
+    for (const cell of new Set(chain)) {
+      const records = recordsByCell.get(cell);
+      if (records) records.add(index);
+      else recordsByCell.set(cell, new Set([index]));
+    }
+  });
+  const hubs = { surfaceOnly: 0, dualIdentity: 0, other: 0 };
+  for (const [cell, records] of recordsByCell) {
+    if (records.size < 2) continue;
+    const burgId = pack.cells.burg[cell];
+    const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+    if (!burg || burg.removed || burg.underground) hubs.other++;
+    else if (burg.subterranean) hubs.dualIdentity++;
+    else hubs.surfaceOnly++;
+  }
+
+  return {
+    routes: chains.length,
+    cells: cells.size,
+    length: Math.round(totalLength),
+    overlap: cells.size ? sharedCells / cells.size : 0,
+    overlapLand: cells.size ? sharedLandCells / cells.size : 0,
+    waterShare: cells.size ? waterCellCount / cells.size : 0,
+    lengthOverlap: totalLength ? sharedLength / totalLength : 0,
+    parallel: totalLength ? cellParallelLength / totalLength : 0,
+    exactEdge: totalLength ? exactEdgeLength / totalLength : 0,
+    alongEdge: totalLength ? nearEdgeLength / totalLength : 0,
+    bandShare: sharedCells ? bandSharedCells / sharedCells : 0,
+    bandByEndpointKind: byKind,
+    burgsServed: served.size,
+    burgsTotal: subterraneanCells.size,
+    medianRoadDistance: cells.size ? distanceSum / cells.size : 0,
+    surfaceOnlyContact: contact.tunnelsOnSurfaceOnlyBurgs,
+    dualIdentityContact: contact.tunnelsOnDualIdentityBurgs,
+    multiRecordCells: contact.tunnelCellsWithMultipleRecords,
+    surfaceOnlyHubs: hubs.surfaceOnly,
+    dualIdentityHubs: hubs.dualIdentity,
+    otherHubs: hubs.other,
+    histogram,
+    // the standing gate: every arm reports its own audit, so a pricing patch that broke the plane rules shows
+    violations: audit.violations.length,
+    repairs: audit.repairs,
+    serviceViolations: audit.violations.filter(v => v.rule === "service").length,
+    boundaryViolations: audit.violations.filter(v => v.rule === "boundary").length
+  };
+}
+
+// ---------------------------------------------------------------- character metrics (P1)
+
+/**
+ * The character definitions, fixed at P1 and recorded verbatim in the log (`CHAR definitions`) and
+ * evidence.md. Each is read through the complaint it serves; refine only if a known-answer check fails.
+ */
+/** a record counts as reaching the crest when its own high point is within this h of the corridor's */
+const CREST_REACH = 10;
+
+const CHARACTER_DEFINITIONS = {
+  directness:
+    "per record: drawn-path length (points[0],points[1] polyline) over the straight-line distance between the record's own first and last drawn anchor; records shorter than 1 cell-width are dropped",
+  elevProfile:
+    "mean h of the record's land cells (h>=20) against the mean h of the direct-corridor cells, where the corridor is every cell within 1.5 cell-widths of the record's own direct segment (sampled every half cell-width) and the land mean is the whole map's land cells",
+  crestHit:
+    "for records whose direct corridor holds a cell with h>=50 (the crossing set): crestSag is the corridor's highest h minus the record's own highest h, and a hit is a sag of at most 10 — the record came up to the crest instead of bending around it. The sag is the primary reading: a distance radius on the crest cell cannot separate reach from a detour, because the corridor's own width puts the crest near any chain that stays on the line",
+  biomeShare:
+    "share of the record set's distinct land cells in each biome, against that biome's share of all land cells",
+  passUnder:
+    "distinct tunnel cells that are surface-only burg cells (burg with ground-level presence and no below-level presence) — the F7.2 audit definition",
+  nearMiss:
+    "distinct tunnel cells that are not surface-only burg cells but have such a burg cell among their neighbours",
+  anchorMinDist:
+    "per record, the smallest distance (in cell-widths) from any drawn point to any surface-only burg dot; the mean over records is reported"
+};
+
+/** the default biome list's names, so the biome table reads without a lookup */
+const BIOME_NAMES = [
+  "Marine",
+  "Hot desert",
+  "Cold desert",
+  "Savanna",
+  "Grassland",
+  "Tropical seasonal forest",
+  "Temperate deciduous forest",
+  "Tropical rainforest",
+  "Temperate rainforest",
+  "Taiga",
+  "Tundra",
+  "Glacier",
+  "Wetland"
+];
+
+/** cell width: the mean nearest-neighbour distance, so distance thresholds read in cell units */
+function cellWidth(): number {
+  const { i, p, c } = pack.cells;
+  let sum = 0;
+  for (let cell = 0; cell < i.length; cell++) {
+    let nearest = Infinity;
+    for (const neighbour of c[cell] ?? []) nearest = Math.min(nearest, distanceSquared(p[cell], p[neighbour]));
+    if (nearest < Infinity) sum += Math.sqrt(nearest);
+  }
+  return sum / i.length;
+}
+
+/** every cell within 1.5 cell-widths of a straight segment, sampled at a fraction of a cell width */
+function corridorCells(from: Point, to: Point, width: number, points: number[][]): Set<number> {
+  const steps = Math.max(2, Math.ceil(Math.sqrt(distanceSquared(from, to)) / (width / 2)));
+  const within = (x: number, y: number) => {
+    const limit = (1.5 * width) ** 2;
+    const found: number[] = [];
+    for (let cell = 0; cell < points.length; cell++) {
+      const dx = points[cell][0] - x;
+      const dy = points[cell][1] - y;
+      if (dx * dx + dy * dy <= limit) found.push(cell);
+    }
+    return found;
+  };
+
+  const corridor = new Set<number>();
+  for (let step = 0; step <= steps; step++) {
+    const ratio = step / steps;
+    const x = from[0] + (to[0] - from[0]) * ratio;
+    const y = from[1] + (to[1] - from[1]) * ratio;
+    for (const cell of within(x, y)) corridor.add(cell);
+  }
+  return corridor;
+}
+
+/**
+ * The candidate replacement for the tunnel cost model: pure geodesics with obstacles. Every term that
+ * priced a road is gone — no height preference, no biome/habitability price, no burg term, no
+ * own-network discount, no surface separation. What remains is Euclidean step length times a
+ * cross-track deviation factor, plus the plane gates (foreign shore, glacier, the water bound), which
+ * are the definition of the plane rather than a preference about terrain.
+ *
+ * `lambda` prices one cell-width of deviation from the pair's straight line, as a fraction of the
+ * pair's direct distance: with lambda = 0 the step costs its length and the path is whatever the queue
+ * pops first, which is NOT straight — findPath is a plain Dijkstra, so straightness has to be priced.
+ */
+function geoStraightCost(start: number, exit: number, feature: number, lambda: number): Cost {
+  const from = pack.cells.p[start];
+  const to = pack.cells.p[exit];
+  const lineLength = Math.sqrt(distanceSquared(from, to));
+  const lengthSquared = distanceSquared(from, to);
+
+  const crossTrack = (cell: number) => {
+    if (lengthSquared === 0) return 0;
+    const point = pack.cells.p[cell];
+    const ratio = ((point[0] - from[0]) * (to[0] - from[0]) + (point[1] - from[1]) * (to[1] - from[1])) / lengthSquared;
+    const clamped = Math.max(0, Math.min(1, ratio));
+    const x = from[0] + (to[0] - from[0]) * clamped;
+    const y = from[1] + (to[1] - from[1]) * clamped;
+    return Math.sqrt((point[0] - x) ** 2 + (point[1] - y) ** 2);
+  };
+
+  return (current, next) => {
+    const isWater = pack.cells.h[next] < 20;
+    // the plane gates, exactly as production draws them today
+    if (isWater) {
+      if (pack.cells.t[next] < -2) return Infinity;
+      if (grid.cells.temp[pack.cells.g[next]] < -4) return Infinity;
+    } else if (!pack.biomes[pack.cells.biome[next]].habitability) {
+      return Infinity;
+    }
+    if (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature) return Infinity;
+
+    const length = Math.sqrt(distanceSquared(pack.cells.p[current], pack.cells.p[next]));
+    const deviation = lineLength === 0 ? 0 : (lambda * crossTrack(next)) / lineLength;
+    return length * (1 + deviation);
+  };
+}
+
+/** BFS distance from the surface-only burg cells, capped, for the repulsion halo arms */
+function surfaceOnlyBurgDistances(cap = 3): Uint8Array {
+  const adjacency = pack.cells.c as unknown as number[][];
+  const distances = new Uint8Array(pack.cells.i.length).fill(cap);
+  const queue: number[] = [];
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed) continue;
+    if (!hasGroundLevelPresence(burg as never) || hasBelowLevelPresence(burg as never)) continue;
+    const cell = burg.cell;
+    if (cell === undefined || distances[cell] === 0) continue;
+    distances[cell] = 0;
+    queue.push(cell);
+  }
+  for (let head = 0; head < queue.length; head++) {
+    const cell = queue[head];
+    if (distances[cell] >= cap - 1) continue;
+    for (const next of adjacency[cell] ?? []) {
+      if (distances[next] > distances[cell] + 1) {
+        distances[next] = distances[cell] + 1;
+        queue.push(next);
+      }
+    }
+  }
+  return distances;
+}
+
+/**
+ * The road-copy detector: a tunnel is a copy when a surface record connects the same source and
+ * destination. Cell overlap is deliberately NOT bad here — a straight tunnel crosses whatever lies
+ * between its endpoints — but shadowing a connection is, because it means the two planes are serving
+ * the same traffic over the same ground.
+ *
+ * Two readings:
+ *  - `same`: the endpoints match. Strict equality when both are the same burg record or the same cell;
+ *    a tolerant reading counts them as the same when the two anchor points are within one cell-width,
+ *    which is the case a burg reaches through different gate cells on each plane.
+ *  - `expanded`: "pass under burg treated as a destination for this calculation". A tunnel that runs
+ *    under a surface-only burg which is a *terminus* of some surface record is compared again with that
+ *    record's other end. That catches a tunnel whose source or destination is not itself a settlement
+ *    but which shadows the road into the one it passes beneath.
+ */
+/**
+ * Classifies every tunnel record against the surface records by **which settlements each connects**,
+ * which is the rule the user asked for: cell overlap is not the offence, serving the same connection is.
+ *
+ *  - `same`    — the tunnel connects the same pair of settlements as some surface record. A settlement
+ *                is connected when the record ends on that burg's cell (the codebase's own plane rule
+ *                for an endpoint), so this is an identity comparison with no tolerance.
+ *  - `viaBurg` — the expanded reading: the tunnel does not connect the same pair, but it passes under a
+ *                surface-only burg that a road terminates at while connecting that road's other end.
+ *                "Pass under burg" stands in for a destination here.
+ *
+ * A record counts once per class it earns. `roadCopies` is `same`; `roadCopiesExpanded` is both.
+ */
+function roadCopies(tunnelRecords: CellRoute[], surfaceRoutes: CellRoute[], _width: number) {
+  const burgAt = (cell: number): number => {
+    const burgId = pack.cells.burg[cell] ?? 0;
+    const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+    return burg && !burg.removed ? burg.i : 0;
+  };
+
+  /** the two settlements a record connects, from its end cells */
+  const connects = (cells: number[]) => {
+    const found = new Set<number>();
+    if (!cells.length) return found;
+    for (const cell of [cells[0], cells[cells.length - 1]]) {
+      const burg = burgAt(cell);
+      if (burg) found.add(burg);
+    }
+    return found;
+  };
+
+  const roads = surfaceRoutes
+    .map(route => route.points.map(point => point[2]))
+    .filter(cells => cells.length > 1)
+    .map((cells, index) => ({ index, cells, ends: connects(cells) }));
+  const terminiBurgs = new Set<number>();
+  for (const road of roads) for (const burg of road.ends) terminiBurgs.add(burg);
+
+  const copies: Array<Record<string, unknown>> = [];
+  const counts = { same: 0, viaBurg: 0, roadCopies: 0, roadCopiesExpanded: 0 };
+
+  tunnelRecords.forEach((record, index) => {
+    const cells = record.points.map(point => point[2]);
+    if (!cells.length) return;
+    const ends = connects(cells);
+    if (!ends.size) return; // a tunnel joining two plain cells connects no settlement
+
+    const covers = (road: { ends: Set<number> }) => [...road.ends].every(burg => ends.has(burg));
+
+    let sameRoad: number | undefined;
+    for (const road of roads) if (road.ends.size && covers(road)) sameRoad ??= road.index;
+
+    let burgRoad: { road: number; burg: number } | undefined;
+    if (sameRoad === undefined) {
+      for (const cell of cells) {
+        const burgId = burgAt(cell);
+        if (!burgId || !terminiBurgs.has(burgId)) continue;
+        if (ends.has(burgId)) continue; // the tunnel connects it: that is the `same` case, not a pass-under
+        if (hasBelowLevelPresence((pack.burgs as unknown as Burg[])[burgId] as never)) continue;
+        for (const road of roads) {
+          if (!road.ends.has(burgId)) continue;
+          const other = [...road.ends].filter(id => id !== burgId);
+          if (other.some(id => ends.has(id))) burgRoad ??= { road: road.index, burg: burgId };
+        }
+      }
+    }
+
+    if (sameRoad === undefined && burgRoad === undefined) return;
+    if (sameRoad !== undefined) counts.same++;
+    if (burgRoad !== undefined) counts.viaBurg++;
+    if (sameRoad !== undefined) counts.roadCopies++;
+    counts.roadCopiesExpanded++;
+
+    copies.push({
+      tunnel: index,
+      kind: sameRoad !== undefined ? "same-connection" : "pass-under-burg",
+      connects: [...ends],
+      cells: cells.length,
+      road: sameRoad ?? burgRoad?.road,
+      ...(burgRoad ? { burg: burgRoad.burg } : {})
+    });
+  });
+
+  return { ...counts, records: tunnelRecords.length, roads: roads.length, copies };
+}
+
+/** the water crossings of a chain set: legs, span counts and lengths (the P3 census) */
+function waterCensus(chains: number[][]) {
+  const legs: Array<{ chain: number; from: number; to: number; steps: number; length: number }> = [];
+  const spans: number[] = [];
+  let waterCells = 0;
+
+  chains.forEach((chain, index) => {
+    let run: number[] = [];
+    const flush = () => {
+      if (!run.length) return;
+      let length = 0;
+      for (let i = 0; i < run.length; i++) {
+        const from = run[i];
+        const to = run[i + 1];
+        if (to === undefined) continue;
+        length += Math.sqrt(distanceSquared(pack.cells.p[from], pack.cells.p[to]));
+      }
+      spans.push(run.length);
+      legs.push({ chain: index, from: run[0], to: run[run.length - 1], steps: run.length, length: Math.round(length) });
+      run = [];
+    };
+    for (let i = 0; i < chain.length; i++) {
+      if (pack.cells.h[chain[i]] < 20) {
+        run.push(chain[i]);
+        waterCells++;
+      } else {
+        flush();
+      }
+    }
+    flush();
+  });
+
+  const histogram = spans.reduce<Record<string, number>>((all, span) => {
+    all[span] = (all[span] ?? 0) + 1;
+    return all;
+  }, {});
+
+  return {
+    legs: legs.length,
+    waterCells,
+    spans: histogram,
+    meanSpan: spans.length ? Number((spans.reduce((a, b) => a + b, 0) / spans.length).toFixed(2)) : 0,
+    maxSpan: spans.length ? Math.max(...spans) : 0,
+    legLength: legs.length ? Math.round(legs.reduce((sum, leg) => sum + leg.length, 0) / legs.length) : 0
+  };
+}
+
+/** the crossable water a straight line between two cells passes over, or null when it crosses none */
+function directWaterCrossing(start: number, exit: number, bound: number) {
+  const from = pack.cells.p[start];
+  const to = pack.cells.p[exit];
+  const distance = Math.sqrt(distanceSquared(from, to));
+  const steps = Math.max(2, Math.ceil(distance / (cellWidth() / 2)));
+  const crossed = new Set<number>();
+  for (let step = 0; step <= steps; step++) {
+    const ratio = step / steps;
+    const x = from[0] + (to[0] - from[0]) * ratio;
+    const y = from[1] + (to[1] - from[1]) * ratio;
+    let nearest = 0;
+    let best = Infinity;
+    for (let cell = 0; cell < pack.cells.p.length; cell++) {
+      const dx = pack.cells.p[cell][0] - x;
+      const dy = pack.cells.p[cell][1] - y;
+      const candidate = dx * dx + dy * dy;
+      if (candidate < best) {
+        best = candidate;
+        nearest = cell;
+      }
+    }
+    if (pack.cells.h[nearest] < 20 && pack.cells.t[nearest] >= bound) crossed.add(nearest);
+  }
+  return crossed.size ? { direct: Math.round(distance), crossed: crossed.size } : null;
+}
+
+/** consecutive water runs of a chain, each as its own step count (the P3 span census) */
+function waterSpans(chain: number[]): number[] {
+  const spans: number[] = [];
+  let run = 0;
+  for (const cell of chain) {
+    if (pack.cells.h[cell] < 20) run++;
+    else if (run) {
+      spans.push(run);
+      run = 0;
+    }
+  }
+  if (run) spans.push(run);
+  return spans;
+}
+
+type CharacterCellData = {
+  width: number;
+  surfaceOnlyBurgs: Burg[];
+  landCells: number;
+  landBiomes: number[];
+  landMeanH: number;
+};
+
+function characterCellData(width: number): CharacterCellData {
+  const surfaceOnlyBurgs = (pack.burgs as unknown as Burg[]).filter(
+    burg => burg?.i && !burg.removed && hasGroundLevelPresence(burg as never) && !hasBelowLevelPresence(burg as never)
+  );
+  const landBiomes: number[] = [];
+  let landCells = 0;
+  let heightSum = 0;
+  for (let cell = 0; cell < pack.cells.i.length; cell++) {
+    if (pack.cells.h[cell] < 20) continue;
+    landCells++;
+    heightSum += pack.cells.h[cell];
+    landBiomes.push(pack.cells.biome[cell]);
+  }
+  return {
+    width,
+    surfaceOnlyBurgs,
+    landCells,
+    landBiomes,
+    landMeanH: landCells ? heightSum / landCells : 0
+  };
+}
+
+/** the drawn geometry of a record: the polyline the renderer receives, or the cell anchors as a fallback */
+const drawnPointsOf = (record: CellRoute): Point[] =>
+  record.points?.length ? (record.points as unknown as Point[]) : [];
+
+function measureCharacter(tunnelRecords: CellRoute[], data: CharacterCellData) {
+  const { width, surfaceOnlyBurgs } = data;
+  const directnesses: number[] = [];
+  const tunnelHeights: number[] = [];
+  const corridorHeights: number[] = [];
+  const crest = { crossings: 0, hits: 0, sags: [] as number[] };
+  const anchors: number[] = [];
+  const wanders: number[] = [];
+  const tunnelCells = new Set<number>();
+  const corridorAll = new Set<number>();
+
+  for (const record of tunnelRecords) {
+    const cells = record.points.map(point => point[2]);
+    if (!cells.length) continue;
+    for (const cell of cells) tunnelCells.add(cell);
+    for (const cell of cells) if (pack.cells.h[cell] >= 20) tunnelHeights.push(pack.cells.h[cell]);
+
+    // directness: the drawn polyline against the straight line between its own ends
+    const drawn = drawnPointsOf(record);
+    const from = (drawn[0] ?? [...pack.cells.p[cells[0]]]) as Point;
+    const to = (drawn[drawn.length - 1] ?? [...pack.cells.p[cells[cells.length - 1]]]) as Point;
+    const direct = Math.sqrt(distanceSquared(from, to));
+    if (direct >= width) {
+      let length = 0;
+      for (let i = 0; i < drawn.length - 1; i++) length += Math.sqrt(distanceSquared(drawn[i], drawn[i + 1]));
+      directnesses.push(length / direct);
+    }
+
+    // wander: how far the record ever leaves its own direct segment, in cell-widths
+    if (direct > 0) {
+      const lineSquared = distanceSquared(from, to);
+      let furthest = 0;
+      for (const cell of cells) {
+        const point = pack.cells.p[cell];
+        const ratio = ((point[0] - from[0]) * (to[0] - from[0]) + (point[1] - from[1]) * (to[1] - from[1])) / lineSquared;
+        const clamped = Math.max(0, Math.min(1, ratio));
+        const x = from[0] + (to[0] - from[0]) * clamped;
+        const y = from[1] + (to[1] - from[1]) * clamped;
+        furthest = Math.max(furthest, Math.sqrt((point[0] - x) ** 2 + (point[1] - y) ** 2) / width);
+      }
+      wanders.push(furthest);
+    }
+
+    // elevProfile + crestHit: the corridor the record's own ends imply
+    const corridor = corridorCells(from, to, width, pack.cells.p as unknown as number[][]);
+    let maxHeight = -Infinity;
+    for (const cell of corridor) {
+      corridorAll.add(cell);
+      const height = pack.cells.h[cell];
+      if (height > maxHeight) maxHeight = height;
+    }
+    for (const cell of corridor) if (pack.cells.h[cell] >= 20) corridorHeights.push(pack.cells.h[cell]);
+    if (maxHeight >= 50) {
+      crest.crossings++;
+      // the sag the complaint describes: how far below the corridor's crest the tunnel's own high point sits
+      const chainHigh = cells.reduce((high, cell) => Math.max(high, pack.cells.h[cell]), 0);
+      const sag = maxHeight - chainHigh;
+      crest.sags.push(sag);
+      if (sag <= CREST_REACH) crest.hits++;
+    }
+
+    // anchorMinDist: the sag the renderer would show, separated from the path choice
+    if (drawn.length && surfaceOnlyBurgs.length) {
+      let best = Infinity;
+      for (const point of drawn) {
+        for (const burg of surfaceOnlyBurgs) {
+          const dx = point[0] - burg.x;
+          const dy = point[1] - burg.y;
+          const candidate = Math.sqrt(dx * dx + dy * dy);
+          if (candidate < best) best = candidate;
+        }
+      }
+      if (best < Infinity) anchors.push(best / width);
+    }
+  }
+
+  // passUnder / nearMiss: the F7.2 definition plus the one-cell ring, over the record set's distinct cells
+  const surfaceOnlyCells = new Set(surfaceOnlyBurgs.map(burg => burg.cell));
+  let passUnder = 0;
+  let nearMiss = 0;
+  for (const cell of tunnelCells) {
+    if (surfaceOnlyCells.has(cell)) {
+      passUnder++;
+      continue;
+    }
+    if ((pack.cells.c[cell] ?? []).some(neighbour => surfaceOnlyCells.has(neighbour))) nearMiss++;
+  }
+
+  // biomeShare: the record set's distinct land cells by biome against the map's land cells
+  const tunnelBiomes = new Map<number, number>();
+  for (const cell of tunnelCells) {
+    if (pack.cells.h[cell] < 20) continue;
+    tunnelBiomes.set(pack.cells.biome[cell], (tunnelBiomes.get(pack.cells.biome[cell]) ?? 0) + 1);
+  }
+
+  const tunnelLandCells = [...tunnelBiomes.values()].reduce((sum, count) => sum + count, 0);
+  const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
+
+  return {
+    records: tunnelRecords.length,
+    directness: mean(directnesses),
+    directness125: directnesses.length ? directnesses.filter(value => value > 1.25).length / directnesses.length : 0,
+    directness150: directnesses.length ? directnesses.filter(value => value > 1.5).length / directnesses.length : 0,
+    directnessMax: directnesses.length ? Math.max(...directnesses) : 0,
+    directnessRecords: directnesses.length,
+    wander: mean(wanders),
+    wanderMax: wanders.length ? Math.max(...wanders) : 0,
+    tunnelH: mean(tunnelHeights),
+    corridorH: mean(corridorHeights),
+    landMeanH: data.landMeanH,
+    crestCrossings: crest.crossings,
+    crestHit: crest.crossings ? crest.hits / crest.crossings : 0,
+    crestSag: mean(crest.sags),
+    passUnder,
+    nearMiss,
+    anchorMinDist: anchors.length ? mean(anchors) : null,
+    tunnelCells: tunnelCells.size,
+    corridorCells: corridorAll.size,
+    biomeShare: Object.fromEntries(
+      [...tunnelBiomes.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([biome, count]) => {
+          const land = data.landBiomes.filter(value => value === biome).length;
+          return [
+            `${biome}:${BIOME_NAMES[biome] ?? "?"}`,
+            { cells: count, tunnel: round(count / (tunnelLandCells || 1)), land: round(land / (data.landCells || 1)) }
+          ];
+        })
+    )
+  };
+}
+
+// ---------------------------------------------------------------- log emitters
+
+type Row = Record<string, unknown>;
+
+/**
+ * The ROW payload, built once so the AGG block reads exactly the columns the log carries: the standing
+ * alignment columns first, then the P1 character columns.
+ */
+function rowColumns(row: Row) {
+  const character = (row.character ?? {}) as Record<string, unknown>;
+  return {
+    seed: row.seed,
+    variant: row.variant,
+    ms: row.elapsed,
+    routes: row.routes,
+    cells: row.cells,
+    length: row.length,
+    overlap: round(row.overlap as number),
+    overlapLand: round(row.overlapLand as number),
+    waterShare: round(row.waterShare as number),
+    parallel: round(row.parallel as number),
+    exactEdge: round(row.exactEdge as number),
+    alongEdge: round(row.alongEdge as number),
+    bandShare: round(row.bandShare as number),
+    medianRoadDistance: round(row.medianRoadDistance as number, 2),
+    surfaceOnlyContact: row.surfaceOnlyContact,
+    dualIdentityContact: row.dualIdentityContact,
+    multiRecordCells: row.multiRecordCells,
+    surfaceOnlyHubs: row.surfaceOnlyHubs,
+    dualIdentityHubs: row.dualIdentityHubs,
+    otherHubs: row.otherHubs,
+    bandByEndpointKind: row.bandByEndpointKind,
+    histogram: row.histogram,
+    burgsServed: row.burgsServed,
+    violations: row.violations,
+    repairs: row.repairs,
+    serviceViolations: row.serviceViolations,
+    boundaryViolations: row.boundaryViolations,
+    // P1 character columns
+    records: character.records,
+    directness: character.directness === undefined ? undefined : round(character.directness as number),
+    directness125: character.directness125 === undefined ? undefined : round(character.directness125 as number),
+    directness150: character.directness150 === undefined ? undefined : round(character.directness150 as number),
+    directnessMax: character.directnessMax === undefined ? undefined : round(character.directnessMax as number),
+    directnessRecords: character.directnessRecords,
+    wander: character.wander === undefined ? undefined : round(character.wander as number, 2),
+    wanderMax: character.wanderMax === undefined ? undefined : round(character.wanderMax as number, 2),
+    tunnelH: character.tunnelH === undefined ? undefined : round(character.tunnelH as number, 1),
+    corridorH: character.corridorH === undefined ? undefined : round(character.corridorH as number, 1),
+    landMeanH: character.landMeanH === undefined ? undefined : round(character.landMeanH as number, 1),
+    crestCrossings: character.crestCrossings,
+    crestHit: character.crestHit === undefined ? undefined : round(character.crestHit as number),
+    crestSag: character.crestSag === undefined ? undefined : round(character.crestSag as number, 1),
+    passUnder: character.passUnder,
+    nearMiss: character.nearMiss,
+    anchorMinDist:
+      character.anchorMinDist === undefined || character.anchorMinDist === null
+        ? null
+        : round(character.anchorMinDist as number, 3),
+    tunnelCells: character.tunnelCells,
+    corridorCells: character.corridorCells
+  };
+}
+
+/** means over the seeds, plus the per-seed delta means against this run's baseline arm */
+function aggregateColumns(subset: Row[], baseline: Map<string, Row>) {
+  const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
+  const character = (row: Row) => (row.character ?? {}) as Record<string, number | null>;
+  const characterValues = (key: string) =>
+    subset.map(row => character(row)[key]).filter((value): value is number => typeof value === "number");
+  const movement = (key: string) =>
+    round(
+      mean(
+        subset.map(row => {
+          const base = baseline.get(row.seed as string);
+          const value = character(row)[key];
+          const baseValue = base ? character(base)[key] : undefined;
+          return typeof value === "number" && typeof baseValue === "number" ? value - baseValue : 0;
+        })
+      )
+    );
+  /** the per-seed spread behind a movement mean: D4 style reporting, never the mean alone */
+  const spread = (key: string) => {
+    const deltas = subset.map(row => {
+      const base = baseline.get(row.seed as string);
+      const value = character(row)[key];
+      const baseValue = base ? character(base)[key] : undefined;
+      return typeof value === "number" && typeof baseValue === "number" ? value - baseValue : 0;
+    });
+    return deltas.length ? { min: round(Math.min(...deltas)), max: round(Math.max(...deltas)) } : null;
+  };
+
+  return {
+    variant: subset[0].variant,
+    seeds: subset.length,
+    overlap: round(mean(subset.map(row => row.overlap as number))),
+    overlapLand: round(mean(subset.map(row => row.overlapLand as number))),
+    waterShare: round(mean(subset.map(row => row.waterShare as number))),
+    parallel: round(mean(subset.map(row => row.parallel as number))),
+    exactEdge: round(mean(subset.map(row => row.exactEdge as number))),
+    alongEdge: round(mean(subset.map(row => row.alongEdge as number))),
+    ms: Math.round(mean(subset.map(row => row.elapsed as number))),
+    burgsServed: round(mean(subset.map(row => (row.burgsServed as number) / (row.burgsTotal as number)))),
+    bandByEndpointKind: Object.fromEntries(
+      ["dual", "fully-subterranean", "junction"].map(kind => {
+        const shared = subset.reduce(
+          (sum, row) => sum + ((row.bandByEndpointKind as Record<string, { shared: number }>)?.[kind]?.shared ?? 0),
+          0
+        );
+        const band = subset.reduce(
+          (sum, row) => sum + ((row.bandByEndpointKind as Record<string, { band: number }>)?.[kind]?.band ?? 0),
+          0
+        );
+        return [kind, { shared, band, share: shared ? round(band / shared) : 0 }];
+      })
+    ),
+    lengthOverlap: round(mean(subset.map(row => row.lengthOverlap as number))),
+    bandShare: round(mean(subset.map(row => row.bandShare as number))),
+    medianRoadDistance: round(mean(subset.map(row => row.medianRoadDistance as number)), 2),
+    surfaceOnlyContact: round(mean(subset.map(row => row.surfaceOnlyContact as number)), 1),
+    dualIdentityContact: round(mean(subset.map(row => row.dualIdentityContact as number)), 1),
+    multiRecordCells: round(mean(subset.map(row => row.multiRecordCells as number)), 1),
+    surfaceOnlyHubs: round(mean(subset.map(row => row.surfaceOnlyHubs as number)), 1),
+    dualIdentityHubs: round(mean(subset.map(row => row.dualIdentityHubs as number)), 1),
+    otherHubs: round(mean(subset.map(row => row.otherHubs as number)), 1),
+    cells: Math.round(mean(subset.map(row => row.cells as number))),
+    routes: Math.round(mean(subset.map(row => row.routes as number))),
+    violations: round(mean(subset.map(row => row.violations as number)), 2),
+    repairs: round(mean(subset.map(row => row.repairs as number)), 2),
+    length: Math.round(mean(subset.map(row => row.length as number))),
+    lengthRatio: round(
+      mean(
+        subset.map(row => {
+          const base = baseline.get(row.seed as string);
+          return base ? (row.length as number) / (base.length as number) : 1;
+        })
+      )
+    ),
+    // P1 character aggregates
+    directness: round(mean(characterValues("directness"))),
+    directness125: round(mean(characterValues("directness125"))),
+    directness150: round(mean(characterValues("directness150"))),
+    directnessMax: round(Math.max(0, ...characterValues("directnessMax"))),
+    directnessRecords: Math.round(mean(characterValues("directnessRecords"))),
+    wander: round(mean(characterValues("wander")), 2),
+    wanderMax: round(mean(characterValues("wanderMax")), 2),
+    tunnelH: round(mean(characterValues("tunnelH")), 1),
+    corridorH: round(mean(characterValues("corridorH")), 1),
+    landMeanH: round(mean(characterValues("landMeanH")), 1),
+    tunnelAboveLand: round(mean(characterValues("tunnelH")) - mean(characterValues("landMeanH")), 1),
+    tunnelAboveCorridor: round(mean(characterValues("tunnelH")) - mean(characterValues("corridorH")), 1),
+    crestCrossings: Math.round(mean(characterValues("crestCrossings"))),
+    crestHit: round(mean(characterValues("crestHit"))),
+    crestSag: round(mean(characterValues("crestSag")), 1),
+    passUnder: round(mean(characterValues("passUnder")), 1),
+    nearMiss: round(mean(characterValues("nearMiss")), 1),
+    anchorMinDist: characterValues("anchorMinDist").length ? round(mean(characterValues("anchorMinDist")), 3) : null,
+    tunnelCells: Math.round(mean(characterValues("tunnelCells"))),
+    // per-seed movement against the baseline arm, with its spread
+    dDirectness: movement("directness"),
+    dDirectnessRange: spread("directness"),
+    dTunnelH: movement("tunnelH"),
+    dTunnelHRange: spread("tunnelH"),
+    dCrestHit: movement("crestHit"),
+    dPassUnder: movement("passUnder"),
+    dPassUnderRange: spread("passUnder"),
+    dNearMiss: movement("nearMiss"),
+    dOverlap: round(
+      mean(
+        subset.map(row => {
+          const base = baseline.get(row.seed as string);
+          return base ? (row.overlap as number) - (base.overlap as number) : 0;
+        })
+      )
+    ),
+    dParallel: round(
+      mean(
+        subset.map(row => {
+          const base = baseline.get(row.seed as string);
+          return base ? (row.parallel as number) - (base.parallel as number) : 0;
+        })
+      )
+    ),
+    worstOverlapDelta: round(
+      Math.max(
+        0,
+        ...subset.map(row => {
+          const base = baseline.get(row.seed as string);
+          return base ? (row.overlap as number) - (base.overlap as number) : 0;
+        })
+      )
+    ),
+    bestOverlapDelta: round(
+      Math.min(
+        0,
+        ...subset.map(row => {
+          const base = baseline.get(row.seed as string);
+          return base ? (row.overlap as number) - (base.overlap as number) : 0;
+        })
+      )
+    )
+  };
+}
+
+// ---------------------------------------------------------------- the run
+
+const SEEDS = (import.meta.env.VITE_MEASURE_SEEDS as string | undefined)?.split(",") ?? [
+  "measure-a",
+  "measure-b",
+  "measure-c",
+  "measure-d",
+  "measure-e",
+  "measure-f",
+  "measure-g",
+  "measure-h"
+];
+
+/**
+ * Comma-separated variant names to run, so a probe run carries only its own arms (`baseline-production`
+ * and `replica-production` are always kept: the fidelity anchor has to hold in every run). Unset means
+ * every variant the harness defines.
+ */
+const VARIANT_FILTER = (import.meta.env.VITE_MEASURE_VARIANTS as string | undefined)
+  ?.split(",")
+  .map(name => name.trim());
+const ANCHOR_VARIANTS = ["baseline-production", "replica-production", "replica-production-2"];
+const wanted = (name: string) => !VARIANT_FILTER || ANCHOR_VARIANTS.includes(name) || VARIANT_FILTER.includes(name);
+
+const round = (value: number, digits = 3) => Number(value.toFixed(digits));
+
+// ---------------------------------------------------------------- known-answer fixtures
+
+/**
+ * The P1 metrics, each against a geometry whose answer is known by construction. They run before the
+ * 8-seed protocol and fail loudly, because a mis-defined metric silently poisons every reading after
+ * it (sketch's Known-Answer Checks).
+ */
+function knownAnswerChecks() {
+  const original = { pack: (globalThis as Record<string, unknown>).pack };
+
+  /** a grid of cells, each `spacing` apart, with the given heights and per-cell burg ids */
+  const install = ({
+    columns,
+    rows,
+    spacing,
+    heights = () => 30,
+    burgOf,
+    biomes = () => 5,
+    burgs = []
+  }: {
+    columns: number;
+    rows: number;
+    spacing: number;
+    heights?: (cell: number) => number;
+    burgOf?: (cell: number) => number;
+    biomes?: (cell: number) => number;
+    burgs?: Burg[];
+  }) => {
+    const count = columns * rows;
+    const p: number[][] = [];
+    const c: number[][] = [];
+    const h = new Uint8Array(count);
+    const biome = new Uint8Array(count);
+    const burgCell = new Uint16Array(count);
+    for (let cell = 0; cell < count; cell++) {
+      const row = Math.floor(cell / columns);
+      const column = cell % columns;
+      p.push([column * spacing, row * spacing]);
+      const neighbours: number[] = [];
+      if (row > 0) neighbours.push(cell - columns);
+      if (row < rows - 1) neighbours.push(cell + columns);
+      if (column > 0) neighbours.push(cell - 1);
+      if (column < columns - 1) neighbours.push(cell + 1);
+      c.push(neighbours);
+      h[cell] = heights(cell);
+      biome[cell] = biomes(cell);
+      burgCell[cell] = burgOf ? burgOf(cell) : 0;
+    }
+    (globalThis as Record<string, unknown>).pack = {
+      cells: { i: Array.from({ length: count }, (_, cell) => cell), p, c, h, biome, burg: burgCell },
+      burgs,
+      biomes: [] as never
+    };
+    return p;
+  };
+
+  const cellRoute = (cells: number[], points: number[][]): CellRoute => ({
+    points: cells.map(cell => [...points[cell], cell]),
+    underground: true
+  });
+
+  const failures: string[] = [];
+  const check = (name: string, pass: boolean, detail: string) => {
+    console.log(`KNOWN-ANSWER ${pass ? "pass" : "FAIL"} ${name} ${detail}`);
+    if (!pass) failures.push(`${name}: ${detail}`);
+  };
+
+  try {
+    // 1. directness: two adjacent cells of a two-cell record read 1.0 by construction
+    {
+      const p = install({ columns: 2, rows: 1, spacing: 10 });
+      const data: CharacterCellData = { width: 1, surfaceOnlyBurgs: [], landCells: 0, landBiomes: [], landMeanH: 0 };
+      const straight = measureCharacter([cellRoute([0, 1], p)], data);
+      check("directness.two-cell", Math.abs(straight.directness - 1) < 1e-9, `directness=${straight.directness}`);
+      // 2. an L-chain reads its coordinate ratio: 10 + 10 over sqrt(200)
+      const l = install({ columns: 2, rows: 2, spacing: 10 });
+      const elbow = measureCharacter([cellRoute([0, 1, 3], l)], {
+        width: 1,
+        surfaceOnlyBurgs: [],
+        landCells: 0,
+        landBiomes: [],
+        landMeanH: 0
+      });
+      const expected = 20 / Math.sqrt(200);
+      check(
+        "directness.L-chain",
+        Math.abs(elbow.directness - expected) < 1e-9,
+        `directness=${elbow.directness} expected=${expected}`
+      );
+    }
+
+    // 3. crestHit / crestSag: a 10x3 grid whose top row is a ridge at h 60 with one crest cell (h 90) at
+    // column 4. A chain that climbs onto the crest itself comes up to it: sag 0, a hit. A chain crossing
+    // in the lowland two rows below the ridge — its corridor still reaches the crest at column 4, so it
+    // is a crossing, but the chain itself never leaves h 20: sag 90 - 20 = 70. That is the complaint's
+    // shape in one number ("bending toward the lower parts of the range"), and it is a miss. The sag is what reads the complaint — a
+    // distance radius on the crest could not separate the two.
+    {
+      const ridge = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // row 0
+      const crest = 4; // the ridge's one crest cell: h 90; every other ridge cell sits at h 60
+      const p = install({
+        columns: 10,
+        rows: 3,
+        spacing: 1,
+        heights: cell => (cell === crest ? 90 : ridge.includes(cell) ? 60 : 20)
+      });
+      const data: CharacterCellData = { width: 1, surfaceOnlyBurgs: [], landCells: 0, landBiomes: [], landMeanH: 0 };
+      const climbing = measureCharacter([cellRoute([15, 16, 17, 8, 4], p)], data);
+      const lowCrossing = measureCharacter([cellRoute([15, 16, 17, 18, 19], p)], data);
+      check(
+        "crestHit.through",
+        climbing.crestCrossings === 1 && climbing.crestHit === 1 && climbing.crestSag === 0,
+        `crossings=${climbing.crestCrossings} hit=${climbing.crestHit} sag=${climbing.crestSag}`
+      );
+      check(
+        "crestHit.skirt",
+        lowCrossing.crestCrossings === 1 && lowCrossing.crestHit === 0 && lowCrossing.crestSag === 70,
+        `crossings=${lowCrossing.crestCrossings} hit=${lowCrossing.crestHit} sag=${lowCrossing.crestSag}`
+      );
+    }
+
+    // 4. passUnder / nearMiss: a burg beside the chain, then a burg on it
+    {
+      const burgCell = 4; // centre of a 3x3 grid
+      const burg: Burg = { i: 1, cell: burgCell, x: 1, y: 1, feature: 1 };
+      const p = install({
+        columns: 3,
+        rows: 3,
+        spacing: 1,
+        burgOf: cell => (cell === burgCell ? 1 : 0),
+        burgs: [0 as unknown as Burg, burg]
+      });
+      const data = characterCellData(1);
+      const beside = measureCharacter([cellRoute([3, 1, 5], p)], data);
+      // all three chain cells touch the burg cell, so every one of them is a near miss
+      check(
+        "nearMiss.beside",
+        beside.passUnder === 0 && beside.nearMiss === 3,
+        `passUnder=${beside.passUnder} nearMiss=${beside.nearMiss}`
+      );
+      const on = measureCharacter([cellRoute([burgCell, 1, 2], p)], data);
+      check("passUnder.on", on.passUnder === 1 && on.nearMiss > 0, `passUnder=${on.passUnder} nearMiss=${on.nearMiss}`);
+      // the anchor distance is the rendering half of the complaint: a record ending on the burg reads 0
+      check("anchorMinDist.on-burg", on.anchorMinDist === 0, `anchorMinDist=${on.anchorMinDist}`);
+    }
+
+    // 5. water spans: the bay fixture's own geometry — a three-cell crossing reads as one span of 3
+    {
+      install({ columns: 9, rows: 3, spacing: 10, heights: cell => (cell % 9 >= 3 && cell % 9 <= 5 ? 5 : 30) });
+      const crossing = [10, 11, 12, 13, 14, 15, 16];
+      const spans = waterSpans(crossing);
+      check(
+        "waterSpan.bay",
+        spans.length === 1 && spans[0] === 3,
+        `spans=${JSON.stringify(spans)} of chain length ${crossing.length}`
+      );
+      check(
+        "waterSpan.none",
+        waterSpans([10, 11, 18, 19]).length === 0,
+        `spans=${JSON.stringify(waterSpans([10, 11, 18, 19]))}`
+      );
+    }
+
+    // 6. road-copy detector: the rule the user asked for, on a minimal synthetic map. Cell overlap is
+    // not an offence; connecting the same two settlements as a road is, and so is shadowing the
+    // connection into a settlement the tunnel passes under.
+    {
+      // 10x6 grid, spacing 10. Burgs far enough apart that no two share a cell or a neighbour.
+      const burgOf: Record<number, number> = { 0: 1, 5: 2, 22: 3 };
+      const burgs: Burg[] = [
+        0 as unknown as Burg,
+        { i: 1, cell: 0, x: 0, y: 0, feature: 1 },
+        { i: 2, cell: 5, x: 50, y: 0, feature: 1 },
+        { i: 3, cell: 22, x: 20, y: 20, feature: 1 }
+      ];
+      const p = install({ columns: 10, rows: 6, spacing: 10, burgOf: cell => burgOf[cell] ?? 0, burgs });
+      const asRoute = (cells: number[]) => ({ points: cells.map(cell => [...p[cell], cell]), underground: true }) as CellRoute;
+      const surface = [
+        asRoute([0, 1, 2, 3, 4, 5]), // burg 1 -> burg 2
+        asRoute([22, 23, 24, 25]) // burg 3 -> a plain cell
+      ];
+
+      // burg 1 -> burg 2 again, a different alignment: the same connection
+      const same = roadCopies([asRoute([0, 10, 11, 12, 3, 5])], surface, 10);
+      check("roadCopy.same-connection", same.same === 1 && same.viaBurg === 0 && same.roadCopies === 1, `same=${same.same} via=${same.viaBurg} copies=${same.roadCopies}`);
+
+      // two plain cells, no settlement at either end: not a copy, whatever it crosses
+      const plain = roadCopies([asRoute([30, 31, 32, 33, 34, 35])], surface, 10);
+      check("roadCopy.no-settlements", plain.roadCopies === 0 && plain.roadCopiesExpanded === 0, `copies=${plain.roadCopies} expanded=${plain.roadCopiesExpanded}`);
+
+      // burg 1 -> a plain cell: shares only one settlement with any road, so not a copy
+      const oneEnd = roadCopies([asRoute([0, 10, 20, 30, 31])], surface, 10);
+      check("roadCopy.one-end-only", oneEnd.roadCopies === 0 && oneEnd.roadCopiesExpanded === 0, `copies=${oneEnd.roadCopies} expanded=${oneEnd.roadCopiesExpanded}`);
+
+      // The two burg cases below are exercised against the real map instead (see the ROAD-COPY audit
+      // in evidence.md): on a 10-unit grid a burg's cell and its neighbour's dot are the same distance
+      // apart, so synthetic "passes under X but connects Y" geometry cannot be made unambiguous without
+      // a larger fixture than the rule is worth. The comparator itself is pinned by the four cases above.
+    }
+
+    // 7. biomeShare: a single-biome land fixture shares 1.0 for that biome
+    {
+      const p = install({ columns: 3, rows: 3, spacing: 1, biomes: () => 5 });
+      const data = characterCellData(1);
+      const share = measureCharacter([cellRoute([0, 1, 2, 3, 4, 5, 6, 7, 8], p)], data).biomeShare as Record<
+        string,
+        { cells: number; tunnel: number; land: number }
+      >;
+      const key = `5:${BIOME_NAMES[5]}`;
+      const entry = share[key];
+      check(
+        "biomeShare.single",
+        Boolean(entry) && entry.tunnel === 1 && entry.land === 1,
+        `entry=${JSON.stringify(entry)} key=${key}`
+      );
+    }
+  } finally {
+    (globalThis as Record<string, unknown>).pack = original.pack;
+  }
+
+  if (failures.length) throw new Error(`known-answer checks failed: ${failures.join("; ")}`);
+  console.log("KNOWN-ANSWER all checks passed");
+}
+
+it("measures underground alignment variants", { timeout: 3_600_000 }, async () => {
+  for (const flag of ["INFO", "TIME", "ERROR", "WARN", "DEBUG"]) (globalThis as Record<string, unknown>)[flag] = false;
+  globalThis.tip = () => {};
+  (globalThis as unknown as { FlatQueue: unknown }).FlatQueue = FlatQueue;
+  (globalThis as unknown as { window: { FlatQueue: unknown } }).window.FlatQueue = FlatQueue;
+  globalThis.grid = {} as never;
+  globalThis.pack = {} as never;
+
+  knownAnswerChecks();
+
+  const rows: Array<Record<string, unknown>> = [];
+
+  for (const seed of SEEDS) {
+    options.map.seed = seed;
+    options.generation.underground = true;
+    options.generation.template = "continents";
+    try {
+      await GenerationPipeline.run({});
+    } catch (error) {
+      console.log(`pipeline stopped: ${(error as Error).message}`);
+    }
+
+    const routes = pack.routes as unknown as CellRoute[];
+    const surfaceRoutes = routes.filter(route => !route.underground);
+    const productionRecords = routes.filter(route => route.underground);
+    const surfaceChains = surfaceRoutes.map(route => route.points.map(point => point[2]));
+    const productionTunnels = productionRecords.map(route => route.points.map(point => point[2]));
+    const surface = indexSurface(surfaceRoutes);
+    const landSurface = indexSurface(surfaceRoutes.filter(route => route.group !== "searoutes"));
+    const adjacency = pack.cells.c as unknown as number[][];
+    const roadDistance = roadDistances(surface.cells, adjacency);
+    const heights = pack.cells.h;
+    const smooth = smoothedHeights(3);
+    const gates = gateCells(surface.dirs);
+    const pairs = buildPairSets();
+    const subterraneanCells = new Set(
+      Object.values(subterraneanByFeature()).flatMap(list => list.map(burg => burg.cell))
+    );
+
+    const module = Routes as unknown as {
+      undergroundConnections: Set<string>;
+      generateUndergroundHighways: (routes: unknown[]) => void;
+      pruneUndergroundHighways: () => number;
+    };
+    /** the real pass, run by hand so its pre-prune output can be seen (debug anchor) */
+    const runRealPass = (applyPrune: boolean) => {
+      const saved = pack.routes;
+      const list = (saved as unknown as CellRoute[]).filter(route => !route.underground).map(route => ({ ...route }));
+      module.undergroundConnections = new Set();
+      module.generateUndergroundHighways(list);
+      const chainsOf = (routes: unknown[]) =>
+        (routes as CellRoute[]).filter(route => route.underground).map(route => route.points.map(point => point[2]));
+      if (!applyPrune) {
+        pack.routes = saved;
+        return chainsOf(list);
+      }
+      pack.routes = list as never;
+      module.pruneUndergroundHighways();
+      const kept = chainsOf(pack.routes as unknown as CellRoute[]);
+      pack.routes = saved;
+      return kept;
+    };
+
+    const variants: Array<[string, () => number[][]]> = [
+      ["baseline-production", () => productionTunnels],
+      ["debug-real-noprune", () => runRealPass(false)],
+      ["debug-real-pruned", () => runRealPass(true)],
+      [
+        "replica-production",
+        () => {
+          (globalThis as unknown as { __variantDebug?: boolean }).__variantDebug = true;
+          const result = runPairs(
+            pairs.production,
+            () => (current, next) => Routes.getUndergroundPathCost(current, next)
+          );
+          (globalThis as unknown as { __variantDebug?: boolean }).__variantDebug = false;
+          return result;
+        }
+      ],
+      // the replica run twice in a row: the control that tells harness non-determinism from build drift
+      [
+        "replica-production-2",
+        () => runPairs(pairs.production, (_s, _e, _c, feature) => Routes.createUndergroundCost(feature))
+      ],
+      [
+        "no-burg-attraction",
+        () =>
+          runPairs(pairs.production, (_start, _exit, connections, feature) => (current, next) => {
+            if (!passable(next) || (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature)) return Infinity;
+            const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+            const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+            const heightModifier = 1 + Math.max(50 - pack.cells.h[next], 0) / 50;
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            return step(current, next) * habitabilityModifier * heightModifier * connectionModifier;
+          })
+      ],
+      // ---- P2 mechanism ablations: production's terms with one mechanism removed each. They carry
+      // production's own landmass gate and its discount; only the named term differs.
+      [
+        "no-burg-pull",
+        () =>
+          runPairs(pairs.production, (_s, _e, connections, feature) => (current, next) => {
+            if (!passable(next) || (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature)) return Infinity;
+            const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+            const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+            const heightModifier = 1 + Math.max(50 - pack.cells.h[next], 0) / 50;
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            return step(current, next) * habitabilityModifier * heightModifier * connectionModifier; // burgModifier 1 everywhere
+          })
+      ],
+      [
+        // the plateau shape replaced by a monotone one over the same heights: high ground still cheaper,
+        // but 20..50 no longer prices flat, so a one-cell detour can buy elevation
+        "no-plateau-max",
+        () =>
+          runPairs(pairs.production, (_s, _e, connections, feature) => (current, next) => {
+            if (!passable(next) || (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature)) return Infinity;
+            const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+            const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+            const heightModifier = 1 + Math.max(80 - pack.cells.h[next], 0) / 80; // [1, 2] rescaled over the whole land range
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            const burgModifier = pack.cells.burg[next] ? 1 : 2;
+            return step(current, next) * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
+          })
+      ],
+      [
+        // the linear inverse: high ground cheaper at every height, so the preference never saturates
+        "no-plateau-linear",
+        () =>
+          runPairs(pairs.production, (_s, _e, connections, feature) => (current, next) => {
+            if (!passable(next) || (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature)) return Infinity;
+            const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+            const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+            const heightModifier = 1 + (100 - Math.min(pack.cells.h[next], 100)) / 100; // 1.0 at the top of the range, 2.0 at sea level
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            const burgModifier = pack.cells.burg[next] ? 1 : 2;
+            return step(current, next) * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
+          })
+      ],
+      [
+        // the separation displacement off: the cost the exploration called the strongest single shaper
+        "no-separation",
+        () =>
+          runPairs(pairs.production, (_s, _e, connections, feature) => {
+            return (current, next) => {
+              if (!passable(next) || (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature)) return Infinity;
+              const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+              const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+              const heightModifier = 1 + Math.max(50 - pack.cells.h[next], 0) / 50;
+              const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+              const burgId = pack.cells.burg[next];
+              const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+              const burgModifier = burg && !burg.removed && hasBelowLevelPresence(burg as never) ? 1 : 2;
+              // production's surfaceSeparation term is what this arm removes (see evidence.md on the
+              // harness's separation coverage)
+              return step(current, next) * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
+            };
+          })
+      ],
+      [
+        // P3: the crossing bound widened by one, so water the production bound refuses is diggable
+        "bound-minus-3",
+        () =>
+          runPairs(pairs.production, (_s, _e, connections, feature) => (current, next) => {
+            const isWater = pack.cells.h[next] < 20;
+            if (isWater) {
+              if (pack.cells.t[next] < -3) return Infinity; // production's -2, widened
+              if (grid.cells.temp[pack.cells.g[next]] < -4) return Infinity;
+            } else if (!passable(next)) {
+              return Infinity;
+            }
+            if (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature) return Infinity;
+            const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+            const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+            const heightModifier = 1 + Math.max(50 - pack.cells.h[next], 0) / 50;
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            const burgId = pack.cells.burg[next];
+            const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+            const burgModifier = burg && !burg.removed && hasBelowLevelPresence(burg as never) ? 1 : 2;
+            return step(current, next) * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
+          })
+      ],
+      [
+        // biome-blind: no habitability term, and the water step stops paying the 1.1 marine quirk (the
+        // 1.1 fix), so a water crossing prices exactly as the land step it replaces
+        "biome-blind",
+        () =>
+          runPairs(pairs.production, (_s, _e, connections, feature) => (current, next) => {
+            const isWater = pack.cells.h[next] < 20;
+            if (isWater) {
+              if (pack.cells.t[next] < -2) return Infinity;
+              if (grid.cells.temp[pack.cells.g[next]] < -4) return Infinity; // MIN_PASSABLE_SEA_TEMP
+            } else if (!pack.biomes[pack.cells.biome[next]].habitability) {
+              return Infinity;
+            }
+            if (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature) return Infinity;
+            const heightModifier = 1 + Math.max(50 - pack.cells.h[next], 0) / 50;
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            const burgId = pack.cells.burg[next];
+            const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+            const burgModifier = burg && !burg.removed && hasBelowLevelPresence(burg as never) ? 1 : 2;
+            return step(current, next) * heightModifier * connectionModifier * burgModifier;
+          })
+      ],
+      [
+        "combo-divergence",
+        () =>
+          runPairs(pairs.production, (start, exit, connections, feature) => (current, next) => {
+            const startGate = gates.get(start);
+            const exitGate = gates.get(exit);
+            if (current === start && startGate !== undefined && next !== startGate) return Infinity;
+            if (next === exit && exitGate !== undefined && current !== exitGate) return Infinity;
+            if (!passable(next) || (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature)) return Infinity;
+            const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+            const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+            const heightModifier = 1 + Math.max(50 - pack.cells.h[next], 0) / 50;
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            const repulsion = 1 + 2 / (1 + roadDistance[next]);
+            return step(current, next) * habitabilityModifier * heightModifier * connectionModifier * repulsion;
+          })
+      ],
+      ["control-point", () => runPairs(pairs.production, (_s, _e, _c, _feature) => pointCost)],
+      [
+        "control-point-discount",
+        () => runPairs(pairs.production, (_s, _e, connections, _feature) => discounted(pointCost, connections))
+      ],
+      ["control-point-burg", () => runPairs(pairs.production, (_s, _e, _c, _feature) => pointBurgCost)],
+      [
+        "control-point-discount-burg",
+        () => runPairs(pairs.production, (_s, _e, connections, _feature) => discounted(pointBurgCost, connections))
+      ],
+      // ---- P5 rung-5 micro-prototypes: the escalation D17 pre-authorized (repulsion) plus the trio
+      // combination of the singles that moved character without breaking length or alignment.
+      [
+        // the pre-authorized escalation, cell-only: a surface-only burg cell priced 3x
+        "repulsion-cell",
+        () =>
+          runPairs(pairs.production, (_s, _e, _connections, feature) => (current, next) => {
+            const base = Routes.createUndergroundCost(feature)(current, next);
+            if (base === Infinity) return Infinity;
+            const burgId = pack.cells.burg[next];
+            const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+            const surfaceOnly = Boolean(burg && !burg.removed && hasGroundLevelPresence(burg as never) && !hasBelowLevelPresence(burg as never));
+            return base * (surfaceOnly ? 3 : 1);
+          })
+      ],
+      [
+        // the halo, narrow: the burg cell at 3x and its immediate ring at 1.5x
+        "repulsion-halo-1",
+        () =>
+          runPairs(pairs.production, (_s, _e, _connections, feature) => {
+            const halo = surfaceOnlyBurgDistances(3);
+            return (current, next) => {
+              const base = Routes.createUndergroundCost(feature)(current, next);
+              if (base === Infinity) return Infinity;
+              const factor = halo[next] === 0 ? 3 : halo[next] === 1 ? 1.5 : 1;
+              return base * factor;
+            };
+          })
+      ],
+      [
+        // the halo, wide: the burg cell at 3x, its ring at 2x, the next at 1.25x
+        "repulsion-halo-2",
+        () =>
+          runPairs(pairs.production, (_s, _e, _connections, feature) => {
+            const halo = surfaceOnlyBurgDistances(4);
+            return (current, next) => {
+              const base = Routes.createUndergroundCost(feature)(current, next);
+              if (base === Infinity) return Infinity;
+              const factor = halo[next] === 0 ? 3 : halo[next] === 1 ? 2 : halo[next] === 2 ? 1.25 : 1;
+              return base * factor;
+            };
+          })
+      ],
+      [
+        // the skeleton trio: no burg pull, the plateau replaced by the monotone shape, biome-blind.
+        // "Best" is read as the arms that moved the character columns least, i.e. the divergence
+        // mechanisms production is already paying for, not as the arms with the best numbers.
+        "trio-skeleton",
+        () =>
+          runPairs(pairs.production, (_s, _e, connections, feature) => (current, next) => {
+            const isWater = pack.cells.h[next] < 20;
+            if (isWater) {
+              if (pack.cells.t[next] < -2) return Infinity;
+              if (grid.cells.temp[pack.cells.g[next]] < -4) return Infinity;
+            } else if (!pack.biomes[pack.cells.biome[next]].habitability) {
+              return Infinity;
+            }
+            if (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature) return Infinity;
+            const heightModifier = 1 + Math.max(80 - pack.cells.h[next], 0) / 80; // monotone, no plateau
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1; // burg string off
+            return step(current, next) * heightModifier * connectionModifier; // biome terms off
+          })
+      ],
+      [
+        // rung-6 feasibility sketch: a cross-track multiplier, so a step off the pair's straight line
+        // pays more than one along it. Not a sweep: one strength, to see whether the shape is routable
+        // at all before rung 6 commits to it.
+        "deviation-penalty",
+        () =>
+          runPairs(pairs.production, (start, exit, _connections, feature) => {
+            const from = pack.cells.p[start];
+            const to = pack.cells.p[exit];
+            const lengthSquared = distanceSquared(from, to);
+            const crossTrack = (cell: number) => {
+              if (lengthSquared === 0) return 0;
+              const point = pack.cells.p[cell];
+              const ratio = ((point[0] - from[0]) * (to[0] - from[0]) + (point[1] - from[1]) * (to[1] - from[1])) / lengthSquared;
+              const clamped = Math.max(0, Math.min(1, ratio));
+              const x = from[0] + (to[0] - from[0]) * clamped;
+              const y = from[1] + (to[1] - from[1]) * clamped;
+              return Math.sqrt((point[0] - x) ** 2 + (point[1] - y) ** 2);
+            };
+            return (current, next) => {
+              const base = Routes.createUndergroundCost(feature)(current, next);
+              if (base === Infinity) return Infinity;
+              return base * (1 + crossTrack(next) / 20); // one cell-width off the line costs ~5% more
+            };
+          })
+      ],
+      // ---- the candidate cost model, swept: geometry only, straightness priced by lambda
+      ["geo-straight-005", () => runPairs(pairs.production, (start, exit, _c, feature) => geoStraightCost(start, exit, feature, 0.05))],
+      ["geo-straight-02", () => runPairs(pairs.production, (start, exit, _c, feature) => geoStraightCost(start, exit, feature, 0.2))],
+      ["geo-straight-10", () => runPairs(pairs.production, (start, exit, _c, feature) => geoStraightCost(start, exit, feature, 1))],
+      [
+        "gate-divergence",
+        () =>
+          runPairs(pairs.production, (start, exit, _connections, _feature) => (current, next) => {
+            const startGate = gates.get(start);
+            const exitGate = gates.get(exit);
+            if (current === start && startGate !== undefined && next !== startGate) return Infinity;
+            if (next === exit && exitGate !== undefined && current !== exitGate) return Infinity;
+            return Routes.getUndergroundPathCost(current, next);
+          })
+      ],
+      [
+        "smoothed-depth",
+        () =>
+          runPairs(pairs.production, (_start, _exit, connections, feature) => (current, next) => {
+            if (!passable(next) || (pack.cells.h[next] >= 20 && pack.cells.f[next] !== feature)) return Infinity;
+            const habitability = pack.biomes[pack.cells.biome[next]].habitability;
+            const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000;
+            const heightModifier = 1 + Math.max(50 - smooth[next], 0) / 25; // twice the current range
+            const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+            const burgModifier = pack.cells.burg[next] ? 1 : 3;
+            return step(current, next) * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
+          })
+      ],
+      [
+        // rung 2's control: production (attraction 2 as of 2026-09-30) with the old attraction forced
+        // back on, so a paired run gets both arms on one build
+        "force-production-back-to-3",
+        () =>
+          runPairs(pairs.production, (_start, _exit, _connections, feature) => (current, next) => {
+            const base = Routes.createUndergroundCost(feature)(current, next);
+            if (base === Infinity) return Infinity;
+            const factor = pack.cells.burg[next] ? 1 : 3;
+            const productionFactor = pack.cells.burg[next] ? 1 : 2;
+            return (base / productionFactor) * factor;
+          })
+      ],
+      [
+        // rung 3's reverse control: production (plane-aware as of 2026-09-30) with the plane-blind
+        // burg term forced back on, so a paired run gets both arms on one build
+        "force-production-back-to-plane-blind",
+        () =>
+          runPairs(pairs.production, (_start, _exit, _connections, feature) => (current, next) => {
+            const base = Routes.createUndergroundCost(feature)(current, next);
+            if (base === Infinity) return Infinity;
+            const burgId = pack.cells.burg[next];
+            const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+            const served = Boolean(burg && !burg.removed && hasBelowLevelPresence(burg as never));
+            const planeAwareFactor = served ? 1 : 2; // what production pays on this cell
+            const planeBlindFactor = burgId ? 1 : 2; // every burg cell attracted before the rung
+            return (base / planeAwareFactor) * planeBlindFactor;
+          })
+      ],
+      [
+        "road-repulsion",
+        () =>
+          runPairs(pairs.production, (_start, _exit, _connections, feature) => (current, next) => {
+            const base = Routes.createUndergroundCost(feature)(current, next);
+            if (base === Infinity) return Infinity;
+            return base * (1 + 2 / (1 + roadDistance[next]));
+          })
+      ],
+      [
+        "road-repulsion-strong",
+        () =>
+          runPairs(pairs.production, (_start, _exit, _connections, feature) => (current, next) => {
+            const base = Routes.createUndergroundCost(feature)(current, next);
+            if (base === Infinity) return Infinity;
+            return base * (1 + 6 / (1 + roadDistance[next]));
+          })
+      ],
+      ["pairset-backbone-mst", () => runPairs(pairs.backboneMst, (_s, _e, _c, feature) => Routes.createUndergroundCost(feature))],
+      ["pairset-subterranean-only", () => runPairs(pairs.subterraneanOnly, (_s, _e, _c, feature) => Routes.createUndergroundCost(feature))],
+      ["longhaul-mst", () => runPairs(pairs.longhaul, (_s, _e, _c, feature) => Routes.createUndergroundCost(feature))],
+      ["trunk-spurs-25", () => runPairs(pairs.trunk25, (_s, _e, _c, feature) => Routes.createUndergroundCost(feature))],
+      ["trunk-spurs-10", () => runPairs(pairs.trunk10, (_s, _e, _c, feature) => Routes.createUndergroundCost(feature))]
+    ];
+
+    const longest = Math.max(...productionTunnels.map(chain => chain.length), 0);
+    const landCells = pack.cells.h.reduce((count, height) => count + (height >= 20 ? 1 : 0), 0);
+    // D6: tunnels on water overlap no road by construction, so the per-seed water share is recorded
+    // separately and the verdict reads overlapLand (land route cells only) alongside the total
+    const waterCells = pack.cells.h.reduce((count, height) => count + (height < 20 ? 1 : 0), 0);
+    const groups = surfaceRoutes.reduce<Record<string, number>>((all, route) => {
+      const group = route.group ?? "unknown";
+      all[group] = (all[group] ?? 0) + 1;
+      return all;
+    }, {});
+    console.log(
+      `SEED ${seed} cells=${pack.cells.i.length} land=${landCells} water=${waterCells} burgs=${(pack.burgs as unknown as Burg[]).filter(b => b?.i && !b.removed).length} ` +
+        `subterranean=${Object.values(subterraneanByFeature()).reduce((sum, list) => sum + list.length, 0)} ` +
+        `surfaceRoutes=${surfaceRoutes.length} ${JSON.stringify(groups)} surfaceCells=${surface.cells.size} landRouteCells=${landSurface.cells.size} ` +
+        `productionRoutes=${productionTunnels.length} longest=${longest}`
+    );
+
+    // P1 character machinery: the surface-only burg census and the map's land census per seed
+    const width = cellWidth();
+    const characterData = characterCellData(width);
+    console.log(`CHAR definitions ${JSON.stringify(CHARACTER_DEFINITIONS)}`);
+    console.log(
+      `CHAR fields seed=${seed} cellWidth=${round(width, 3)} landMeanH=${round(characterData.landMeanH, 1)} ` +
+        `surfaceOnlyBurgs=${characterData.surfaceOnlyBurgs.length} landCells=${characterData.landCells}`
+    );
+
+    // fidelity control: the routes the harness's own replica produced against the real pass, so a
+    // drifting anchor is visible per seed without a second run (see evidence.md, harness limitation)
+    const fidelityOf = new Map<string, { routes: number; cells: number }>();
+    const recordFidelity = (name: string, chains: number[][]) => {
+      if (name !== "replica-production" && name !== "replica-production-2") return;
+      fidelityOf.set(name, { routes: chains.length, cells: new Set(chains.flat()).size });
+    };
+    const productionFidelity = { routes: productionTunnels.length, cells: new Set(productionTunnels.flat()).size };
+
+    const characterOf = new Map<string, ReturnType<typeof measureCharacter>>();
+    /** every arm's chains, so the P3 census can read the baseline and the bound variant side by side */
+    const chainsOf = new Map<string, number[][]>();
+    const biomeLines: string[] = [];
+
+    const active = variants.filter(([name]) => wanted(name));
+    console.log(`CHAR variants seed=${seed} ${JSON.stringify(active.map(([name]) => name))}`);
+
+    for (const [name, run] of active) {
+      const started = Date.now();
+      const chains = run();
+      const elapsed = Date.now() - started;
+      const metrics = measure(chains, surface, landSurface, roadDistance, adjacency, subterraneanCells);
+
+      // character: the baseline arm keeps its drawn geometry, every other variant reads cell anchors
+      const asRecords: CellRoute[] =
+        name === "baseline-production"
+          ? (productionRecords as unknown as CellRoute[])
+          : chains.map(cells => ({
+              points: cells.map(cell => [...pack.cells.p[cell], cell]),
+              underground: true
+            }));
+      const character = measureCharacter(asRecords, characterData);
+      characterOf.set(name, character);
+      recordFidelity(name, chains);
+      chainsOf.set(name, chains);
+      if (name === "baseline-production") {
+        biomeLines.push(`BIOME ${JSON.stringify({ seed, variant: name, ...character.biomeShare })}`);
+      }
+
+      const row = { seed, variant: name, elapsed, ...metrics, character };
+      rows.push(row);
+      console.log(`ROW ${JSON.stringify(rowColumns(row))}`);
+    }
+
+    for (const line of biomeLines) console.log(line);
+
+    // the road-copy audit: a tunnel that shadows a surface connection, with cell overlap explicitly
+    // not being the offence (see evidence.md, P7)
+    {
+      const surfaceRecords = surfaceChains.map(cells => ({
+        points: cells.map(cell => [...pack.cells.p[cell], cell]),
+        underground: false
+      })) as unknown as CellRoute[];
+      const arms: Array<[string, CellRoute[]]> = [
+        ["baseline-production", productionRecords as unknown as CellRoute[]],
+        ...Array.from(chainsOf.entries()).map(
+          ([name, chains]) =>
+            [
+              name,
+              chains.map(cells => ({ points: cells.map(cell => [...pack.cells.p[cell], cell]) })) as unknown as CellRoute[]
+            ] as [string, CellRoute[]]
+        )
+      ];
+      for (const [armName, armRecords] of arms) {
+      if (!armRecords.length) continue;
+      const result = roadCopies(armRecords, surfaceRecords, width);
+      const copyLength = result.copies.reduce((sum, copy) => sum + (copy.cells as number), 0);
+      console.log(
+        `ROAD-COPY ${JSON.stringify({
+          seed,
+          variant: armName,
+          records: result.records,
+          roads: result.roads,
+          same: result.same,
+          viaBurg: result.viaBurg,
+          roadCopies: result.roadCopies,
+          roadCopiesExpanded: result.roadCopiesExpanded,
+          copyCells: copyLength
+        })}`
+      );
+      for (const copy of result.copies) console.log(`ROAD-COPY-DETAIL ${JSON.stringify({ seed, variant: armName, ...copy })}`);
+      }
+    }
+
+    // P3 water census: what the bound buys, per seed
+    {
+      const arm = (name: string) => chainsOf.get(name) ?? [];
+      const bound = -2; // the production crossing bound
+      const census = {
+        seed,
+        production: waterCensus(arm("baseline-production")),
+        boundMinus3: waterCensus(arm("bound-minus-3"))
+      };
+      const crossingPairs = pairs.production.filter(([start, exit]) => start !== exit);
+      const crossings: Array<Record<string, number>> = [];
+      for (const [start, exit, feature] of crossingPairs) {
+        const direct = directWaterCrossing(start, exit, bound);
+        if (!direct) continue;
+        const actual = findPath(start, next => next === exit, Routes.createUndergroundCost(feature), pack as never);
+        const bypass = findPath(
+          start,
+          next => next === exit,
+          (current, next) => {
+            if (pack.cells.h[next] < 20) return Infinity; // the land fallback: no crossing at all
+            if (pack.cells.f[next] !== feature) return Infinity;
+            return Routes.getUndergroundPathCost(current, next);
+          },
+          pack as never
+        );
+        const lengthOf = (cells: number[] | null) => {
+          if (!cells) return 0;
+          let sum = 0;
+          for (let i = 0; i < cells.length - 1; i++) sum += Math.sqrt(distanceSquared(pack.cells.p[cells[i]], pack.cells.p[cells[i + 1]]));
+          return Math.round(sum);
+        };
+        const actualLength = lengthOf(actual);
+        const bypassLength = lengthOf(bypass);
+        crossings.push({
+          direct: direct.direct,
+          crossed: direct.crossed,
+          actual: actualLength,
+          bypass: bypassLength,
+          waterDetour: direct.direct ? Number((actualLength / direct.direct).toFixed(3)) : 0,
+          landPenalty: actualLength && bypassLength ? Number((bypassLength / actualLength).toFixed(3)) : 0
+        });
+      }
+      console.log(`WATER-CENSUS ${JSON.stringify({ ...census, directCrossingPairs: crossings.length, crossings })}`);
+    }
+
+    for (const [name, replica] of fidelityOf) {
+      console.log(
+        `FIDELITY ${JSON.stringify({
+          seed,
+          variant: name,
+          productionRoutes: productionFidelity.routes,
+          replicaRoutes: replica.routes,
+          productionCells: productionFidelity.cells,
+          replicaCells: replica.cells,
+          driftCells: replica.cells - productionFidelity.cells,
+          exact: replica.cells === productionFidelity.cells && replica.routes === productionFidelity.routes
+        })}`
+      );
+    }
+
+    // the character columns' own anchor, on top of the standing alignment one: the replica's cells are
+    // the production cells, so the two arms can only differ where a metric reads drawn geometry
+    const baselineCharacter = characterOf.get("baseline-production");
+    const replicaCharacter = characterOf.get("replica-production");
+    if (baselineCharacter && replicaCharacter) {
+      const movement = (key: keyof ReturnType<typeof measureCharacter>) => {
+        const from = baselineCharacter[key];
+        const to = replicaCharacter[key];
+        return typeof from === "number" && typeof to === "number" ? round(to - from, 3) : null;
+      };
+      console.log(
+        `CHAR-ANCHOR ${JSON.stringify({
+          seed,
+          passUnder: baselineCharacter.passUnder,
+          replicaPassUnder: replicaCharacter.passUnder,
+          nearMiss: baselineCharacter.nearMiss,
+          replicaNearMiss: replicaCharacter.nearMiss,
+          anchorMinDist: baselineCharacter.anchorMinDist === null ? null : round(baselineCharacter.anchorMinDist, 3),
+          dDirectness: movement("directness"),
+          dTunnelH: movement("tunnelH"),
+          dCrestHit: movement("crestHit"),
+          dTunnelCells: movement("tunnelCells")
+        })}`
+      );
+    }
+
+    pack.cells.h = heights; // variants only read heights, but keep the map as generated
+  }
+
+  const names = Array.from(new Set(rows.map(row => row.variant as string)));
+  const baseline = new Map(
+    rows.filter(row => row.variant === "baseline-production").map(row => [row.seed as string, row])
+  );
+
+  for (const name of names) {
+    const subset = rows.filter(row => row.variant === name);
+    const aggregate = aggregateColumns(subset, baseline);
+    console.log(`AGG ${JSON.stringify(aggregate)}`);
+  }
+});
