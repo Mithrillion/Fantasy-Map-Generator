@@ -26,3 +26,7 @@
 .dsh/
 openspec/.opsxa/
 openspec/schemas/
+
+# python bytecode from the openspec measure scripts
+__pycache__/
+*.pyc
