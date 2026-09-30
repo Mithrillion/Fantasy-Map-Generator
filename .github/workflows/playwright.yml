@@ -44,6 +44,8 @@ jobs:
       - name: Build app
         if: steps.dist-cache.outputs.cache-hit != 'true'
         run: npm run build
+      - name: Run the plane-integrity audit on real maps
+        run: npx vitest run --config vitest.browser.config.ts generators/plane-integrity
       - name: Run Playwright tests
         run: npm run test:e2e
         env:

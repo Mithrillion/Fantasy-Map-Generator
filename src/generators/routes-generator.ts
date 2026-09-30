@@ -6,6 +6,7 @@ import { meander } from "../utils/pathUtils";
 import { hasBelowLevelPresence, hasGroundLevelPresence } from "./burg-classification";
 import type { Burg } from "./burgs-generator";
 import type { Label } from "./labels-generator";
+import { isLegitimateBoundary, type Plane } from "./plane-integrity";
 import type { River } from "./river-generator";
 import type { Point } from "./voronoi";
 
@@ -189,6 +190,7 @@ export interface Route {
   label?: Label;
   note?: string;
   underground?: boolean; // presentation only: generated underground, traversed exactly as any other route
+  repaired?: boolean; // added by the service pass, so a map that needed many repairs is visible
 }
 
 type RiverEdge = { riverId: number; fromIndex: number };
@@ -210,6 +212,8 @@ class RoutesModule {
   private riverEdges: Map<number, Map<number, RiverEdge>> = new Map();
   private riversById: Map<number, River> = new Map();
   private riverGeometryCache: Map<number, { points: Point[]; anchorIndices: number[] }> = new Map();
+  /** `[from, to]` of every land step the surface pass emitted, cleared on each generate */
+  surfaceSteps: [number, number][] = [];
 
   regenerate(): void {
     const lockedRoutes = pack.routes.filter(route => route.lock).map((route, index) => ({ ...route, i: index }));
@@ -220,6 +224,7 @@ class RoutesModule {
     Math.random = Alea(randomSeed ?? options.map.seed);
     this.connections = new Map();
     this.undergroundConnections = new Set();
+    this.surfaceSteps = [];
     this.buildRiverEdges();
 
     for (const route of lockedRoutes) {
@@ -231,6 +236,7 @@ class RoutesModule {
     pack.routes = this.createRoutesData(lockedRoutes);
     if (options.generation.underground) this.generateUndergroundHighways(pack.routes);
     this.pruneUndergroundHighways(); // a locked highway may have lost the burg it ended at
+    if (options.generation.underground) this.repairUndergroundHighways();
     pack.cells.routes = this.buildLinks(pack.routes);
   }
 
@@ -417,57 +423,64 @@ class RoutesModule {
     return isWater ? this.getWaterPathCost.bind(this) : this.getLandPathCost.bind(this);
   }
 
-  /** Stretches of an underground path that are not already part of the underground network */
-  private getUndergroundSegments(pathCells: number[], edges: Set<string>): number[][] {
+  /**
+   * Splits a path into the stretches that are not already covered, so no step is ever drawn twice. A
+   * stretch boundary may only fall on a cell with no burg or with a burg of its own plane: where it
+   * would fall on a mismatched one, it steps further into the already-covered stretch, which
+   * duplicates that step instead of dropping a cell of the path.
+   */
+  private getSegments(pathCells: number[], plane: Plane, isCovered: (from: number, to: number) => boolean) {
     const segments: number[][] = [];
     let segment: number[] = [];
+    let seededFromCovered = false; // the segment's first cell was taken over from the covered stretch
+    let endResolved = false; // the previous segment already reached one cell past its covered edge
+
+    /** Walk a boundary into the covered stretch until it lands on a legitimate cell */
+    const resolve = (index: number, step: number, limit: number) => {
+      while (index !== limit && !isLegitimateBoundary(pack, pathCells[index], plane)) {
+        if (!isCovered(pathCells[index], pathCells[index + step])) break;
+        index += step;
+      }
+      return index;
+    };
 
     for (let i = 0; i < pathCells.length; i++) {
-      const cellId = pathCells[i];
-      const nextCellId = pathCells[i + 1];
-
-      if (nextCellId !== undefined && edges.has(`${cellId}-${nextCellId}`)) {
-        if (segment.length) {
-          segment.push(cellId);
-          segments.push(segment);
-          segment = [];
-        }
-        continue;
+      if (!segment.length && !seededFromCovered && i > 0 && isCovered(pathCells[i - 1], pathCells[i])) {
+        segment.push(pathCells[i - 1]);
       }
 
-      segment.push(cellId);
-    }
-
-    if (segment.length > 1) segments.push(segment);
-    return segments;
-  }
-
-  private getRouteSegments(pathCells: number[]) {
-    const segments = [];
-    let segment = [];
-
-    for (let i = 0; i < pathCells.length; i++) {
-      const cellId = pathCells[i];
       const nextCellId = pathCells[i + 1];
-      const isConnected =
-        this.connections.has(`${cellId}-${nextCellId}`) || this.connections.has(`${nextCellId}-${cellId}`);
+      const isLastStep = nextCellId === undefined;
 
-      if (isConnected) {
-        if (segment.length) {
-          // segment stepped into existing segment
-          segment.push(pathCells[i]);
-          segments.push(segment);
-          segment = [];
-        }
+      if (isLastStep || isCovered(pathCells[i], nextCellId)) {
+        const start = seededFromCovered || !segment.length ? 0 : resolve(i - segment.length, -1, 0);
+        const end = isLastStep || endResolved ? i : resolve(i, 1, pathCells.length - 1);
+        segments.push(pathCells.slice(start, end + 1));
+
+        segment = [];
+        seededFromCovered = isLastStep;
+        endResolved = isLastStep;
         continue;
       }
 
       segment.push(pathCells[i]);
+      seededFromCovered = false;
     }
 
-    if (segment.length > 1) segments.push(segment);
+    return segments.filter(cells => cells.length > 1);
+  }
 
-    return segments;
+  /** Stretches of an underground path that are not already part of the underground network */
+  private getUndergroundSegments(pathCells: number[], edges: Set<string>): number[][] {
+    return this.getSegments(pathCells, "underground", (from, to) => edges.has(`${from}-${to}`));
+  }
+
+  private getRouteSegments(pathCells: number[]) {
+    return this.getSegments(
+      pathCells,
+      "surface",
+      (from, to) => this.connections.has(`${from}-${to}`) || this.connections.has(`${to}-${from}`)
+    );
   }
 
   /** A water route may only reach its destination cell from a legitimate approach */
@@ -490,7 +503,15 @@ class RoutesModule {
     const pathCells = findPath(start, isExit, getCost, pack);
     if (!pathCells) return [];
     const segments = this.getRouteSegments(pathCells);
+    if (!isWater) this.rememberSurfaceSteps(segments);
     return segments;
+  }
+
+  /** Every land step the surface pass drew, so a boundary resolution can be told from a dropped cell */
+  private rememberSurfaceSteps(segments: number[][]) {
+    for (const segment of segments) {
+      for (let i = 0; i < segment.length - 1; i++) this.surfaceSteps.push([segment[i], segment[i + 1]]);
+    }
   }
 
   /**
@@ -667,6 +688,19 @@ class RoutesModule {
     const removed = removedCells ? new Set(removedCells) : undefined;
     const stale = new Set<Route>();
 
+    /** Whether one end of a record is a legitimate end: a below-level burg, or a junction */
+    const isTerminal = (route: Route, cellId: number | undefined, coverage: Map<number, number>): boolean => {
+      if (cellId === undefined || removed?.has(cellId)) return false;
+
+      const burgId = pack.cells.burg[cellId];
+      const burg = burgId ? pack.burgs[burgId] : undefined;
+      if (burg) return !burg.removed && hasBelowLevelPresence(burg);
+
+      // a junction is a cell another surviving highway runs through, so this record's own cells
+      // cannot be what makes it one
+      return (coverage.get(cellId) ?? 0) - route.points.filter(point => point[2] === cellId).length > 0;
+    };
+
     const collectStale = (): Route[] => {
       const kept = pack.routes.filter(route => route.underground && !stale.has(route));
       const coverage = new Map<number, number>(); // cell -> highways of the surviving network through it
@@ -674,23 +708,86 @@ class RoutesModule {
         for (const point of route.points) coverage.set(point[2], (coverage.get(point[2]) ?? 0) + 1);
       }
 
-      return kept.filter(route =>
-        [route.points[0]?.[2], route.points.at(-1)?.[2]].some(cellId => {
-          if (cellId === undefined) return true;
-          if (removed?.has(cellId)) return true;
-          const burgId = pack.cells.burg[cellId];
-          const burg = burgId ? pack.burgs[burgId] : undefined;
-          if (burg) return Boolean(burg.removed) || !hasBelowLevelPresence(burg); // a burg endpoint keeps its presence
-          return (coverage.get(cellId) ?? 0) <= 1; // a burgless cell lives only while the network runs through it
-        })
+      return kept.filter(
+        route =>
+          !isTerminal(route, route.points[0]?.[2], coverage) && !isTerminal(route, route.points.at(-1)?.[2], coverage)
       );
     };
 
-    for (let found = collectStale(); found.length; found = collectStale()) {
+    let found = collectStale();
+    while (found.length > 0) {
       for (const route of found) stale.add(route);
+      found = collectStale();
     }
+
     for (const route of stale) this.remove(route);
     return stale.size;
+  }
+
+  /**
+   * The service guarantee: a burg with below-level presence that shares its landmass with another
+   * such burg ends the generation on the underground network. Pruning and merging cannot promise
+   * that on their own, so a burg left out is pathed to the nearest connected peer and the stretch is
+   * appended. A burg alone on its landmass has no peer, is left unconnected, and gets nothing else.
+   */
+  repairUndergroundHighways(): number {
+    const { burgs } = pack;
+    const served = new Set<number>();
+    for (const route of pack.routes) {
+      if (!route.underground) continue;
+      for (const point of route.points) served.add(point[2]);
+    }
+
+    const belowLevel = burgs.filter((burg): burg is Burg & { feature: number } =>
+      Boolean(burg?.i && !burg.removed && hasBelowLevelPresence(burg) && burg.feature !== undefined)
+    );
+    const peers = new Map<number, Burg[]>();
+    for (const burg of belowLevel) {
+      const list = peers.get(burg.feature);
+      if (list) list.push(burg);
+      else peers.set(burg.feature, [burg]);
+    }
+
+    const orphans = belowLevel.filter(burg => !served.has(burg.cell) && (peers.get(burg.feature)?.length ?? 0) > 1);
+    if (!orphans.length) return 0;
+
+    const pointsArray = this.preparePointsArray();
+    let repairs = 0;
+
+    for (const burg of orphans) {
+      const targets = new Set(
+        peers
+          .get(burg.feature)!
+          .filter(peer => peer !== burg && served.has(peer.cell))
+          .map(peer => peer.cell)
+      );
+      if (!targets.size) continue;
+
+      const pathCells = findPath(
+        burg.cell,
+        cellId => targets.has(cellId),
+        this.getUndergroundPathCost.bind(this),
+        pack
+      );
+      if (!pathCells || pathCells.length < 2) continue;
+
+      const points = this.getPoints("roads", pathCells, pointsArray);
+      const name = this.generateName({ group: "roads", points });
+      pack.routes.push({
+        i: pack.routes.length,
+        group: "roads",
+        name,
+        feature: burg.feature,
+        points,
+        underground: true,
+        repaired: true
+      });
+      this.rememberEdges(this.undergroundConnections, pathCells);
+      for (const cell of pathCells) served.add(cell);
+      repairs++;
+    }
+
+    return repairs;
   }
 
   private preparePointsArray(): Point[] {

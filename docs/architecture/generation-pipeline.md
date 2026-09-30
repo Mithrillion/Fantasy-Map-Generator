@@ -249,6 +249,29 @@ The connectivity rule binds **generation only**. The planes are held apart by on
 after generation `pack.cells.routes` merges both networks exactly as it always merged roads, trails
 and sea routes, so traversal needs no knowledge of the marker at all.
 
+Three rules keep the split honest once the stretches are assembled:
+
+- **The boundary rule.** A stretch begins and ends on a legitimate cell only: one with no burg, or a
+  burg of the stretch's own plane. A segment boundary that would fall on the other plane's burg cell
+  steps one cell further into the already-covered stretch (`getSegments` in
+  [`routes-generator.ts`](../../src/generators/routes-generator.ts)), which duplicates a step of the
+  covering record rather than dropping a cell of the path. `isLegitimateBoundary` in
+  [`plane-integrity.ts`](../../src/generators/plane-integrity.ts) is the shared predicate.
+- **The junction-aware prune.** `Routes.pruneUndergroundHighways()` drops a record only when neither
+  end is a below-level burg and neither end is a junction another surviving underground highway runs
+  through. A boundary cell carrying a surface burg is therefore kept while something continues through
+  it, so a prune can no longer disconnect the burgs the record carried in its middle.
+- **The service repair.** `Routes.repairUndergroundHighways()` runs after the prune: every burg with
+  below-level presence that shares its landmass with another such burg and has no underground link is
+  pathed to the nearest connected peer with the production tunnel cost, and the stretch is appended
+  with `repaired: true`. A burg alone on its landmass is left unconnected and gets nothing else.
+
+`auditPlanes` reports the whole state of a generated map — census, boundary classification, per-plane
+connections, contact and violations — and the real-map test
+[`plane-integrity.dom.test.ts`](../../src/generators/plane-integrity.dom.test.ts) asserts a
+violation-free report over a fixed seed set, so a drift in any of the three rules is visible rather
+than silent.
+
 | Path     | What happens to the underground content                                                                                                                                    |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Erase    | Free: `ErasePipeline` runs the same `burgs` and `routes` steps, so marking and the builder run again for the new burgs                                                      |
@@ -258,7 +281,8 @@ and sea routes, so traversal needs no knowledge of the marker at all.
 
 Regenerating burgs or routes re-runs marking and the builder; locked burgs and locked routes carry
 their flags through, and `Routes.pruneUndergroundHighways()` drops any highway that outlives the
-burg it ends at.
+burg it ends at. Editing preserves the plane: splitting an underground highway yields two underground
+highways, and joining a surface route to a tunnel is refused rather than re-flagging one of them.
 
 ## The grid modules
 

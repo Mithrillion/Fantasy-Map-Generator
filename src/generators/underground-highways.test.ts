@@ -4,6 +4,7 @@ import { isLand } from "../utils";
 import { findPath } from "../utils/pathUtils";
 import { getClassification, hasBelowLevelPresence, hasGroundLevelPresence } from "./burg-classification";
 import type { Burg } from "./burgs-generator";
+import { auditPlanes, isLegitimateBoundary } from "./plane-integrity";
 import type { Route } from "./routes-generator";
 
 /**
@@ -398,37 +399,41 @@ describe("underground highways", () => {
     Routes.generate([pinned], 1);
     const highways = undergroundRoutes();
     expect(highways.length).toBeGreaterThan(1); // the pinned tunnel plus what generation joined to it
-    expect(highways.some(route => route !== pinned && endpoints(route).includes(junction))).toBe(true);
+    // the generated route crosses the junction, so the two stretches are one network, not two records
+    expect(highways.some(route => route !== pinned && route.points.some(([, , cell]) => cell === junction))).toBe(true);
 
     const steps = highways.flatMap(route =>
       route.points.slice(0, -1).map((point, index) => `${point[2]}-${route.points[index + 1][2]}`)
     );
-    expect(new Set(steps).size).toBe(steps.length); // the shared stretch is laid once, not twice
+    const laid = steps.filter((step, index) => steps.indexOf(step) !== index);
+    // the only step laid twice is the one a boundary resolution took over from the pinned stretch
+    expect(new Set(laid)).toEqual(new Set([`${cellAt(1, 1)}-${junction}`]));
   });
 
   it("drops a highway whose endpoint burg is removed", () => {
-    generate();
-    const highway = undergroundRoutes()[0];
-    const [start, end] = endpoints(highway);
-    const burgId = pack.cells.burg[start];
+    // a pinned highway from Deephold's cell to a burgless one: the burg is what it ends at
+    const burgCell = (pack.burgs[1] as Burg).cell;
+    const highway = handHighway(7, [burgCell, cellAt(0, 5)]);
+    pack.routes = [highway];
+    const burgId = pack.cells.burg[burgCell];
 
     Burgs.remove(burgId);
 
     expect(pack.routes.some(route => route.i === highway.i)).toBe(false);
-    expect(pack.cells.routes[start]?.[end]).toBeUndefined();
+    expect(pack.cells.h[cellAt(0, 5)]).toBeGreaterThanOrEqual(20);
   });
 
   it("drops a highway whose endpoint burg loses its classification", () => {
-    generate();
-    const highway = undergroundRoutes()[0];
-    const [start, end] = endpoints(highway);
+    const deephold = (pack.burgs[1] as Burg).cell;
+    const stub = handHighway(7, [deephold, cellAt(0, 1)]);
+    pack.routes.push(stub);
 
-    delete pack.burgs[pack.cells.burg[start]].underground;
-    delete pack.burgs[pack.cells.burg[start]].subterranean;
+    delete pack.burgs[pack.cells.burg[deephold]].underground;
+    delete pack.burgs[pack.cells.burg[deephold]].subterranean;
 
     expect(Routes.pruneUndergroundHighways()).toBeGreaterThan(0);
-    expect(pack.routes.some(route => route.i === highway.i)).toBe(false);
-    expect(pack.cells.h[end]).toBeGreaterThanOrEqual(20);
+    expect(pack.routes.some(route => route.i === stub.i)).toBe(false);
+    expect(pack.cells.h[cellAt(0, 1)]).toBeGreaterThanOrEqual(20);
   });
 
   it("keeps a highway that ends at a network junction instead of a burg", () => {
@@ -461,7 +466,9 @@ describe("underground highways", () => {
     delete (pack.cells as { routes?: unknown }).routes; // a fresh generation prunes before buildLinks
 
     expect(() => Routes.pruneUndergroundHighways()).not.toThrow();
-    expect(pack.routes.some(route => route.i === 1)).toBe(false);
+    // the junction cell keeps the whole network: both trunks reach it and the spur runs through, so
+    // nothing that hung on the lost burg is silently dropped with it
+    expect(pack.routes.some(route => route.i === 1)).toBe(true);
     expect(pack.routes.some(route => route.i === 2)).toBe(true);
     expect(pack.routes.some(route => route.i === 3)).toBe(true);
   });
@@ -478,6 +485,200 @@ describe("underground highways", () => {
     generate();
 
     expect(undergroundRoutes().every(route => route.points.every(([, , cell]) => pack.cells.f[cell] === 1))).toBe(true);
+  });
+
+  // The boundary rule: a stretch may begin or end on a cell with no burg or with a burg of its own
+  // plane. A mismatched burg cell is stepped over into the already-covered stretch, so a step is
+  // duplicated rather than any cell of the path being dropped.
+  describe("boundary rule", () => {
+    /** above the ids generation hands out in this fixture, so a pinned route is never removed by id */
+    let nextPinnedId = 900;
+
+    /** a new burg on a cell that has none, so both planes can be placed deliberately */
+    const burgAt = (cell: number, underground: boolean) => {
+      const i = pack.burgs.length;
+      pack.burgs.push({
+        i,
+        cell,
+        x: pack.cells.p[cell][0],
+        y: pack.cells.p[cell][1],
+        feature: 1,
+        capital: 0,
+        ...(underground ? { underground: true } : {})
+      } as Burg);
+      pack.cells.burg[cell] = i;
+      return i;
+    };
+
+    const pinned = (cells: number[]) => handHighway(nextPinnedId++, cells);
+
+    const mismatchedBoundaries = (plane: "surface" | "underground") =>
+      pack.routes
+        .filter(route => Boolean(route.underground) === (plane === "underground"))
+        .flatMap(route => endpoints(route).map(cell => ({ route, cell })))
+        .filter(({ cell }) => !isLegitimateBoundary(pack, cell, plane));
+
+    const touches = (cell: number) =>
+      undergroundRoutes().some(route => route.points.some(([, , pointCell]) => pointCell === cell));
+
+    /**
+     * A surface burg sits on the gateway cell into Twinhall: the locked highway ends there from the
+     * east, and the tunnel from Deephold reaches it from the west, so a stretch boundary lands on it.
+     */
+    const surfaceGatewayFixture = () => {
+      const gateway = cellAt(1, 2);
+      const deep = (pack.burgs[1] as Burg).cell;
+      const twinhall = (pack.burgs[2] as Burg).cell;
+      burgAt(gateway, false);
+      pack.cells.h[cellAt(0, 1)] = 21;
+      pack.cells.h[cellAt(0, 2)] = 21;
+      return { gateway, deep, twinhall };
+    };
+
+    it("never begins or ends an underground highway on a surface burg's cell", () => {
+      const { gateway, deep, twinhall } = surfaceGatewayFixture();
+      Routes.generate([pinned([twinhall, cellAt(2, 2)])], 1);
+
+      // the pair is bridged, and the bridge crosses the gateway rather than ending on it
+      expect(touches(deep)).toBe(true);
+      expect(touches(gateway)).toBe(true);
+      expect(mismatchedBoundaries("underground")).toEqual([]);
+    });
+
+    it("keeps a stretch whose junction sits on a surface burg's cell", () => {
+      const { gateway, deep, twinhall } = surfaceGatewayFixture();
+      Routes.generate([pinned([twinhall, cellAt(2, 2)])], 1);
+
+      // the below-level burgs stay connected, across a junction cell that is crossed and not ended on
+      expect(touches(deep)).toBe(true);
+      expect(touches(twinhall)).toBe(true);
+      expect(undergroundRoutes().some(route => route.points.some(([, , cell]) => cell === gateway))).toBe(true);
+      expect(undergroundRoutes().some(route => endpoints(route).some(cell => cell === gateway))).toBe(false);
+    });
+
+    it("keeps a highway whose boundary is a junction, so an interior burg stays connected", () => {
+      const junction = cellAt(1, 2);
+      const interior = burgAt(cellAt(1, 1), true);
+      // the chain carrying the interior burg ends on the cell the other chain crosses
+      pack.routes = [pinned([cellAt(0, 1), junction, cellAt(1, 1)]), pinned([cellAt(0, 2), junction, cellAt(1, 2)])];
+      burgAt(cellAt(0, 1), true);
+      burgAt(cellAt(0, 2), true);
+      burgAt(cellAt(1, 2), true);
+
+      expect(Routes.pruneUndergroundHighways()).toBe(0);
+      expect(pack.routes).toHaveLength(2);
+      expect(endpoints(pack.routes[1]).includes(junction)).toBe(true);
+      expect(pack.routes.some(route => route.points.some(([, , cell]) => cell === pack.burgs[interior].cell))).toBe(
+        true
+      );
+    });
+
+    it("keeps a highway whose boundary carries a surface burg, so an interior burg stays connected", () => {
+      const junction = cellAt(1, 2);
+      const surfaceOnly = burgAt(junction, false);
+      const interior = burgAt(cellAt(1, 1), true);
+      // the second chain ends on the junction cell the first one continues through
+      pack.routes = [pinned([cellAt(2, 2), junction, cellAt(1, 1)]), pinned([cellAt(0, 2), junction])];
+      burgAt(cellAt(2, 2), true);
+      burgAt(cellAt(0, 2), true);
+
+      expect(pack.burgs[surfaceOnly].cell).toBe(junction);
+      expect(Routes.pruneUndergroundHighways()).toBe(0);
+      expect(pack.routes).toHaveLength(2);
+      expect(endpoints(pack.routes[1]).includes(junction)).toBe(true);
+      expect(pack.routes.some(route => route.points.some(([, , cell]) => cell === pack.burgs[interior].cell))).toBe(
+        true
+      );
+    });
+
+    it("reconnects a burg the network left out", () => {
+      // two below-level burgs on the left landmass and no surface burg anywhere: the pair is all the
+      // underground pass can connect, and nothing else can stand in for it
+      pack.burgs = [0] as unknown as typeof pack.burgs;
+      pack.cells.burg = new Uint16Array(CELL_COUNT);
+      const start = cellAt(1, 1);
+      const exit = cellAt(2, 2);
+      burgAt(start, true);
+      burgAt(exit, true);
+
+      // every step of their path counts as already covered, so the pass leaves at least one out
+      const path = findPath(start, cell => cell === exit, Routes.getUndergroundPathCost.bind(Routes), pack as never)!;
+      (Routes as unknown as { undergroundConnections: Set<string> }).undergroundConnections = new Set(
+        path.flatMap((cell, index) => (path[index + 1] === undefined ? [] : [`${cell}-${path[index + 1]}`]))
+      );
+
+      generate();
+
+      // the service pass serves both, and never leaves the landmass the pair sits on
+      expect(touches(exit)).toBe(true);
+      expect(touches(start)).toBe(true);
+      expect(undergroundRoutes().every(route => route.points.every(([, , cell]) => pack.cells.f[cell] === 1))).toBe(
+        true
+      );
+
+      const report = auditPlanes(pack, pack.routes);
+      expect(report.violations.filter(violation => violation.rule === "service")).toEqual([]);
+      expect(report.connections.underground.includes(start)).toBe(true);
+      expect(report.connections.underground.includes(exit)).toBe(true);
+    });
+
+    it("leaves a lone below-level burg unconnected, and does not hand it a surface route", () => {
+      // burg 4 is the only below-level burg of the right landmass; the left keeps its own
+      const lone = pack.burgs[4] as Burg;
+      pack.burgs[5] = 0 as unknown as Burg;
+      pack.cells.burg[cellAt(1, 6)] = 0;
+
+      generate();
+
+      expect(touches(lone.cell)).toBe(false);
+      for (const route of pack.routes.filter(route => !route.underground)) {
+        expect(endpoints(route).includes(lone.cell)).toBe(false);
+      }
+
+      const report = auditPlanes(pack, pack.routes);
+      expect(report.unconnectable.includes(lone.i)).toBe(true);
+      expect(report.violations).toEqual([]);
+    });
+
+    it("never begins or ends a surface record at a fully subterranean burg", () => {
+      // burgs 1 and 2 are below-level, so the tunnel they draw runs across burg 1's own cell
+      const classified = (pack.burgs[1] as Burg).cell;
+      generate();
+
+      expect(pack.routes.some(route => route.points.some(([, , cell]) => cell === classified))).toBe(true);
+      expect(mismatchedBoundaries("surface")).toEqual([]);
+    });
+
+    it("keeps every cell of a surface path when the boundary moves", () => {
+      const classified = (pack.burgs[1] as Burg).cell;
+      generate();
+
+      const surfaceCells = new Set(
+        pack.routes.filter(route => !route.underground).flatMap(route => route.points.map(point => point[2]))
+      );
+      expect(surfaceCells.has(classified)).toBe(true);
+
+      // every step the surface pass emitted is still drawn: the resolution duplicated, never dropped
+      const steps = new Set(
+        pack.routes
+          .filter(route => !route.underground)
+          .flatMap(route =>
+            route.points.slice(0, -1).map((point, index) => `${point[2]}-${route.points[index + 1][2]}`)
+          )
+      );
+      for (const [from, to] of Routes.surfaceSteps) expect(steps.has(`${from}-${to}`)).toBe(true);
+    });
+
+    it("does not move the surface network", () => {
+      const classified = (pack.burgs[1] as Burg).cell;
+      const from = classified - COLUMNS;
+      generate();
+
+      // pathfinding is untouched: a burg cell still costs a third of a plain one
+      const burgStep = Routes.getLandPathCost(from, classified);
+      pack.cells.burg[classified] = 0;
+      expect(Routes.getLandPathCost(from, classified)).toBeCloseTo(burgStep * 3, 5);
+    });
   });
 
   it("runs on both pipelines: the steps that mark and build are in each step list", async () => {

@@ -241,23 +241,12 @@ function handleControlPointClick(this: any): void {
   else removeControlPoint(controlPoint);
 
   function splitRoute(): void {
-    const oldRoutePoints = route.points.slice(0, index + 1);
-    const newRoutePoints = route.points.slice(index);
-
+    const newRoute = splitRouteRecord(route, index);
     // update old route
-    route.points = oldRoutePoints;
     drawControlPoints(route.points);
     drawCells(route.points);
     redrawRoute(route);
 
-    // create new route
-    const newRoute = {
-      i: Routes.getNextId(),
-      group: route.group,
-      feature: route.feature,
-      name: route.name,
-      points: newRoutePoints
-    } as Route;
     pack.routes.push(newRoute);
 
     for (let i = 0; i < newRoute.points.length; i++) {
@@ -296,6 +285,7 @@ function openJoinRoutesDialog(): void {
   const candidateRoutes = pack.routes.filter((r: Route) => {
     if (r.i === route.i) return false;
     if (r.group !== route.group) return false;
+    if (Boolean(r.underground) !== Boolean(route.underground)) return false; // a plane is never re-flagged
     if (r.points.at(0)![2] === lastCell) return true;
     if (r.points.at(-1)![2] === firstCell) return true;
     if (r.points.at(0)![2] === firstCell) return true;
@@ -325,7 +315,10 @@ function openJoinRoutesDialog(): void {
         Join: () => {
           const selectedRouteId = +alertMessage.querySelector("select")!.value;
           const selectedRoute = pack.routes.find((r: Route) => r.i === selectedRouteId) as Route;
-          joinRoutes(route, selectedRoute);
+          if (!joinRoutes(route, selectedRoute)) {
+            tip("A surface route and an underground highway cannot be joined", false, "error", 4000);
+            return;
+          }
           tip("Routes joined", false, "success", 5000);
           $("#alert").dialog("close");
         }
@@ -336,10 +329,9 @@ function openJoinRoutesDialog(): void {
   }
 }
 
-function joinRoutes(route: Route, joinedRoute: Route): void {
-  const mergedPoints = mergeRoutePoints(route.points, joinedRoute.points);
-  if (!mergedPoints) return;
-  route.points = mergedPoints;
+function joinRoutes(route: Route, joinedRoute: Route): boolean {
+  if (!canJoinRoutes(route, joinedRoute)) return false;
+  route.points = mergeRoutePoints(route.points, joinedRoute.points)!;
 
   for (let i = 0; i < route.points.length; i++) {
     const point = route.points[i];
@@ -352,6 +344,31 @@ function joinRoutes(route: Route, joinedRoute: Route): void {
   drawControlPoints(route.points);
   redrawRoute(route);
   drawCells(route.points);
+  return true;
+}
+
+/**
+ * Cuts `route` at `index` and returns the far half as a new record, moving the geometry in place:
+ * both halves share the split cell, and their concatenation is the original point list.
+ */
+export function splitRouteRecord(route: Route, index: number): Route {
+  const newRoute = {
+    i: Routes.getNextId(),
+    group: route.group,
+    feature: route.feature,
+    name: route.name,
+    ...(route.underground ? { underground: true } : {}),
+    points: route.points.slice(index)
+  } as Route;
+  route.points = route.points.slice(0, index + 1);
+
+  return newRoute;
+}
+
+/** A join is possible only between records of the same plane: the opened record's plane must not win */
+export function canJoinRoutes(route: Route, joined: Route): boolean {
+  if (Boolean(route.underground) !== Boolean(joined.underground)) return false;
+  return mergeRoutePoints(route.points, joined.points) !== null;
 }
 
 export function mergeRoutePoints(routePoints: number[][], joinedPoints: number[][]): number[][] | null {
