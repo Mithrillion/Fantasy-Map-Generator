@@ -17,6 +17,7 @@ import "@/components/options-model"; // installs the `options` global in browser
 import { hasBelowLevelPresence } from "./burg-classification";
 import "./index";
 import { GenerationPipeline } from "./generation-pipeline";
+import { auditPlanes } from "./plane-integrity";
 
 type Point = [number, number];
 type CellRoute = { points: number[][]; underground?: boolean };
@@ -479,6 +480,38 @@ function measure(chains: number[][], surface: SurfaceIndex, landSurface: Surface
     }
   }
 
+  // the complaint's own metrics, read through the production audit from this variant's chains
+  const contact = auditPlanes(
+    pack,
+    chains.map((cells, index) => ({
+      i: index,
+      group: "roads",
+      feature: 0,
+      underground: true,
+      points: cells.map(cell => [...pack.cells.p[cell], cell])
+    })) as never
+  ).contact;
+
+  // supporting detail: the multi-record cells split by what sits on them, because the complaint is
+  // a surface-only burg acting as the network's crossroads
+  const recordsByCell = new Map<number, Set<number>>();
+  chains.forEach((chain, index) => {
+    for (const cell of new Set(chain)) {
+      const records = recordsByCell.get(cell);
+      if (records) records.add(index);
+      else recordsByCell.set(cell, new Set([index]));
+    }
+  });
+  const hubs = { surfaceOnly: 0, dualIdentity: 0, other: 0 };
+  for (const [cell, records] of recordsByCell) {
+    if (records.size < 2) continue;
+    const burgId = pack.cells.burg[cell];
+    const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+    if (!burg || burg.removed || burg.underground) hubs.other++;
+    else if (burg.subterranean) hubs.dualIdentity++;
+    else hubs.surfaceOnly++;
+  }
+
   return {
     routes: chains.length,
     cells: cells.size,
@@ -494,6 +527,12 @@ function measure(chains: number[][], surface: SurfaceIndex, landSurface: Surface
     burgsServed: served.size,
     burgsTotal: subterraneanCells.size,
     medianRoadDistance: cells.size ? distanceSum / cells.size : 0,
+    surfaceOnlyContact: contact.tunnelsOnSurfaceOnlyBurgs,
+    dualIdentityContact: contact.tunnelsOnDualIdentityBurgs,
+    multiRecordCells: contact.tunnelCellsWithMultipleRecords,
+    surfaceOnlyHubs: hubs.surfaceOnly,
+    dualIdentityHubs: hubs.dualIdentity,
+    otherHubs: hubs.other,
     histogram
   };
 }
@@ -651,6 +690,22 @@ it("measures underground alignment variants", { timeout: 3_600_000 }, async () =
           })
       ],
       [
+        // rung 3's reverse control: production (plane-aware as of 2026-09-30) with the plane-blind
+        // burg term forced back on, so a paired run gets both arms on one build
+        "force-production-back-to-plane-blind",
+        () =>
+          runPairs(pairs.production, () => (current, next) => {
+            const base = Routes.getUndergroundPathCost(current, next);
+            if (base === Infinity) return Infinity;
+            const burgId = pack.cells.burg[next];
+            const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+            const served = Boolean(burg && !burg.removed && hasBelowLevelPresence(burg as never));
+            const planeAwareFactor = served ? 1 : 2; // what production pays on this cell
+            const planeBlindFactor = burgId ? 1 : 2; // every burg cell attracted before the rung
+            return (base / planeAwareFactor) * planeBlindFactor;
+          })
+      ],
+      [
         "road-repulsion",
         () =>
           runPairs(pairs.production, () => (current, next) => {
@@ -709,6 +764,12 @@ it("measures underground alignment variants", { timeout: 3_600_000 }, async () =
           alongEdge: round(row.alongEdge),
           bandShare: round(row.bandShare),
           medianRoadDistance: round(row.medianRoadDistance, 2),
+          surfaceOnlyContact: row.surfaceOnlyContact,
+          dualIdentityContact: row.dualIdentityContact,
+          multiRecordCells: row.multiRecordCells,
+          surfaceOnlyHubs: row.surfaceOnlyHubs,
+          dualIdentityHubs: row.dualIdentityHubs,
+          otherHubs: row.otherHubs,
           bandByEndpointKind: row.bandByEndpointKind,
           histogram: row.histogram,
           burgsServed: row.burgsServed
@@ -745,6 +806,12 @@ it("measures underground alignment variants", { timeout: 3_600_000 }, async () =
       lengthOverlap: round(mean(subset.map(row => row.lengthOverlap as number))),
       bandShare: round(mean(subset.map(row => row.bandShare as number))),
       medianRoadDistance: round(mean(subset.map(row => row.medianRoadDistance as number)), 2),
+      surfaceOnlyContact: round(mean(subset.map(row => row.surfaceOnlyContact as number)), 1),
+      dualIdentityContact: round(mean(subset.map(row => row.dualIdentityContact as number)), 1),
+      multiRecordCells: round(mean(subset.map(row => row.multiRecordCells as number)), 1),
+      surfaceOnlyHubs: round(mean(subset.map(row => row.surfaceOnlyHubs as number)), 1),
+      dualIdentityHubs: round(mean(subset.map(row => row.dualIdentityHubs as number)), 1),
+      otherHubs: round(mean(subset.map(row => row.otherHubs as number)), 1),
       cells: Math.round(mean(subset.map(row => row.cells as number))),
       routes: Math.round(mean(subset.map(row => row.routes as number))),
       length: Math.round(mean(subset.map(row => row.length as number))),

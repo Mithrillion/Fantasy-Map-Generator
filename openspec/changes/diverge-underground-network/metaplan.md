@@ -68,15 +68,16 @@ Children:
 - CH3 topology sparsification — superseded (D14); CH4 display separation — superseded (D15).
 - CH5 `weaken-underground-burg-attraction` (semi-test-driven) — **rung 2 shipped 2026-09-30**, 17/17,
   valid, not archived; `skip_specs` (no requirement text mentions the term).
-- CH6 `plane-aware-burg-attraction` (semi-test-driven) — **rung 3, opened 2026-09-30** (D17); proposal
-  written, specs/design/test-design/tasks pending. The user's pass-under and hub report is F7.1.
+- CH6 `plane-aware-burg-attraction` (semi-test-driven) — **rung 3 shipped 2026-09-30**, 36/36, valid, not
+  archived; the split contact metric landed and the plane-aware attraction is adopted (F7.2). The user's
+  pass-under and hub report is F7.1.
 
-Next session must know: the ladder is **open, not finished** — rung 3 is now the **plane-aware burg
-attraction** (CH6, neutralize first; repulsion is the pre-authorized escalation, D17), measured against
-**0.516**. The split contact metric must land before rung 3 can gate anything (F7.1: `auditPlanes` counts
-dual-identity burg cells together with surface-only ones). CH5's evidence is its `verification.md` and
-`measure/rung2-production.log`; the paired control reproduced the pre-rung baseline exactly. Re-measure
-paired, never inherit a length figure (F6.1).
+Next session must know: the ladder is **open, not finished** — the floor is **0.430** (was 0.516). The
+neutralize rung halved settlement contact and thinned the settlement crossroads, but moved the crossings
+onto plain cells (multi-record cells +4.2, none of it on settlements) — that residual is the live question
+and repulsion is still the pre-authorized escalation (D17). Rung 4 is endpoint gates (H3, re-ordered by
+D17). CH6's evidence is its `verification.md` and `measure/rung3-paired.log`; its reverse control
+reproduced CH5's shipped rung-2 column exactly. Re-measure paired, never inherit a length figure (F6.1).
 
 ## Findings
 
@@ -219,6 +220,22 @@ Full table in `child-log.md`. Means over 8 seeds:
 - Metric gap: `auditPlanes` contact counts dual-identity burgs together with surface-only ones (`hasGroundLevelPresence`), so the standing gate cannot separate legal endpoint contact from the complaint; tunnel *ends* on surface-only burgs measured 0.
 - User ruling 2026-09-30: neutralize first (surface-only burg cells priced as plain), escalate to repulsion only if contact stays high.
 
+### F7.2 — Rung 3 landed: overlap 0.516 → 0.430, pass-under halved, and the hubs moved off settlements (tasks CH6 4.1-4.4, 2026-09-30; CH6, rung 4)
+
+- Paired 8 seeds on one build: production (plane-aware) **0.430** against the plane-blind reverse control
+  **0.516** — every seed improves (−0.072 to −0.107), length ×0.997 mean (worst ×1.020), exact-edge
+  0.243 → 0.149, corridor distance 0.61 → 0.72, service 0.996 → 0.994. The control reproduced CH5's
+  shipped rung-2 column exactly, so the delta is the rung's, not build drift.
+- The complaint fell on every seed: tunnels on surface-only burg cells 127 → **72** mean (41-90 per seed
+  against 90-146); multi-record cells that are surface-only burg cells 13.1 → **8.9**, never worse.
+- Residual, recorded not adopted away: the **global** multi-record figure rose 92.6 → 96.9 (+4.2 mean, up
+  on 7 of 8 seeds) and the whole rise is plain/fully subterranean cells (52.1 → 61.5); dual-identity hubs
+  are flat (26.6 → 26.5). Adopted with the residual on the user's 2026-09-30 ruling (D13), with tasks
+  4.4's global-hub clause recorded as failed by the metric; repulsion stays pre-authorized (D17).
+- Planes: zero violations and `repairs=0` on all 8 seeds, the `PLANES` lines carrying the split figures.
+  Tests 1300 → 1308; the gateway fixture gained a glacier so the junction scenarios stay exercisable
+  (`verification.md`, "Deliberate deviations").
+
 ## Decisions
 
 <!-- APPEND-ONLY, <= ~3 lines per entry. Child-scoped rulings are one-liners here only. -->
@@ -239,7 +256,7 @@ Full table in `child-log.md`. Means over 8 seeds:
 - **D14 — The underground plane is the same settlements seen through a second set of connections, not a distinct geography.** Binds: CH3 (superseded), the endpoint rule. Some burgs carry both above-ground and underground connections (dual identity), others are entirely underground; the underground network keeps connecting exactly these burgs, so the pair set is not a free variable and F1.5's structural floor stands. Text of record: user ruling 2026-09-29 (verbatim: "some burgs have both above-ground and underground connections while some others are entirely underground"). Status: binding.
 - **D15 — Styling is not the problem; display separation is dropped as a child.** Binds: CH4 (superseded), `tasks.md` 3.4. The tunnel style is already distinct (F4.2); the objective is the generated geometry, so no display-only child will be created. Text of record: user ruling 2026-09-29 (verbatim: "styling is not the issue"). Status: binding.
 - **D16 — Ladder: rung 1 is the surface-repulsion term, rung 2 weakens the burg attraction, rung 3 adds endpoint gates.** Binds: CH2 and its successors. Rationale: F3.2s — repulsion gives −14.8 points for ×1.08 length (best per unit), the burg term −13.1 for ×1.19 (spec-clean), gates −8.6 for ×1.15 (and ×1.34 worst seed). Rung 1 therefore buys the spec delta (F1.8) in exchange for the least network growth. Text of record: F3.2s (agent-inferred 2026-09-29; the user may reorder). Status: binding — rung 3 slot **[superseded by D17, 2026-09-30]**; rungs 1-2 stand.
-- **D17 — Rung 3 is the plane-aware burg attraction: below-level burgs keep the pull, surface-only burg cells are priced as plain cells; repulsion is the pre-authorized escalation; endpoint gates move to rung 4.** Binds: CH6, the ladder order (amends D16). Evidence: F7.1. Text of record: user ruling 2026-09-30 (exploration choice: "Neutralize first, escalate if needed"). Status: binding.
+- **D17 — Rung 3 is the plane-aware burg attraction: below-level burgs keep the pull, surface-only burg cells are priced as plain cells; repulsion is the pre-authorized escalation; endpoint gates move to rung 4.** Binds: CH6, the ladder order (amends D16). Evidence: F7.1. Text of record: user ruling 2026-09-30 (exploration choice: "Neutralize first, escalate if needed"). Status: binding — rung 3 measured and adopted 2026-09-30 (F7.2); repulsion not triggered, still pre-authorized.
 
 ## Architecture
 
@@ -257,9 +274,9 @@ burgs ── hasBelowLevelPresence ──> Urquhart per landmass ──> findPat
                                     segments ── merge ── getPoints ── prune ── pack.routes
 ```
 
-The cost line above is the CH1 snapshot. Rung 2 set the attraction to 2 (F6.1); rung 3 makes it
-plane-aware — a below-level burg keeps the pull, a surface-only burg cell prices as a plain cell
-(F7.1, D17).
+The cost line above is the CH1 snapshot. Rung 2 set the attraction to 2 (F6.1); rung 3 made it
+plane-aware and shipped 2026-09-30 — a below-level burg keeps the pull, a surface-only burg cell prices as
+a plain cell (F7.1, F7.2).
 
 Alignment budget over 8 seeds (overlap 0.708 total): geometry of the pair set ~0.587; the burg
 attraction +0.135; the terrain preference −0.016. Everything else measured (topology, smoothing,
@@ -315,15 +332,16 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
   Pointers: the change's `verification.md`, `measure/rung2-production.log`, `measure/plane-audit.log`;
   this file's F6.1, F7.1, H2, H3.
 
-- [ ] 6. **CH6 — `plane-aware-burg-attraction`** (schema: `semi-test-driven`; **rung 3, D17**) — opened 2026-09-30.
-  Scope: `getUndergroundPathCost`'s burg term becomes plane-aware — a below-level burg keeps the attraction,
-  a surface-only burg cell prices as a plain cell (neutralize); the audit's contact report splits
-  surface-only from dual-identity burg cells and counts multi-tunnel cells, so pass-under and hubs both gate.
-  Deltas: `underground-highways` (the attraction is not lowered by a ground-level-only burg) and
-  `plane-integrity-audit` (the split contact report). Gate: 8-seed paired protocol vs **0.516** — split
-  contact and hub cells down on every seed, zero plane violations, service intact; length recorded as a
-  trade-off (D13). Escalation: repulsion only if neutralize underdelivers (D17). Proposal written
-  2026-09-30; specs/design/test-design/tasks pending.
+- [x] 6. **CH6 — `plane-aware-burg-attraction`** (schema: `semi-test-driven`; **rung 3, D17**) — **shipped 2026-09-30**, 36/36, valid, not archived.
+  Delivered: the burg term in `getUndergroundPathCost` made plane-aware (a below-level burg keeps the pull,
+  a surface-only or missing/removed record prices as plain, the surface cost untouched); `PlaneReport.contact`
+  split into surface-only / dual-identity plus multi-record cells, each figure printed; doc updated; 8 tests.
+  Outcome (paired 8 seeds, one build): **overlap 0.516 → 0.430 (−0.086, every seed improves), surface-only
+  contact 127 → 72, settlement crossroads 13.1 → 8.9, length ×0.997 / worst ×1.020**; the reverse control
+  reproduced CH5's column exactly. Plane audit: zero violations, `repairs=0`.
+  Residual: the global multi-record figure rose 92.6 → 96.9, all of it plain-cell crossings — left to
+  repulsion (D17) rather than adopted away. Unblocks rung 4 (endpoint gates, H3) from a floor of **0.430**.
+  Pointers: the change's `verification.md`, `measure/rung3-paired.log`, `measure/plane-audit.log`; F7.2.
 
 - [ ] 3. **CH3 — topology sparsification** (schema: `spec-driven`; **superseded by D14**).
   Superseded 2026-09-29: the user ruled the underground network keeps connecting the same burgs, so the
@@ -341,6 +359,7 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
 - `harness/underground-measure.dom.test.ts.txt` — the measuring instrument for every rung (H6); `harness/*.log` the rung-1 raw output. Cited by: F1.1-F4.3, F3.2s, H6, F5.1.
 - `openspec/changes/archive/2026-09-29-underground-highways-avoid-surface-corridors/` — CH2's full record (rung 1). Cited by: H1, CH2 checklist entry.
 - `openspec/changes/archive/2026-09-30-harden-underground-plane-integrity/` — the plane-hardening change and its `verification.md` (per-seed audit table, mutation check, pass-under measurement). Cited by: F5.1, CH5 gate.
+- `openspec/changes/plane-aware-burg-attraction/` — CH6's full record (rung 3): `verification.md`, `measure/rung3-paired.log`, `measure/plane-audit.log`. Cited by: F7.2, CH6 checklist entry.
 - Lifecycle note: this metaplan was archived with CH2 on 2026-09-29 by mistake and restored to `openspec/changes/diverge-underground-network` on 2026-09-30, before CH5 was authored. The archive holds only finished children.
 
 ## Handover
@@ -358,7 +377,7 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
 - Source: measurement + user ruling · opened 2026-09-29 from the ladder sweep (`child-log.md`, F3.2s); shipped 2026-09-30 as `weaken-underground-burg-attraction`.
 - Result: paired 8 seeds on one build, production **0.516** against the attraction-3 control **0.561** — every seed improves, exact-edge 0.297 → 0.243, corridor distance 0.56 → 0.62, length **×0.956** (worst ×1.002), served 0.737 → 0.733. The control reproduced the pre-rung baseline exactly, so the delta is the rung's. Plane audit: zero violations, `repairs=0`, contact down.
 - Correction of record: the archived ladder predicted ×1.142 length for factor 2; on the post-hardening build it is ×0.956. The plane-hardening change altered the segments in between, so **length figures do not carry across a build change** — re-measure paired (F6.1).
-- Binds / suggests for next cycle: the next rung is measured against **0.516**, not 0.560. **[Re-ordered by D17, 2026-09-30: rung 3 is the plane-aware attraction (F7.1, CH6); endpoint gates (H3) move to rung 4.]**
+- Binds / suggests for next cycle: the next rung is measured against **0.516**, not 0.560. **[Re-ordered by D17, 2026-09-30: rung 3 is the plane-aware attraction (F7.1, CH6); endpoint gates (H3) move to rung 4.]** **[Measured 2026-09-30: rung 3 landed at 0.430 (F7.2) — the floor for rung 4 is 0.430.]**
 
 ### H3 — Rung 4 (re-ordered from 3 by D17, 2026-09-30): endpoint gate divergence — expect ~0.50 overlap at ~×1.12, spec-clean
 
