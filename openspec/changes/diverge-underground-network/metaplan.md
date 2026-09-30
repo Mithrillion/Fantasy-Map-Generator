@@ -68,13 +68,15 @@ Children:
 - CH3 topology sparsification — superseded (D14); CH4 display separation — superseded (D15).
 - CH5 `weaken-underground-burg-attraction` (semi-test-driven) — **rung 2 shipped 2026-09-30**, 17/17,
   valid, not archived; `skip_specs` (no requirement text mentions the term).
+- CH6 `plane-aware-burg-attraction` (semi-test-driven) — **rung 3, opened 2026-09-30** (D17); proposal
+  written, specs/design/test-design/tasks pending. The user's pass-under and hub report is F7.1.
 
-Next session must know: the ladder is **open, not finished** — rung 3 (endpoint gates, H3) is the next
-lever if the user wants more, measured against **0.516** now. CH5's evidence is its `verification.md` and
-`measure/rung2-production.log`; the paired control reproduced the pre-rung baseline exactly, so the delta
-is attributable. One correction to the ladder's numbers: the archived ×1.142 length prediction for factor
-2 did **not** hold (measured ×0.956) because the plane-hardening change altered the segments in between —
-re-measure paired, never inherit a length figure (F6.1).
+Next session must know: the ladder is **open, not finished** — rung 3 is now the **plane-aware burg
+attraction** (CH6, neutralize first; repulsion is the pre-authorized escalation, D17), measured against
+**0.516**. The split contact metric must land before rung 3 can gate anything (F7.1: `auditPlanes` counts
+dual-identity burg cells together with surface-only ones). CH5's evidence is its `verification.md` and
+`measure/rung2-production.log`; the paired control reproduced the pre-rung baseline exactly. Re-measure
+paired, never inherit a length figure (F6.1).
 
 ## Findings
 
@@ -207,7 +209,15 @@ Full table in `child-log.md`. Means over 8 seeds:
 - The control reproduces the pre-change production baseline *exactly* (0.561 / 0.297 / 6386 length), so the delta is attributable to the rung and not build drift.
 - **The archived length prediction was wrong in sign**: the ladder expected ×1.142, measured ×0.956 (worst seed ×1.002). The plane-hardening change landed between the two measurements and changed which cells the segment builders cover. Lesson: re-measure paired; never inherit a length figure across a build change.
 - Gates: zero plane violations on all 8 seeds, `repairs=0` (the service pass is not carrying the rung), and contact **fell** — tunnels on surface burg cells 132-190, against 159-217 pre-rung — so the weaker attraction really does route tunnel cells under fewer settlements.
-- Consequence: the floor for any rung 3 is **0.516**, and the ladder's remaining lever is endpoint gates (H3, ~-8.6 overlap but a ×1.337 worst seed when measured alone).
+- Consequence: the floor for any rung 3 is **0.516**, and the ladder's remaining lever is endpoint gates (H3, ~-8.6 overlap but a ×1.337 worst seed when measured alone). **[Superseded by D17, 2026-09-30: rung 3 is the plane-aware attraction (F7.1); endpoint gates move to rung 4.]**
+
+### F7.1 — Pass-under and the surface-burg hubs are one plane-blind term: surface burg cells are the fabric's cheapest cells (exploration 2026-09-30; CH6, D17)
+
+- `getUndergroundPathCost` prices **any** burg cell 1× against 2× for plain cells (`pack.cells.burg[next] ? 1 : UNDERGROUND_BURG_ATTRACTION`) with no classification read, so a surface-only burg (782 of 870 in the `measure-a` census) gets the pull meant for the settlements the network serves.
+- Arithmetic: a surface burg cell on a road totals 3 (1 × separation 3) against 3.3-6 for plain cells within 3 cells of the surface network and 2 clear — the local minimum of every corridor. That is the pass-under engine rungs 1-2 left standing (contact 132-190 cells/seed after rung 2).
+- The hub is the same cause plus the 0.5× shared-pair discount: tunnels funnel onto those minima (42/36/56 surface-burg cells carry 2+ tunnels on `measure-a`/`d`/`g`), junction retention keeps the stretch, and `getCellAnchor` draws it through the burg dot (~90% of crossings in the archived pass-under table).
+- Metric gap: `auditPlanes` contact counts dual-identity burgs together with surface-only ones (`hasGroundLevelPresence`), so the standing gate cannot separate legal endpoint contact from the complaint; tunnel *ends* on surface-only burgs measured 0.
+- User ruling 2026-09-30: neutralize first (surface-only burg cells priced as plain), escalate to repulsion only if contact stays high.
 
 ## Decisions
 
@@ -228,7 +238,8 @@ Full table in `child-log.md`. Means over 8 seeds:
 - **D13 — Success at this stage is any measured overlap reduction; the program moves up the complexity ladder rung by rung.** Binds: CH2 and any later child. The D4 thresholds are advisory from here: adopt a lever that reduces overlap on the 8-seed paired protocol, record its length cost as a trade-off rather than a veto, and escalate to the next rung if a rung does not move the number. No single change is expected to solve it. Text of record: user ruling 2026-09-29 (verbatim: "any improved route overlap reduction situation is acceptable at this stage… no need to guarantee one step solution"). Status: binding.
 - **D14 — The underground plane is the same settlements seen through a second set of connections, not a distinct geography.** Binds: CH3 (superseded), the endpoint rule. Some burgs carry both above-ground and underground connections (dual identity), others are entirely underground; the underground network keeps connecting exactly these burgs, so the pair set is not a free variable and F1.5's structural floor stands. Text of record: user ruling 2026-09-29 (verbatim: "some burgs have both above-ground and underground connections while some others are entirely underground"). Status: binding.
 - **D15 — Styling is not the problem; display separation is dropped as a child.** Binds: CH4 (superseded), `tasks.md` 3.4. The tunnel style is already distinct (F4.2); the objective is the generated geometry, so no display-only child will be created. Text of record: user ruling 2026-09-29 (verbatim: "styling is not the issue"). Status: binding.
-- **D16 — Ladder: rung 1 is the surface-repulsion term, rung 2 weakens the burg attraction, rung 3 adds endpoint gates.** Binds: CH2 and its successors. Rationale: F3.2s — repulsion gives −14.8 points for ×1.08 length (best per unit), the burg term −13.1 for ×1.19 (spec-clean), gates −8.6 for ×1.15 (and ×1.34 worst seed). Rung 1 therefore buys the spec delta (F1.8) in exchange for the least network growth. Text of record: F3.2s (agent-inferred 2026-09-29; the user may reorder). Status: binding.
+- **D16 — Ladder: rung 1 is the surface-repulsion term, rung 2 weakens the burg attraction, rung 3 adds endpoint gates.** Binds: CH2 and its successors. Rationale: F3.2s — repulsion gives −14.8 points for ×1.08 length (best per unit), the burg term −13.1 for ×1.19 (spec-clean), gates −8.6 for ×1.15 (and ×1.34 worst seed). Rung 1 therefore buys the spec delta (F1.8) in exchange for the least network growth. Text of record: F3.2s (agent-inferred 2026-09-29; the user may reorder). Status: binding — rung 3 slot **[superseded by D17, 2026-09-30]**; rungs 1-2 stand.
+- **D17 — Rung 3 is the plane-aware burg attraction: below-level burgs keep the pull, surface-only burg cells are priced as plain cells; repulsion is the pre-authorized escalation; endpoint gates move to rung 4.** Binds: CH6, the ladder order (amends D16). Evidence: F7.1. Text of record: user ruling 2026-09-30 (exploration choice: "Neutralize first, escalate if needed"). Status: binding.
 
 ## Architecture
 
@@ -245,6 +256,10 @@ burgs ── hasBelowLevelPresence ──> Urquhart per landmass ──> findPat
                                                                    v
                                     segments ── merge ── getPoints ── prune ── pack.routes
 ```
+
+The cost line above is the CH1 snapshot. Rung 2 set the attraction to 2 (F6.1); rung 3 makes it
+plane-aware — a below-level burg keeps the pull, a surface-only burg cell prices as a plain cell
+(F7.1, D17).
 
 Alignment budget over 8 seeds (overlap 0.708 total): geometry of the pair set ~0.587; the burg
 attraction +0.135; the terrain preference −0.016. Everything else measured (topology, smoothing,
@@ -295,10 +310,20 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
   0.297 → 0.243, corridor distance 0.56 → 0.62, length ×0.956 mean / ×1.002 worst, served 0.737 → 0.733**,
   with the reverse control reproducing the pre-rung baseline exactly. Plane audit: zero violations,
   `repairs=0`, contact down (F6.1).
-  OPEN (owner: user): does rung 2 suffice, or escalate to rung 3 (endpoint gates, H3)? The ladder's floor
-  is now 0.516.
+  ANSWERED 2026-09-30 (user): rung 2 does not suffice — the pass-under and hub report opened rung 3 as the
+  plane-aware attraction (CH6, D17); endpoint gates re-order to rung 4. The ladder's floor is 0.516.
   Pointers: the change's `verification.md`, `measure/rung2-production.log`, `measure/plane-audit.log`;
-  this file's F6.1, H2, H3.
+  this file's F6.1, F7.1, H2, H3.
+
+- [ ] 6. **CH6 — `plane-aware-burg-attraction`** (schema: `semi-test-driven`; **rung 3, D17**) — opened 2026-09-30.
+  Scope: `getUndergroundPathCost`'s burg term becomes plane-aware — a below-level burg keeps the attraction,
+  a surface-only burg cell prices as a plain cell (neutralize); the audit's contact report splits
+  surface-only from dual-identity burg cells and counts multi-tunnel cells, so pass-under and hubs both gate.
+  Deltas: `underground-highways` (the attraction is not lowered by a ground-level-only burg) and
+  `plane-integrity-audit` (the split contact report). Gate: 8-seed paired protocol vs **0.516** — split
+  contact and hub cells down on every seed, zero plane violations, service intact; length recorded as a
+  trade-off (D13). Escalation: repulsion only if neutralize underdelivers (D17). Proposal written
+  2026-09-30; specs/design/test-design/tasks pending.
 
 - [ ] 3. **CH3 — topology sparsification** (schema: `spec-driven`; **superseded by D14**).
   Superseded 2026-09-29: the user ruled the underground network keeps connecting the same burgs, so the
@@ -333,13 +358,13 @@ discount) is neutral. CH2's shape follows: remove or weaken the burg term, optio
 - Source: measurement + user ruling · opened 2026-09-29 from the ladder sweep (`child-log.md`, F3.2s); shipped 2026-09-30 as `weaken-underground-burg-attraction`.
 - Result: paired 8 seeds on one build, production **0.516** against the attraction-3 control **0.561** — every seed improves, exact-edge 0.297 → 0.243, corridor distance 0.56 → 0.62, length **×0.956** (worst ×1.002), served 0.737 → 0.733. The control reproduced the pre-rung baseline exactly, so the delta is the rung's. Plane audit: zero violations, `repairs=0`, contact down.
 - Correction of record: the archived ladder predicted ×1.142 length for factor 2; on the post-hardening build it is ×0.956. The plane-hardening change altered the segments in between, so **length figures do not carry across a build change** — re-measure paired (F6.1).
-- Binds / suggests for next cycle: rung 3 (endpoint gates, H3) is measured against **0.516**, not 0.560, and inherits `skip_specs` as its likely shape (no requirement mentions endpoint geometry either).
+- Binds / suggests for next cycle: the next rung is measured against **0.516**, not 0.560. **[Re-ordered by D17, 2026-09-30: rung 3 is the plane-aware attraction (F7.1, CH6); endpoint gates (H3) move to rung 4.]**
 
-### H3 — Rung 3: endpoint gate divergence — expect ~0.50 overlap at ~×1.12, spec-clean
+### H3 — Rung 4 (re-ordered from 3 by D17, 2026-09-30): endpoint gate divergence — expect ~0.50 overlap at ~×1.12, spec-clean
 
 - Source: measurement · measured 2026-09-29 via the harness path variants (F3.2, F1.3, D12).
 - Rationale: the gate is the burg cell's neighbour with the fewest surface route steps (tie-break toward high ground), constraining only the first and last step; the burg cell stays the endpoint, so the endpoint requirement holds. Alone it measured −8.6 overlap / −5.0 parallel, with one seed at ×1.337 length — so it needs a length budget or a weaker gate rule.
-- Binds / suggests for next cycle: rung 3 after rung 2, or instead of it if endpoint geometry matters more than the interior path.
+- Binds / suggests for next cycle: rung 4, after the plane-aware attraction (D17).
 
 ### H4 — The floor under the ladder is ~0.44-0.50 cell overlap; below it the constraint is structural
 
