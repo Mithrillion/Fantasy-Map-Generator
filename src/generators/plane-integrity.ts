@@ -33,7 +33,12 @@ export type PlaneReport = {
   /** every record boundary on a burg cell of the other plane, plus every unserved below-level burg */
   violations: PlaneViolation[];
   /** the other plane's cells: exact for tunnels, a lower bound for surface records */
-  contact: { tunnelsOnSurfaceBurgs: number; surfaceRoutesOnBelowLevelCells: number };
+  contact: {
+    tunnelsOnSurfaceOnlyBurgs: number;
+    tunnelsOnDualIdentityBurgs: number;
+    tunnelCellsWithMultipleRecords: number;
+    surfaceRoutesOnBelowLevelCells: number;
+  };
   /** underground highways the service pass had to add, read off the records' own marks */
   repairs: number;
 };
@@ -47,7 +52,12 @@ export const emptyReport = (): PlaneReport => ({
   connections: { surface: [], underground: [] },
   unconnectable: [],
   violations: [],
-  contact: { tunnelsOnSurfaceBurgs: 0, surfaceRoutesOnBelowLevelCells: 0 },
+  contact: {
+    tunnelsOnSurfaceOnlyBurgs: 0,
+    tunnelsOnDualIdentityBurgs: 0,
+    tunnelCellsWithMultipleRecords: 0,
+    surfaceRoutesOnBelowLevelCells: 0
+  },
   repairs: 0
 });
 
@@ -80,6 +90,7 @@ export function auditPlanes(map: typeof pack, routes: Route[]): PlaneReport {
 
   const live = routes.filter(route => route?.points?.length);
   const cellsOf: Record<Plane, Set<number>> = { surface: new Set(), underground: new Set() };
+  const undergroundRecordsByCell = new Map<number, number>();
   const belowLevelByFeature = new Map<number, Burg[]>();
 
   for (const burg of burgs) {
@@ -99,7 +110,11 @@ export function auditPlanes(map: typeof pack, routes: Route[]): PlaneReport {
 
   for (const route of live) {
     const plane = planeOf(route);
-    for (const point of route.points) cellsOf[plane].add(point[2]);
+    // distinct cells of this record: a route revisiting a cell is still one record there
+    for (const cell of new Set(route.points.map(point => point[2]))) {
+      cellsOf[plane].add(cell);
+      if (plane === "underground") undergroundRecordsByCell.set(cell, (undergroundRecordsByCell.get(cell) ?? 0) + 1);
+    }
     if (route.repaired) report.repairs++;
   }
 
@@ -162,7 +177,12 @@ export function auditPlanes(map: typeof pack, routes: Route[]): PlaneReport {
   // below-level ones, because a tunnel's link shadows the surface one on a shared step
   for (const cell of cellsOf.underground) {
     const { burg } = burgAt(cell);
-    if (burg && hasGroundLevelPresence(burg)) report.contact.tunnelsOnSurfaceBurgs++;
+    if (!burg || !hasGroundLevelPresence(burg)) continue;
+    if (hasBelowLevelPresence(burg)) report.contact.tunnelsOnDualIdentityBurgs++;
+    else report.contact.tunnelsOnSurfaceOnlyBurgs++;
+  }
+  for (const records of undergroundRecordsByCell.values()) {
+    if (records > 1) report.contact.tunnelCellsWithMultipleRecords++;
   }
   for (const cell of cellsOf.surface) {
     const { burg } = burgAt(cell);
@@ -186,7 +206,7 @@ export function formatPlaneReport(seed: string, report: PlaneReport): string {
     `underground=${total(underground)} (${underground.junctions.length}j/${underground.termini.length}t)`,
     `connected surface=${report.connections.surface.length} underground=${report.connections.underground.length}`,
     `unconnectable=${report.unconnectable.length} repairs=${report.repairs}`,
-    `contact tunnelsOnSurfaceBurgs=${contact.tunnelsOnSurfaceBurgs} surfaceRoutesOnBelowLevelCells=${contact.surfaceRoutesOnBelowLevelCells} (lower bound)`,
+    `contact tunnelsOnSurfaceOnlyBurgs=${contact.tunnelsOnSurfaceOnlyBurgs} tunnelsOnDualIdentityBurgs=${contact.tunnelsOnDualIdentityBurgs} tunnelCellsWithMultipleRecords=${contact.tunnelCellsWithMultipleRecords} surfaceRoutesOnBelowLevelCells=${contact.surfaceRoutesOnBelowLevelCells} (lower bound)`,
     `violations=${report.violations.length}`
   ].join(" ");
 }

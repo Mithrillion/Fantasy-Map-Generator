@@ -134,7 +134,65 @@ describe("plane integrity audit", () => {
     const report = auditPlanes(map, routes);
 
     expect(report.contact.surfaceRoutesOnBelowLevelCells).toBe(1);
+    expect(report.contact.tunnelsOnSurfaceOnlyBurgs).toBe(0); // the tunnel direction is a separate figure
+    expect(report.contact.tunnelsOnDualIdentityBurgs).toBe(0);
     expect(report.violations).toEqual([]);
+  });
+
+  it("reports surface-only and dual-identity tunnel contact apart", () => {
+    const map = mapFixture([
+      { i: 1, cell: 1, classification: "subterranean" },
+      { i: 2, cell: 6 }
+    ]);
+    // each record crosses its burg's cell without beginning or ending there
+    const routes = [recordAt(0, [0, 1, 2], true), recordAt(1, [5, 6, 7], true)];
+
+    const report = auditPlanes(map, routes);
+
+    expect(report.contact.tunnelsOnSurfaceOnlyBurgs).toBe(1);
+    expect(report.contact.tunnelsOnDualIdentityBurgs).toBe(1);
+    expect(report.contact.tunnelCellsWithMultipleRecords).toBe(0);
+    expect(report.violations).toEqual([]);
+  });
+
+  it("counts a cell carrying more than one record", () => {
+    const map = mapFixture([]);
+    // records 0 and 1 share cell 2; record 2 revisits cell 6, which is still one record there
+    const routes = [recordAt(0, [0, 1, 2], true), recordAt(1, [2, 3, 4], true), recordAt(2, [6, 7, 6], true)];
+
+    const report = auditPlanes(map, routes);
+
+    expect(report.contact.tunnelCellsWithMultipleRecords).toBe(1);
+    expect(report.violations).toEqual([]);
+  });
+
+  it("reports zero contact on a map with no burgs", () => {
+    const map = mapFixture([]);
+    const routes = [recordAt(0, [0, 1, 2], true), recordAt(1, [5, 6], true)];
+
+    const report = auditPlanes(map, routes);
+
+    expect(report.contact).toEqual({
+      tunnelsOnSurfaceOnlyBurgs: 0,
+      tunnelsOnDualIdentityBurgs: 0,
+      tunnelCellsWithMultipleRecords: 0,
+      surfaceRoutesOnBelowLevelCells: 0
+    });
+  });
+
+  it("the formatted report prints each contact figure", () => {
+    const map = mapFixture([
+      { i: 1, cell: 1, classification: "subterranean" },
+      { i: 2, cell: 6 }
+    ]);
+    const report = auditPlanes(map, [recordAt(0, [0, 1, 2], true), recordAt(1, [5, 6, 7], true)]);
+
+    const line = formatPlaneReport("measure-a", report);
+
+    expect(line.includes("tunnelsOnSurfaceOnlyBurgs=1")).toBe(true);
+    expect(line.includes("tunnelsOnDualIdentityBurgs=1")).toBe(true);
+    expect(line.includes("tunnelCellsWithMultipleRecords=0")).toBe(true);
+    expect(line.includes("surfaceRoutesOnBelowLevelCells=0")).toBe(true);
   });
 
   it("tolerates degenerate records", () => {

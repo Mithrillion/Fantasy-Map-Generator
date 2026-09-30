@@ -524,6 +524,8 @@ describe("underground highways", () => {
     /**
      * A surface burg sits on the gateway cell into Twinhall: the locked highway ends there from the
      * east, and the tunnel from Deephold reaches it from the west, so a stretch boundary lands on it.
+     * The plain way around the gateway is a glacier, so the settled cell stays the only crossing once
+     * it carries no attraction of its own.
      */
     const surfaceGatewayFixture = () => {
       const gateway = cellAt(1, 2);
@@ -532,6 +534,7 @@ describe("underground highways", () => {
       burgAt(gateway, false);
       pack.cells.h[cellAt(0, 1)] = 21;
       pack.cells.h[cellAt(0, 2)] = 21;
+      pack.cells.biome[cellAt(0, 1)] = 12; // uninhabitable, so the way around the gateway is impassable
       return { gateway, deep, twinhall };
     };
 
@@ -685,9 +688,13 @@ describe("underground highways", () => {
      * settlements it serves. The probes make two destination cells identical in every respect but the
      * burg map — same coordinates, height, biome and separation — so the quotient of the two steps is
      * that term alone. State is set after the last `generate()`, which replaces `pack.cells`, and put
-     * back afterwards so the probe cannot leak into the tests around it.
+     * back afterwards so the probe cannot leak into the tests around it. The record argument is the
+     * burg *record* placed at the probe cell; without it the id has no record at all.
      */
-    const withAttractionProbe = (run: (cells: { from: number; burgCell: number; plainCell: number }) => void) => {
+    const withAttractionProbe = (
+      run: (cells: { from: number; burgCell: number; plainCell: number }) => void,
+      record?: "underground" | "subterranean" | "surface" | "removed"
+    ) => {
       const from = cellAt(1, 0);
       const burgCell = cellAt(1, 1);
       const plainCell = cellAt(1, 2);
@@ -703,8 +710,22 @@ describe("underground highways", () => {
       pack.cells.h[plainCell] = pack.cells.h[burgCell];
       pack.cells.biome[plainCell] = pack.cells.biome[burgCell];
       pack.cells.burg = new Uint16Array(CELL_COUNT);
-      pack.burgs = [0] as unknown as typeof pack.burgs;
       pack.cells.burg[burgCell] = 99;
+      pack.burgs = [0] as unknown as typeof pack.burgs;
+      if (record) {
+        pack.burgs[99] = {
+          i: 99,
+          cell: burgCell,
+          x: pack.cells.p[burgCell][0],
+          y: pack.cells.p[burgCell][1],
+          name: "Probe",
+          feature: 1,
+          capital: 0,
+          ...(record === "underground" ? { underground: true } : {}),
+          ...(record === "subterranean" ? { subterranean: true } : {}),
+          ...(record === "removed" ? { removed: true } : {})
+        } as Burg;
+      }
 
       try {
         run({ from, burgCell, plainCell });
@@ -717,17 +738,51 @@ describe("underground highways", () => {
       }
     };
 
-    it("prices a tunnel step off a burg cell at the weakened attraction", () => {
-      // no eligible pairs: the pass runs and merges nothing, but the separation field is built
+    /** the probe's cost surfaces: a pass that merges nothing, then the option back on for the cost */
+    const primeAttractionProbe = () => {
       globalThis.options.generation.underground = false;
       generate();
       pack.routes = [];
       globalThis.options.generation.underground = true;
+    };
 
+    /** the quotient the probes pin: a plain step against the step onto the probe's burg cell */
+    const probeQuotient = (record?: "underground" | "subterranean" | "surface" | "removed") => {
+      let quotient = 0;
       withAttractionProbe(({ from, burgCell, plainCell }) => {
-        const ratio = Routes.getUndergroundPathCost(from, plainCell) / Routes.getUndergroundPathCost(from, burgCell);
-        expect(ratio).toBeCloseTo(2, 5);
-      });
+        quotient = Routes.getUndergroundPathCost(from, plainCell) / Routes.getUndergroundPathCost(from, burgCell);
+      }, record);
+      return quotient;
+    };
+
+    it("prices a tunnel step onto a below-level burg cell at the attraction", () => {
+      primeAttractionProbe();
+
+      // both classifications carry below-level presence, so both keep the pull
+      expect(probeQuotient("underground")).toBeCloseTo(2, 5);
+      expect(probeQuotient("subterranean")).toBeCloseTo(2, 5);
+    });
+
+    it("prices a surface-only burg cell exactly as a plain cell", () => {
+      primeAttractionProbe();
+
+      let finite = false;
+      withAttractionProbe(({ from, burgCell, plainCell }) => {
+        finite = Number.isFinite(Routes.getUndergroundPathCost(from, burgCell));
+        expect(Routes.getUndergroundPathCost(from, plainCell)).toBeCloseTo(
+          Routes.getUndergroundPathCost(from, burgCell),
+          5
+        );
+      }, "surface");
+
+      expect(finite).toBe(true); // the rung encourages, it does not forbid
+    });
+
+    it("prices a record-less burg id as a plain cell", () => {
+      primeAttractionProbe();
+
+      expect(probeQuotient()).toBeCloseTo(1, 5); // the probe's own arrangement: an id with no record
+      expect(probeQuotient("removed")).toBeCloseTo(1, 5); // and a record the map has retired
     });
 
     it("leaves the surface network's own burg attraction at three", () => {
@@ -735,6 +790,43 @@ describe("underground highways", () => {
         const ratio = Routes.getLandPathCost(from, plainCell) / Routes.getLandPathCost(from, burgCell);
         expect(ratio).toBeCloseTo(3, 5);
       });
+    });
+
+    it("a tunnel between two below-level burgs prefers a plain detour to a surface-only burg's cell", () => {
+      // an empty map but for the pair and the surface-only settlement: two shortest paths of two steps,
+      // one across the settlement's cell and one across its plain neighbour
+      pack.burgs = [0] as unknown as typeof pack.burgs;
+      pack.cells.burg = new Uint16Array(CELL_COUNT);
+      const start = cellAt(1, 0);
+      const exit = cellAt(0, 1);
+      const settled = cellAt(1, 1);
+      burgAt(start, true);
+      burgAt(exit, true);
+      burgAt(settled, false);
+
+      // the settlement is a road hub, so its cell is the local minimum of the settled fabric: the
+      // plane-blind attraction is what pulled the tunnel through it
+      Routes.generate([handRoute(1, [settled, cellAt(2, 1)])], 1);
+
+      const tunnelCells = new Set(undergroundRoutes().flatMap(route => route.points.map(([, , cell]) => cell)));
+      expect(tunnelCells.has(start)).toBe(true); // endpoints are unchanged
+      expect(tunnelCells.has(exit)).toBe(true);
+      expect(tunnelCells.has(settled)).toBe(false);
+    });
+
+    it("a generated map's audit reports the split without a violation", () => {
+      const { gateway, deep, twinhall } = surfaceGatewayFixture();
+      Routes.generate([pinned([twinhall, cellAt(2, 2)])], 1);
+
+      const report = auditPlanes(pack, pack.routes);
+
+      // the gateway is crossed and not ended on; the tunnels end at the below-level burgs
+      expect(touches(gateway)).toBe(true);
+      expect(touches(deep)).toBe(true);
+      expect(report.contact.tunnelsOnSurfaceOnlyBurgs).toBe(1);
+      expect(report.contact.tunnelsOnDualIdentityBurgs).toBe(1);
+      expect(report.repairs).toBe(0); // the service pass is not carrying the rung
+      expect(report.violations).toEqual([]);
     });
   });
 

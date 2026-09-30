@@ -358,8 +358,8 @@ class RoutesModule {
 
   /**
    * Tunnelling: water forbidden, high ground cheaper than lowland, surface corridors avoided, discount
-   * from the underground network alone. The burg attraction is weaker here than in the land cost: a
-   * tunnel still prefers a settlement cell, but is not paid to graze the ones it only passes.
+   * from the underground network alone. The burg attraction is weaker here than in the land cost and
+   * plane-aware: only a burg the network can serve is a cheaper cell, a surface-only one prices as plain.
    */
   getUndergroundPathCost(current: number, next: number) {
     const { h, biome, p } = pack.cells;
@@ -372,7 +372,9 @@ class RoutesModule {
     const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000; // [1, 1.1]
     const heightModifier = 1 + Math.max(50 - h[next], 0) / 50; // [1, 2]: boring under a mountain beats lowland
     const connectionModifier = this.undergroundConnections.has(`${current}-${next}`) ? 0.5 : 1;
-    const burgModifier = pack.cells.burg[next] ? 1 : UNDERGROUND_BURG_ATTRACTION;
+    const burgId = pack.cells.burg[next];
+    const burg = burgId ? pack.burgs[burgId] : undefined;
+    const burgModifier = burg && !burg.removed && hasBelowLevelPresence(burg) ? 1 : UNDERGROUND_BURG_ATTRACTION;
 
     return (
       distanceCost *
