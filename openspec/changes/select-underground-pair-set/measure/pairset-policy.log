@@ -1,0 +1,306 @@
+npm warn Unknown env config "manage-package-manager-versions". This will error in a future major version of npm. See `npm help npmrc` for supported config options.
+npm notice run fantasy-map-generator@1.154.0 npx
+npm notice run 'vitest' run --config vitest.browser.config.ts generators/underground-pairset.dom.test.ts
+
+ RUN  v4.1.11 /mnt/Mega/TestSpace/Fantasy-Map-Generator
+
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+LAYER-DETAIL {"seed":"measure-a","shortcutPairs":10,"shortcutWater":1,"longLinkWater":0,"deferredLongLinkPairs":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"subterranean-only","pairs":44,"records":26,"cells":406,"length":3704,"directness":1.24,"shadowing":1}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"backbone-mst","pairs":84,"records":75,"cells":471,"length":4258,"directness":1.142,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"ours-backbone","pairs":57,"records":49,"cells":353,"length":3276,"directness":1.151,"shadowing":5}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"ours-shortcut","pairs":10,"records":10,"cells":87,"length":649,"directness":1.064,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"ratio-1.75","pairs":65,"records":56,"cells":372,"length":3718,"directness":1.178,"shadowing":5}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"ratio-2","pairs":62,"records":54,"cells":363,"length":3541,"directness":1.165,"shadowing":5}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"ratio-2.5","pairs":57,"records":49,"cells":353,"length":3276,"directness":1.151,"shadowing":5}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"ours-backbone+shortcut","pairs":67,"records":60,"cells":422,"length":3951,"directness":1.134,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"ours-all","pairs":67,"records":60,"cells":422,"length":3951,"directness":1.134,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"backbone-transit","pairs":57,"records":49,"cells":353,"length":3276,"directness":1.151,"shadowing":5}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"transit+shortcut","pairs":67,"records":60,"cells":422,"length":3951,"directness":1.134,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"deferred-long-link","pairs":2,"records":12,"cells":104,"length":1677,"directness":1.228,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-a","control":"deferred-all","pairs":69,"records":75,"cells":455,"length":5801,"directness":1.234,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+ROW {"seed":"measure-a","ms":882,"records":60,"cells":422,"length":3951,"directness":1.134,"directnessMax":1.619,"directnessRecords":60,"shadowing":7,"same":4,"viaBurg":3,"surfaceRecords":573,"pairs":67,"junctions":95,"termini":25,"backbone":57,"shortcut":10,"longestPair":200.118,"longestLayer":"shortcut","serviceViolations":0,"boundaryViolations":0,"repairs":0,"deepBurgs":44,"deepOwed":44,"deepUncovered":0,"surfaceIdentical":true}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+DIST {"seed":"measure-a","pairs":347,"p50":244.6,"p75":341.9,"p90":403.7,"p95":456.8,"p99":532.8,"max":576,"above":{"200":207,"300":131,"400":37,"500":8,"600":0}}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+LAYER-DETAIL {"seed":"measure-b","shortcutPairs":13,"shortcutWater":2,"longLinkWater":2,"deferredLongLinkPairs":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"subterranean-only","pairs":42,"records":16,"cells":367,"length":3644,"directness":2.048,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"backbone-mst","pairs":78,"records":58,"cells":461,"length":4094,"directness":1.16,"shadowing":12}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"ours-backbone","pairs":46,"records":35,"cells":311,"length":2819,"directness":1.14,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"ours-shortcut","pairs":13,"records":12,"cells":89,"length":706,"directness":1.121,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"ratio-1.75","pairs":58,"records":43,"cells":350,"length":3465,"directness":1.241,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"ratio-2","pairs":55,"records":42,"cells":349,"length":3356,"directness":1.216,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"ratio-2.5","pairs":51,"records":39,"cells":331,"length":3075,"directness":1.163,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"ours-backbone+shortcut","pairs":59,"records":50,"cells":369,"length":3629,"directness":1.369,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"ours-all","pairs":59,"records":50,"cells":369,"length":3629,"directness":1.369,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"backbone-transit","pairs":46,"records":35,"cells":311,"length":2819,"directness":1.14,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"transit+shortcut","pairs":59,"records":50,"cells":369,"length":3629,"directness":1.369,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"deferred-long-link","pairs":2,"records":10,"cells":136,"length":2477,"directness":1.038,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-b","control":"deferred-all","pairs":61,"records":71,"cells":397,"length":6893,"directness":1.307,"shadowing":4}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+ROW {"seed":"measure-b","ms":865,"records":50,"cells":369,"length":3629,"directness":1.369,"directnessMax":12.695,"directnessRecords":50,"shadowing":3,"same":0,"viaBurg":3,"surfaceRecords":577,"pairs":59,"junctions":80,"termini":20,"backbone":46,"shortcut":13,"longestPair":150.413,"longestLayer":"backbone","serviceViolations":0,"boundaryViolations":0,"repairs":0,"deepBurgs":40,"deepOwed":40,"deepUncovered":0,"surfaceIdentical":true}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+DIST {"seed":"measure-b","pairs":704,"p50":363.8,"p75":564.5,"p90":733.9,"p95":828.6,"p99":977,"max":1066,"above":{"200":566,"300":441,"400":312,"500":226,"600":145}}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+LAYER-DETAIL {"seed":"measure-c","shortcutPairs":19,"shortcutWater":1,"longLinkWater":0,"deferredLongLinkPairs":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"subterranean-only","pairs":45,"records":27,"cells":406,"length":4032,"directness":1.265,"shadowing":1}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"backbone-mst","pairs":79,"records":64,"cells":442,"length":3935,"directness":1.142,"shadowing":6}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"ours-backbone","pairs":44,"records":31,"cells":336,"length":2960,"directness":1.207,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"ours-shortcut","pairs":19,"records":15,"cells":142,"length":1181,"directness":1.185,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"ratio-1.75","pairs":56,"records":40,"cells":399,"length":3688,"directness":1.251,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"ratio-2","pairs":53,"records":38,"cells":380,"length":3491,"directness":1.24,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"ratio-2.5","pairs":46,"records":31,"cells":343,"length":3107,"directness":1.262,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"ours-backbone+shortcut","pairs":63,"records":45,"cells":449,"length":4152,"directness":1.232,"shadowing":4}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"ours-all","pairs":63,"records":45,"cells":449,"length":4152,"directness":1.232,"shadowing":4}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"backbone-transit","pairs":44,"records":31,"cells":336,"length":2960,"directness":1.207,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"transit+shortcut","pairs":63,"records":45,"cells":449,"length":4152,"directness":1.232,"shadowing":4}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"deferred-long-link","pairs":2,"records":7,"cells":79,"length":1360,"directness":1.083,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-c","control":"deferred-all","pairs":65,"records":64,"cells":465,"length":5943,"directness":1.256,"shadowing":6}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+ROW {"seed":"measure-c","ms":831,"records":45,"cells":449,"length":4152,"directness":1.232,"directnessMax":2.007,"directnessRecords":45,"shadowing":4,"same":2,"viaBurg":2,"surfaceRecords":565,"pairs":63,"junctions":72,"termini":18,"backbone":44,"shortcut":19,"longestPair":166.648,"longestLayer":"backbone","serviceViolations":0,"boundaryViolations":0,"repairs":0,"deepBurgs":41,"deepOwed":40,"deepUncovered":0,"surfaceIdentical":true}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+DIST {"seed":"measure-c","pairs":480,"p50":225.5,"p75":320.7,"p90":392.2,"p95":420.1,"p99":514,"max":554,"above":{"200":276,"300":149,"400":40,"500":5,"600":0}}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+LAYER-DETAIL {"seed":"measure-d","shortcutPairs":13,"shortcutWater":0,"longLinkWater":2,"deferredLongLinkPairs":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"subterranean-only","pairs":47,"records":30,"cells":459,"length":4480,"directness":1.452,"shadowing":1}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"backbone-mst","pairs":85,"records":71,"cells":503,"length":4451,"directness":1.133,"shadowing":8}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"ours-backbone","pairs":58,"records":50,"cells":408,"length":3658,"directness":1.129,"shadowing":6}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"ours-shortcut","pairs":13,"records":11,"cells":91,"length":731,"directness":1.104,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"ratio-1.75","pairs":76,"records":60,"cells":454,"length":4866,"directness":1.255,"shadowing":6}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"ratio-2","pairs":64,"records":52,"cells":422,"length":3948,"directness":1.195,"shadowing":5}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"ratio-2.5","pairs":62,"records":51,"cells":418,"length":3824,"directness":1.198,"shadowing":5}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"ours-backbone+shortcut","pairs":71,"records":57,"cells":461,"length":4502,"directness":1.171,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"ours-all","pairs":71,"records":57,"cells":461,"length":4502,"directness":1.171,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"backbone-transit","pairs":58,"records":50,"cells":408,"length":3658,"directness":1.129,"shadowing":6}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"transit+shortcut","pairs":71,"records":57,"cells":461,"length":4502,"directness":1.171,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"deferred-long-link","pairs":2,"records":8,"cells":121,"length":1364,"directness":1.087,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-d","control":"deferred-all","pairs":73,"records":63,"cells":469,"length":6218,"directness":1.58,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+ROW {"seed":"measure-d","ms":747,"records":57,"cells":461,"length":4502,"directness":1.171,"directnessMax":2.045,"directnessRecords":56,"shadowing":7,"same":3,"viaBurg":4,"surfaceRecords":594,"pairs":71,"junctions":96,"termini":18,"backbone":58,"shortcut":13,"longestPair":135.425,"longestLayer":"backbone","serviceViolations":0,"boundaryViolations":0,"repairs":0,"deepBurgs":44,"deepOwed":44,"deepUncovered":0,"surfaceIdentical":true}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+DIST {"seed":"measure-d","pairs":387,"p50":201.5,"p75":285.7,"p90":352.2,"p95":415.5,"p99":478.1,"max":520.1,"above":{"200":196,"300":81,"400":22,"500":2,"600":0}}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+LAYER-DETAIL {"seed":"measure-e","shortcutPairs":18,"shortcutWater":2,"longLinkWater":0,"deferredLongLinkPairs":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"subterranean-only","pairs":44,"records":22,"cells":349,"length":3035,"directness":1.305,"shadowing":4}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"backbone-mst","pairs":87,"records":67,"cells":509,"length":4340,"directness":1.177,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"ours-backbone","pairs":57,"records":49,"cells":358,"length":3179,"directness":1.167,"shadowing":4}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"ours-shortcut","pairs":18,"records":17,"cells":159,"length":1318,"directness":1.205,"shadowing":5}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"ratio-1.75","pairs":70,"records":62,"cells":425,"length":4098,"directness":1.191,"shadowing":4}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"ratio-2","pairs":65,"records":58,"cells":368,"length":3664,"directness":1.196,"shadowing":4}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"ratio-2.5","pairs":61,"records":52,"cells":362,"length":3268,"directness":1.173,"shadowing":4}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"ours-backbone+shortcut","pairs":75,"records":66,"cells":487,"length":4561,"directness":1.168,"shadowing":8}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"ours-all","pairs":75,"records":66,"cells":487,"length":4561,"directness":1.168,"shadowing":8}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"backbone-transit","pairs":57,"records":49,"cells":358,"length":3179,"directness":1.167,"shadowing":4}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"transit+shortcut","pairs":75,"records":66,"cells":487,"length":4561,"directness":1.168,"shadowing":8}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"deferred-long-link","pairs":2,"records":5,"cells":123,"length":1369,"directness":1.19,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-e","control":"deferred-all","pairs":77,"records":84,"cells":488,"length":6472,"directness":1.186,"shadowing":8}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+ROW {"seed":"measure-e","ms":748,"records":66,"cells":487,"length":4561,"directness":1.168,"directnessMax":2.163,"directnessRecords":66,"shadowing":8,"same":3,"viaBurg":5,"surfaceRecords":661,"pairs":75,"junctions":112,"termini":20,"backbone":57,"shortcut":18,"longestPair":175.027,"longestLayer":"backbone","serviceViolations":0,"boundaryViolations":0,"repairs":0,"deepBurgs":45,"deepOwed":45,"deepUncovered":0,"surfaceIdentical":true}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+DIST {"seed":"measure-e","pairs":472,"p50":168.4,"p75":292.9,"p90":387.6,"p95":437,"p99":508.6,"max":553.6,"above":{"200":187,"300":114,"400":41,"500":5,"600":0}}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+LAYER-DETAIL {"seed":"measure-f","shortcutPairs":18,"shortcutWater":3,"longLinkWater":2,"deferredLongLinkPairs":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"subterranean-only","pairs":47,"records":27,"cells":395,"length":3545,"directness":1.298,"shadowing":5}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"backbone-mst","pairs":84,"records":69,"cells":425,"length":3908,"directness":1.139,"shadowing":15}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"ours-backbone","pairs":52,"records":44,"cells":336,"length":2970,"directness":1.136,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"ours-shortcut","pairs":18,"records":17,"cells":139,"length":1059,"directness":1.15,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"ratio-1.75","pairs":69,"records":55,"cells":366,"length":3933,"directness":1.278,"shadowing":9}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"ratio-2","pairs":62,"records":53,"cells":361,"length":3457,"directness":1.14,"shadowing":9}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"ratio-2.5","pairs":55,"records":46,"cells":348,"length":3098,"directness":1.133,"shadowing":8}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"ours-backbone+shortcut","pairs":70,"records":57,"cells":427,"length":4074,"directness":1.193,"shadowing":9}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"ours-all","pairs":70,"records":57,"cells":427,"length":4074,"directness":1.193,"shadowing":9}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"backbone-transit","pairs":52,"records":44,"cells":336,"length":2970,"directness":1.136,"shadowing":7}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"transit+shortcut","pairs":70,"records":57,"cells":427,"length":4074,"directness":1.193,"shadowing":9}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"deferred-long-link","pairs":2,"records":13,"cells":108,"length":1709,"directness":1.119,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-f","control":"deferred-all","pairs":72,"records":69,"cells":441,"length":6274,"directness":1.238,"shadowing":13}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+ROW {"seed":"measure-f","ms":740,"records":57,"cells":427,"length":4074,"directness":1.193,"directnessMax":2.381,"directnessRecords":57,"shadowing":9,"same":7,"viaBurg":2,"surfaceRecords":610,"pairs":70,"junctions":91,"termini":23,"backbone":52,"shortcut":18,"longestPair":147.427,"longestLayer":"backbone","serviceViolations":0,"boundaryViolations":0,"repairs":0,"deepBurgs":44,"deepOwed":44,"deepUncovered":0,"surfaceIdentical":true}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+DIST {"seed":"measure-f","pairs":483,"p50":220.9,"p75":321.3,"p90":384.5,"p95":416.5,"p99":559.2,"max":604.7,"above":{"200":264,"300":142,"400":37,"500":6,"600":1}}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+LAYER-DETAIL {"seed":"measure-g","shortcutPairs":9,"shortcutWater":1,"longLinkWater":2,"deferredLongLinkPairs":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"subterranean-only","pairs":42,"records":25,"cells":441,"length":3951,"directness":1.161,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"backbone-mst","pairs":79,"records":66,"cells":496,"length":4205,"directness":1.157,"shadowing":6}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"ours-backbone","pairs":49,"records":35,"cells":380,"length":3194,"directness":1.162,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"ours-shortcut","pairs":9,"records":9,"cells":84,"length":652,"directness":1.142,"shadowing":1}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"ratio-1.75","pairs":60,"records":47,"cells":445,"length":4046,"directness":1.16,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"ratio-2","pairs":56,"records":41,"cells":420,"length":3635,"directness":1.173,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"ratio-2.5","pairs":51,"records":35,"cells":387,"length":3290,"directness":1.174,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"ours-backbone+shortcut","pairs":58,"records":44,"cells":454,"length":3851,"directness":1.16,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"ours-all","pairs":58,"records":44,"cells":454,"length":3851,"directness":1.16,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"backbone-transit","pairs":49,"records":35,"cells":380,"length":3194,"directness":1.162,"shadowing":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"transit+shortcut","pairs":58,"records":44,"cells":454,"length":3851,"directness":1.16,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"deferred-long-link","pairs":2,"records":2,"cells":158,"length":1252,"directness":1.149,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-g","control":"deferred-all","pairs":60,"records":68,"cells":465,"length":5844,"directness":1.146,"shadowing":3}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+ROW {"seed":"measure-g","ms":794,"records":44,"cells":454,"length":3851,"directness":1.16,"directnessMax":1.788,"directnessRecords":44,"shadowing":3,"same":1,"viaBurg":2,"surfaceRecords":592,"pairs":58,"junctions":72,"termini":16,"backbone":49,"shortcut":9,"longestPair":201.994,"longestLayer":"backbone","serviceViolations":0,"boundaryViolations":0,"repairs":0,"deepBurgs":41,"deepOwed":41,"deepUncovered":0,"surfaceIdentical":true}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+DIST {"seed":"measure-g","pairs":384,"p50":246.5,"p75":341.1,"p90":427.2,"p95":463.3,"p99":495.9,"max":552.2,"above":{"200":238,"300":140,"400":51,"500":3,"600":0}}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+LAYER-DETAIL {"seed":"measure-h","shortcutPairs":18,"shortcutWater":1,"longLinkWater":2,"deferredLongLinkPairs":2}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"subterranean-only","pairs":46,"records":28,"cells":331,"length":3257,"directness":1.267,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"backbone-mst","pairs":83,"records":68,"cells":358,"length":3355,"directness":1.117,"shadowing":6}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"ours-backbone","pairs":50,"records":35,"cells":287,"length":2680,"directness":1.174,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"ours-shortcut","pairs":18,"records":17,"cells":121,"length":952,"directness":1.079,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"ratio-1.75","pairs":66,"records":52,"cells":346,"length":3683,"directness":1.23,"shadowing":1}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"ratio-2","pairs":61,"records":45,"cells":318,"length":3226,"directness":1.162,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"ratio-2.5","pairs":55,"records":41,"cells":294,"length":2912,"directness":1.161,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"ours-backbone+shortcut","pairs":68,"records":53,"cells":370,"length":3696,"directness":1.14,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"ours-all","pairs":68,"records":53,"cells":370,"length":3696,"directness":1.14,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"backbone-transit","pairs":50,"records":35,"cells":287,"length":2680,"directness":1.174,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"transit+shortcut","pairs":68,"records":53,"cells":370,"length":3696,"directness":1.14,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"deferred-long-link","pairs":2,"records":6,"cells":128,"length":1947,"directness":1.114,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL {"seed":"measure-h","control":"deferred-all","pairs":70,"records":78,"cells":392,"length":6298,"directness":1.15,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+ROW {"seed":"measure-h","ms":868,"records":53,"cells":370,"length":3696,"directness":1.14,"directnessMax":1.608,"directnessRecords":52,"shadowing":0,"same":0,"viaBurg":0,"surfaceRecords":554,"pairs":68,"junctions":87,"termini":19,"backbone":50,"shortcut":18,"longestPair":194.07,"longestLayer":"shortcut","serviceViolations":0,"boundaryViolations":0,"repairs":0,"deepBurgs":42,"deepOwed":42,"deepUncovered":0,"surfaceIdentical":true}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+DIST {"seed":"measure-h","pairs":861,"p50":300.8,"p75":475.1,"p90":598.3,"p95":656.2,"p99":748.4,"max":791.7,"above":{"200":592,"300":432,"400":298,"500":182,"600":86}}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+AGG {"seeds":8,"records":54,"cells":429.9,"length":4052,"directness":1.196,"directnessMax":12.695,"shadowing":5.13,"shadowingMax":9,"pairs":66.4,"junctions":88.1,"backbone":51.6,"shortcut":14.8,"longestPair":171.4,"serviceViolations":0,"boundaryViolations":0,"repairs":0,"deepBurgs":42.6,"deepUncovered":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL-AGG {"control":"subterranean-only","seeds":8,"pairs":44.6,"records":25.1,"cells":394.3,"length":3706,"directness":1.379,"shadowing":1.75}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL-AGG {"control":"backbone-mst","seeds":8,"pairs":82.4,"records":67.3,"cells":458.1,"length":4068,"directness":1.146,"shadowing":8.38}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL-AGG {"control":"ours-backbone","seeds":8,"pairs":51.6,"records":41,"cells":346.1,"length":3092,"directness":1.158,"shadowing":3.25}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL-AGG {"control":"ours-shortcut","seeds":8,"pairs":14.8,"records":13.5,"cells":114,"length":906,"directness":1.131,"shadowing":1.75}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL-AGG {"control":"ours-all","seeds":8,"pairs":66.4,"records":54,"cells":429.9,"length":4052,"directness":1.196,"shadowing":5.13}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL-AGG {"control":"backbone-transit","seeds":8,"pairs":51.6,"records":41,"cells":346.1,"length":3092,"directness":1.158,"shadowing":3.25}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL-AGG {"control":"transit+shortcut","seeds":8,"pairs":66.4,"records":54,"cells":429.9,"length":4052,"directness":1.196,"shadowing":5.13}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL-AGG {"control":"deferred-long-link","seeds":8,"pairs":2,"records":7.9,"cells":119.6,"length":1644,"directness":1.126,"shadowing":0}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL-AGG {"control":"deferred-all","seeds":8,"pairs":68.4,"records":71.5,"cells":446.5,"length":6218,"directness":1.262,"shadowing":6}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CONTROL-AGG {"control":"ratio-2","seeds":8,"pairs":59.8,"records":47.9,"cells":372.6,"length":3540,"directness":1.186,"shadowing":3.88}
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CHECK pass integration / coverage across all eight seeds deep 42.6/seed, uncovered 0, service 0, boundary 0, repairs 0
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CHECK pass integration / shadowing does not regress mean 5.13 (<= 6.9), per seed [["measure-a",7],["measure-b",3],["measure-c",4],["measure-d",7],["measure-e",8],["measure-f",9],["measure-g",3],["measure-h",0]], over baseline []
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CHECK pass integration / directness does not regress mean 1.196 (<= 1.28), per seed [["measure-a",1.134],["measure-b",1.369],["measure-c",1.232],["measure-d",1.171],["measure-e",1.168],["measure-f",1.193],["measure-g",1.16],["measure-h",1.14]] (<= 1.5), worst record 12.695
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CHECK pass integration / network shrinks toward the floor records 54 in [25.1,67.3], cells 429.9 in [394,458]
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CHECK pass integration / surface network is untouched measure-a identical, measure-b identical, measure-c identical, measure-d identical, measure-e identical, measure-f identical, measure-g identical, measure-h identical
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+CHECK pass integration / layers do not alter routing measure-a pairs=67 reversed=67 pair 1286-1622 as shortcut: 5 cells; measure-b pairs=59 reversed=59 pair 1355-1662 as shortcut: 6 cells; measure-c pairs=63 reversed=63 pair 2395-3224 as shortcut: 18 cells; measure-d pairs=71 reversed=71 pair 2287-2405 as shortcut: 8 cells; measure-e pairs=75 reversed=75 pair 2173-2590 as shortcut: 11 cells; measure-f pairs=70 reversed=70 pair 3503-4334 as shortcut: 9 cells; measure-g pairs=58 reversed=58 pair 2591-2698 as shortcut: 7 cells; measure-h pairs=68 reversed=68 pair 1359-1455 as shortcut: 2 cells
+stdout | src/generators/underground-pairset.dom.test.ts:566:1 > measures the underground pair policy on the eight-seed protocol
+ALL INTEGRATION CHECKS PASSED
+ ✓ |chromium| src/generators/underground-pairset.dom.test.ts (1 test) 6484ms
+   ✓ measures the underground pair policy on the eight-seed protocol  6481ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  23:52:57
+   Duration  10.27s (transform 0ms, setup 0ms, import 138ms, tests 6.48s, environment 0ms)
+

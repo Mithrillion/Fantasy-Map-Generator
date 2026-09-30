@@ -1,0 +1,884 @@
+/**
+ * TEMPORARY diagnostic harness for the `select-underground-pair-set` change.
+ * Not kept in src/: run it, record the numbers in measure/, delete it.
+ *
+ *   cp openspec/changes/select-underground-pair-set/harness/underground-pairset.dom.test.ts.txt \
+ *      src/generators/underground-pairset.dom.test.ts
+ *   CHROMIUM_PATH=/usr/bin/chromium npx vitest run --config vitest.browser.config.ts \
+ *      generators/underground-pairset.dom.test.ts
+ *   VITE_MEASURE_SEEDS=measure-a   # smoke run on one seed
+ *
+ * The eight-seed paired protocol of the archived `measure-tunnel-character` diagnostic, narrowed to
+ * what this change has to hold: the narrowed service contract, the shadowing and directness ceilings,
+ * the network-size band, the untouched surface network, and the layer policy's own report. The
+ * baseline columns it compares against are the archived run's (evidence.md, 2026-09-30).
+ */
+import Delaunator from "delaunator";
+import { it } from "vitest";
+import { distanceSquared } from "@/utils";
+import { findPath } from "@/utils/pathUtils";
+import "@/components/options-model"; // installs the `options` global in browser mode
+import { getClassification, hasBelowLevelPresence } from "./burg-classification";
+import "./index";
+import { GenerationPipeline } from "./generation-pipeline";
+import { auditPlanes } from "./plane-integrity";
+import { createSurfacePathMeasure, selectUndergroundPairs } from "./routes-generator";
+
+type Point = [number, number];
+type CellRoute = { points: number[][]; underground?: boolean; group?: string };
+type Burg = {
+  i: number;
+  removed?: boolean;
+  cell: number;
+  x: number;
+  y: number;
+  feature?: number;
+  underground?: boolean;
+  subterranean?: boolean;
+};
+
+/** the app loads public/libs/flatqueue.js as a plain script; browser-mode tests do not */
+class FlatQueue {
+  private ids: number[] = [];
+  private values: number[] = [];
+  get length() {
+    return this.ids.length;
+  }
+  push(id: number, value: number = id) {
+    this.ids.push(id);
+    this.values.push(value);
+    let index = this.ids.length - 1;
+    while (index > 0) {
+      const parent = (index - 1) >> 1;
+      if (this.values[parent] <= this.values[index]) break;
+      this.swap(index, parent);
+      index = parent;
+    }
+  }
+  pop() {
+    if (!this.ids.length) return undefined;
+    const id = this.ids[0];
+    const lastId = this.ids.pop() as number;
+    const lastValue = this.values.pop() as number;
+    if (this.ids.length) {
+      this.ids[0] = lastId;
+      this.values[0] = lastValue;
+      let index = 0;
+      for (;;) {
+        const left = index * 2 + 1;
+        const right = left + 1;
+        let smallest = index;
+        if (left < this.values.length && this.values[left] < this.values[smallest]) smallest = left;
+        if (right < this.values.length && this.values[right] < this.values[smallest]) smallest = right;
+        if (smallest === index) break;
+        this.swap(index, smallest);
+        index = smallest;
+      }
+    }
+    return id;
+  }
+  peekValue() {
+    return this.values[0];
+  }
+  private swap(a: number, b: number) {
+    [this.ids[a], this.ids[b]] = [this.ids[b], this.ids[a]];
+    [this.values[a], this.values[b]] = [this.values[b], this.values[a]];
+  }
+}
+
+const round = (value: number, digits = 3) => Number(value.toFixed(digits));
+const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
+
+// ---------------------------------------------------------------- the recorded baseline
+
+/** the archived run's per-seed `roadCopiesExpanded` (measure/roadcopy.log) */
+const BASELINE_SHADOWING: Record<string, number> = {
+  "measure-a": 8,
+  "measure-b": 5,
+  "measure-c": 6,
+  "measure-d": 9,
+  "measure-e": 13,
+  "measure-f": 8,
+  "measure-g": 5,
+  "measure-h": 1
+};
+/** the protocol's own length: a smoke run's means say nothing about the eight-seed gates */
+const PROTOCOL_SEEDS = 8;
+const BASELINE = {
+  shadowMean: 6.9, // <= this, per seed mean
+  shadowSlack: 1, // no seed more than this above its own baseline
+  directnessMean: 1.28,
+  directnessMax: 1.5,
+  records: [25.1, 67.3], // the subterranean-only counterfactual .. the tree over all below-level burgs
+  cells: [394, 458]
+};
+
+const SEEDS = (import.meta.env.VITE_MEASURE_SEEDS as string | undefined)?.split(",") ?? [
+  "measure-a",
+  "measure-b",
+  "measure-c",
+  "measure-d",
+  "measure-e",
+  "measure-f",
+  "measure-g",
+  "measure-h"
+];
+
+// ---------------------------------------------------------------- metrics
+
+const cellsOf = (route: CellRoute) => route.points.map(point => point[2]);
+
+/** the record's drawn polyline length, in map units */
+const drawnLength = (route: CellRoute) => {
+  let sum = 0;
+  for (let i = 0; i < route.points.length - 1; i++)
+    sum += Math.sqrt(distanceSquared(route.points[i] as Point, route.points[i + 1] as Point));
+  return sum;
+};
+
+/** per record: drawn length over the straight line between its own drawn ends (the archived metric) */
+function directness(records: CellRoute[], width: number) {
+  const readings: number[] = [];
+  for (const record of records) {
+    const from = record.points[0] as Point;
+    const to = record.points.at(-1) as Point;
+    const direct = Math.sqrt(distanceSquared(from, to));
+    if (direct < width) continue;
+    readings.push(drawnLength(record) / direct);
+  }
+  return { mean: mean(readings), max: readings.length ? Math.max(...readings) : 0, records: readings.length };
+}
+
+/** cell width: the mean nearest-neighbour distance, so a threshold reads in cell units */
+function cellWidth(): number {
+  const { i, p, c } = pack.cells;
+  let sum = 0;
+  for (let cell = 0; cell < i.length; cell++) {
+    let nearest = Infinity;
+    for (const neighbour of c[cell] ?? []) nearest = Math.min(nearest, distanceSquared(p[cell], p[neighbour]));
+    if (nearest < Infinity) sum += Math.sqrt(nearest);
+  }
+  return sum / i.length;
+}
+
+/**
+ * The archived road-copy detector: a tunnel is a copy when a surface record connects the same source
+ * and destination. `same` compares the record's two end settlements; `viaBurg` adds the "pass under a
+ * surface-only burg that a road terminates at" reading. `roadCopiesExpanded` is both.
+ */
+function roadCopies(tunnelRecords: CellRoute[], surfaceRoutes: CellRoute[]) {
+  const burgAt = (cell: number): number => {
+    const burgId = pack.cells.burg[cell] ?? 0;
+    const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+    return burg && !burg.removed ? burg.i : 0;
+  };
+  const connects = (cells: number[]) => {
+    const found = new Set<number>();
+    if (!cells.length) return found;
+    for (const cell of [cells[0], cells[cells.length - 1]]) {
+      const burg = burgAt(cell);
+      if (burg) found.add(burg);
+    }
+    return found;
+  };
+
+  const roads = surfaceRoutes
+    .map(route => route.points.map(point => point[2]))
+    .filter(cells => cells.length > 1)
+    .map((cells, index) => ({ index, cells, ends: connects(cells) }));
+  const terminiBurgs = new Set<number>();
+  for (const road of roads) for (const burg of road.ends) terminiBurgs.add(burg);
+
+  const counts = { same: 0, viaBurg: 0, roadCopies: 0, roadCopiesExpanded: 0 };
+  tunnelRecords.forEach(record => {
+    const cells = record.points.map(point => point[2]);
+    if (!cells.length) return;
+    const ends = connects(cells);
+    if (!ends.size) return;
+
+    const covers = (road: { ends: Set<number> }) => [...road.ends].every(burg => ends.has(burg));
+    let sameRoad = false;
+    for (const road of roads) if (road.ends.size && covers(road)) sameRoad = true;
+
+    let burgRoad = false;
+    if (!sameRoad) {
+      for (const cell of cells) {
+        const burgId = burgAt(cell);
+        if (!burgId || !terminiBurgs.has(burgId) || ends.has(burgId)) continue;
+        if (hasBelowLevelPresence((pack.burgs as unknown as Burg[])[burgId] as never)) continue;
+        for (const road of roads) {
+          if (!road.ends.has(burgId)) continue;
+          const other = [...road.ends].filter(id => id !== burgId);
+          if (other.some(id => ends.has(id))) burgRoad = true;
+        }
+      }
+    }
+
+    if (!sameRoad && !burgRoad) return;
+    if (sameRoad) counts.same++;
+    if (burgRoad) counts.viaBurg++;
+    if (sameRoad) counts.roadCopies++;
+    counts.roadCopiesExpanded++;
+  });
+
+  return { ...counts, records: tunnelRecords.length, roads: roads.length };
+}
+
+/** the narrowed contract: every fully subterranean burg that shares its landmass is on a record */
+function coverage() {
+  const connected = new Set<number>();
+  for (const route of pack.routes as unknown as CellRoute[]) {
+    if (!route.underground) continue;
+    for (const cell of cellsOf(route)) connected.add(cell);
+  }
+
+  const peers = new Map<number, number>();
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || burg.feature === undefined || !hasBelowLevelPresence(burg as never)) continue;
+    peers.set(burg.feature, (peers.get(burg.feature) ?? 0) + 1);
+  }
+
+  let deep = 0;
+  let owed = 0;
+  let uncovered = 0;
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || burg.feature === undefined) continue;
+    if (getClassification(burg as never) !== "underground") continue;
+    deep++;
+    if ((peers.get(burg.feature) ?? 0) < 2) continue; // the lone burg on its landmass is not owed one
+    owed++;
+    if (!connected.has(burg.cell)) uncovered++;
+  }
+  return { deep, owed, uncovered };
+}
+
+/**
+ * A backbone variant: the tree over all below-level burgs with dual-identity burgs kept only where
+ * they carry a deep burg (transit), so no pair exists only to serve an already-served burg.
+ */
+function transitBackbone(): Pair[] {
+  const out: Pair[] = [];
+  for (const [feature, burgs] of belowLevelGroups()) {
+    const points = burgs.map(burg => [burg.x, burg.y] as Point);
+    const deep = burgs.map(burg => getClassification(burg as never) === "underground");
+    let edges = mstEdges(points).filter(([a, b]) => deep[a] || deep[b]);
+
+    for (;;) {
+      const degree = new Map<number, number>();
+      for (const [a, b] of edges) {
+        degree.set(a, (degree.get(a) ?? 0) + 1);
+        degree.set(b, (degree.get(b) ?? 0) + 1);
+      }
+      let removed = false;
+      edges = edges.filter(([a, b]) => {
+        const leaf = !deep[a] && (degree.get(a) ?? 0) === 1 ? a : !deep[b] && (degree.get(b) ?? 0) === 1 ? b : -1;
+        if (leaf < 0) return true;
+        const neighbour = leaf === a ? b : a;
+        if (deep[neighbour] && (degree.get(neighbour) ?? 0) === 1) return true; // the deep burg's only support
+        removed = true;
+        return false;
+      });
+      if (!removed) break;
+    }
+
+    const parent = Array.from({ length: burgs.length }, (_, index) => index);
+    const find = (index: number): number => {
+      while (parent[index] !== index) {
+        parent[index] = parent[parent[index]];
+        index = parent[index];
+      }
+      return index;
+    };
+    const union = (a: number, b: number) => {
+      const rootA = find(a);
+      const rootB = find(b);
+      if (rootA !== rootB) parent[rootA] = rootB;
+    };
+    for (const [a, b] of edges) union(a, b);
+
+    for (;;) {
+      const components = new Set(deep.flatMap((isDeep, index) => (isDeep ? [find(index)] : [])));
+      if (components.size < 2) break;
+      let best: { a: number; b: number; distance: number } | undefined;
+      for (let a = 0; a < burgs.length; a++) {
+        if (!components.has(find(a))) continue;
+        for (let b = a + 1; b < burgs.length; b++) {
+          if (!components.has(find(b)) || find(a) === find(b)) continue;
+          if (!deep[a] && !deep[b]) continue;
+          const distance = distanceSquared(points[a], points[b]);
+          if (!best || distance < best.distance) best = { a, b, distance };
+        }
+      }
+      if (!best) break;
+      union(best.a, best.b);
+      edges.push([best.a, best.b]);
+    }
+
+    for (const [a, b] of edges) out.push([burgs[a].cell, burgs[b].cell, feature]);
+  }
+  return out;
+}
+
+/** The deferred long-link layer: capped pairs between fully subterranean burgs above a distance floor */
+function deferredLongLinks(floor: number, cap: number): Pair[] {
+  const candidates: Array<{ start: number; end: number; feature: number; distance: number }> = [];
+  for (const [feature, burgs] of belowLevelGroups()) {
+    const deep = burgs.filter(burg => getClassification(burg as never) === "underground");
+    for (let a = 0; a < deep.length; a++)
+      for (let b = a + 1; b < deep.length; b++) {
+        const distance = Math.sqrt(
+          distanceSquared([deep[a].x, deep[a].y] as Point, [deep[b].x, deep[b].y] as Point)
+        );
+        if (distance < floor) continue;
+        candidates.push({ start: deep[a].cell, end: deep[b].cell, feature, distance });
+      }
+  }
+  candidates.sort((a, b) => b.distance - a.distance || a.start - b.start || a.end - b.end);
+  return candidates.slice(0, cap).map(candidate => [candidate.start, candidate.end, candidate.feature] as Pair);
+}
+
+/** the separations the long-link layer could read: fully subterranean burgs sharing a landmass */
+function deepSeparations() {
+  const byFeature = new Map<number, Array<Burg & { feature: number }>>();
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || burg.feature === undefined) continue;
+    if (getClassification(burg as never) !== "underground") continue;
+    const list = byFeature.get(burg.feature);
+    if (list) list.push(burg as Burg & { feature: number });
+    else byFeature.set(burg.feature, [burg as Burg & { feature: number }]);
+  }
+
+  const distances: number[] = [];
+  for (const burgs of byFeature.values())
+    for (let a = 0; a < burgs.length; a++)
+      for (let b = a + 1; b < burgs.length; b++)
+        distances.push(Math.sqrt(distanceSquared([burgs[a].x, burgs[a].y] as Point, [burgs[b].x, burgs[b].y] as Point)));
+  distances.sort((a, b) => a - b);
+
+  const percentile = (share: number) =>
+    distances.length ? round(distances[Math.min(distances.length - 1, Math.floor(share * distances.length))], 1) : 0;
+  const floors = [200, 300, 400, 500, 600];
+  return {
+    pairs: distances.length,
+    p50: percentile(0.5),
+    p75: percentile(0.75),
+    p90: percentile(0.9),
+    p95: percentile(0.95),
+    p99: percentile(0.99),
+    max: distances.length ? round(distances[distances.length - 1], 1) : 0,
+    above: Object.fromEntries(floors.map(floor => [floor, distances.filter(value => value >= floor).length]))
+  };
+}
+
+// ---------------------------------------------------------------- the counterfactual controls
+
+type Pair = [number, number, number]; // start cell, end cell, feature
+
+/** Urquhart graph, copied from the generator so a control can build its own pair set */
+function urquhartEdges(points: Point[]): Array<[number, number]> {
+  if (points.length < 2) return [];
+  if (points.length === 2) return [[0, 1]];
+
+  const score = (p0: number, p1: number) => distanceSquared(points[p0], points[p1]);
+  const { halfedges, triangles } = Delaunator.from(points as unknown as number[][]);
+  const n = triangles.length;
+  const removed = new Uint8Array(n);
+  const edges: Array<[number, number]> = [];
+
+  for (let e = 0; e < n; e += 3) {
+    const p0 = triangles[e];
+    const p1 = triangles[e + 1];
+    const p2 = triangles[e + 2];
+    const p01 = score(p0, p1);
+    const p12 = score(p1, p2);
+    const p20 = score(p2, p0);
+    removed[
+      p20 > p01 && p20 > p12
+        ? Math.max(e + 2, halfedges[e + 2])
+        : p12 > p01 && p12 > p20
+          ? Math.max(e + 1, halfedges[e + 1])
+          : Math.max(e, halfedges[e])
+    ] = 1;
+  }
+
+  for (let e = 0; e < n; ++e) {
+    if (e > halfedges[e] && !removed[e]) {
+      const t0 = triangles[e];
+      const t1 = triangles[e % 3 === 2 ? e - 2 : e + 1];
+      edges.push([t0, t1]);
+    }
+  }
+  return edges;
+}
+
+/** Kruskal minimum spanning tree over a small point set */
+function mstEdges(points: Point[]): Array<[number, number]> {
+  const n = points.length;
+  const candidates: Array<[number, number, number]> = [];
+  for (let i = 0; i < n; i++)
+    for (let j = i + 1; j < n; j++) candidates.push([i, j, distanceSquared(points[i], points[j])]);
+  candidates.sort((a, b) => a[2] - b[2]);
+
+  const parent = Array.from({ length: n }, (_, i) => i);
+  const find = (x: number): number => {
+    const root = parent[x] === x ? x : find(parent[x]);
+    parent[x] = root;
+    return root;
+  };
+  const out: Array<[number, number]> = [];
+  for (const [i, j] of candidates) {
+    const a = find(i);
+    const b = find(j);
+    if (a !== b) {
+      parent[a] = b;
+      out.push([i, j]);
+    }
+  }
+  return out;
+}
+
+/** the below-level burgs of each landmass, which is the candidate population the layers share */
+function belowLevelGroups() {
+  const byFeature = new Map<number, Burg[]>();
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || !hasBelowLevelPresence(burg as never) || burg.feature === undefined) continue;
+    const list = byFeature.get(burg.feature);
+    if (list) list.push(burg);
+    else byFeature.set(burg.feature, [burg]);
+  }
+  return byFeature;
+}
+
+/** the shortcut layer's candidates at a given ratio, for the threshold sweep */
+function shortcutAt(ratio: number): Pair[] {
+  const measure = createSurfacePathMeasure(pack.routes, pack);
+  const out: Pair[] = [];
+  for (const [feature, burgs] of belowLevelGroups()) {
+    const points = burgs.map(burg => [burg.x, burg.y] as Point);
+    for (const [a, b] of urquhartEdges(points)) {
+      const direct = Math.sqrt(distanceSquared(points[a], points[b]));
+      const surface = measure(burgs[a].cell, burgs[b].cell);
+      if (surface === null || surface >= ratio * direct) out.push([burgs[a].cell, burgs[b].cell, feature]);
+    }
+  }
+  return out;
+}
+
+const dedupe = (pairs: Pair[]): Pair[] => {
+  const seen = new Set<string>();
+  return pairs.filter(([start, end]) => {
+    const key = `${start}-${end}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+/** the archived controls: the neighbour graph over the deep burgs, and the tree over every below-level one */
+function controlPairs() {
+  const subterraneanOnly: Pair[] = [];
+  const backboneMst: Pair[] = [];
+  const byFeature = new Map<number, Burg[]>();
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || !hasBelowLevelPresence(burg as never) || burg.feature === undefined) continue;
+    const list = byFeature.get(burg.feature);
+    if (list) list.push(burg);
+    else byFeature.set(burg.feature, [burg]);
+  }
+
+  for (const [feature, burgs] of byFeature) {
+    if (burgs.length < 2) continue;
+    const points = burgs.map(burg => [burg.x, burg.y] as Point);
+    for (const [a, b] of mstEdges(points)) backboneMst.push([burgs[a].cell, burgs[b].cell, feature]);
+
+    const deep = burgs.filter(burg => getClassification(burg as never) === "underground");
+    if (deep.length >= 2) {
+      const deepPoints = deep.map(burg => [burg.x, burg.y] as Point);
+      for (const [a, b] of urquhartEdges(deepPoints)) subterraneanOnly.push([deep[a].cell, deep[b].cell, feature]);
+    }
+  }
+  return { subterraneanOnly, backboneMst };
+}
+
+/** Runs a pair set through the production pathfinder, merge and prune: the archived replica */
+function runPairs(pairs: Pair[]): CellRoute[] {
+  const module = Routes as unknown as {
+    undergroundConnections: Set<string>;
+    getUndergroundSegments: (path: number[], edges: Set<string>) => number[][];
+    rememberEdges: (edges: Set<string>, cells: number[]) => void;
+    mergeRoutes: (routes: unknown[]) => Array<{ merged?: boolean; cells?: number[] }>;
+    preparePointsArray: () => number[][];
+    getPoints: (group: string, cells: number[], points: number[][]) => number[][];
+    pruneUndergroundHighways: () => number;
+  };
+  const undergroundEdges = new Set<string>();
+  const connections = new Set<string>();
+  module.undergroundConnections = connections;
+  const chains: number[][] = [];
+
+  for (const [start, exit, feature] of pairs) {
+    if (start === exit) continue;
+    const pathCells = findPath(start, next => next === exit, Routes.createUndergroundCost(feature), pack as never);
+    if (!pathCells) continue;
+    for (const segment of module.getUndergroundSegments(pathCells, undergroundEdges)) {
+      module.rememberEdges(undergroundEdges, segment);
+      module.rememberEdges(connections, segment);
+      chains.push(segment);
+    }
+  }
+
+  const pointsArray = module.preparePointsArray();
+  const asRoute = (cells: number[], index: number) => ({
+    i: index,
+    group: "roads",
+    feature: 0,
+    underground: true,
+    cells: [...cells]
+  });
+  const merged = module
+    .mergeRoutes(chains.map(asRoute))
+    .filter(route => !route.merged)
+    .map((route, index) => ({
+      i: index,
+      group: "roads",
+      feature: 0,
+      underground: true,
+      cells: route.cells,
+      points: module.getPoints("roads", route.cells!, pointsArray)
+    }));
+
+  const saved = pack.routes;
+  pack.routes = merged as never;
+  module.pruneUndergroundHighways();
+  const kept = (pack.routes as unknown as CellRoute[]).map(route => ({ points: route.points, underground: true }));
+  pack.routes = saved;
+  return kept;
+}
+
+// ---------------------------------------------------------------- the run
+
+const checks: string[] = [];
+const check = (name: string, pass: boolean, detail: string) => {
+  console.log(`CHECK ${pass ? "pass" : "FAIL"} ${name} ${detail}`);
+  if (!pass) checks.push(`${name}: ${detail}`);
+};
+
+it("measures the underground pair policy on the eight-seed protocol", { timeout: 3_600_000 }, async () => {
+  for (const flag of ["INFO", "TIME", "ERROR", "WARN", "DEBUG"]) (globalThis as Record<string, unknown>)[flag] = false;
+  (globalThis as unknown as { tip: () => void }).tip = () => {};
+  (globalThis as unknown as { FlatQueue: unknown }).FlatQueue = FlatQueue;
+  (globalThis as unknown as { window: { FlatQueue: unknown } }).window.FlatQueue = FlatQueue;
+  globalThis.grid = {} as never;
+  globalThis.pack = {} as never;
+
+  const rows: Array<Record<string, number | string | boolean>> = [];
+  const controlRows: Array<Record<string, number | string>> = [];
+  const surfaceDiffs: Array<{ seed: string; identical: boolean; detail: string }> = [];
+  const routingChecks: Array<{ seed: string; identical: boolean; detail: string }> = [];
+
+  for (const seed of SEEDS) {
+    const elapsed = Date.now();
+    options.map.seed = seed;
+    options.generation.underground = true;
+    options.generation.template = "continents";
+    try {
+      await GenerationPipeline.run({});
+    } catch (error) {
+      console.log(`pipeline stopped: ${(error as Error).message}`);
+    }
+
+    const routes = pack.routes as unknown as CellRoute[];
+    const tunnels = routes.filter(route => route.underground);
+    const surface = routes.filter(route => !route.underground);
+    const withUnderground = JSON.stringify(surface.map(route => route.points));
+
+    const width = cellWidth();
+    const cells = new Set<number>();
+    for (const route of tunnels) for (const cell of cellsOf(route)) cells.add(cell);
+    const length = tunnels.reduce((sum, route) => sum + drawnLength(route), 0);
+    const direct = directness(tunnels, width);
+    const copies = roadCopies(tunnels, surface);
+    const report = auditPlanes(pack, pack.routes);
+    const covered = coverage();
+    const separations = deepSeparations();
+
+    // the policy's own report: which layer justified each admitted pair
+    const pairs = selectUndergroundPairs(pack.burgs, createSurfacePathMeasure(pack.routes, pack));
+    const byLayer: Record<string, number> = { backbone: 0, shortcut: 0 };
+    for (const pair of pairs) byLayer[pair.layer]++;
+    const longest = pairs.reduce(
+      (max, pair) => {
+        const from = (pack.burgs as unknown as Burg[])[pack.cells.burg[pair.start]] ?? undefined;
+        const to = (pack.burgs as unknown as Burg[])[pack.cells.burg[pair.end]] ?? undefined;
+        const distance =
+          from && to ? Math.sqrt(distanceSquared([from.x, from.y] as Point, [to.x, to.y] as Point)) : 0;
+        return distance > max.distance ? { distance, layer: pair.layer } : max;
+      },
+      { distance: 0, layer: "none" }
+    );
+
+    // what the shortcut layer fires on: a direct line over water, or a road that simply meanders
+    const crossesWater = (from: number, to: number) => {
+      const a = pack.cells.p[from];
+      const b = pack.cells.p[to];
+      const steps = Math.max(2, Math.ceil(Math.sqrt(distanceSquared(a as Point, b as Point)) / (width / 2)));
+      for (let step = 0; step <= steps; step++) {
+        const ratio = step / steps;
+        const x = a[0] + (b[0] - a[0]) * ratio;
+        const y = a[1] + (b[1] - a[1]) * ratio;
+        let nearest = 0;
+        let best = Infinity;
+        for (let cell = 0; cell < pack.cells.p.length; cell++) {
+          const dx = pack.cells.p[cell][0] - x;
+          const dy = pack.cells.p[cell][1] - y;
+          if (dx * dx + dy * dy < best) {
+            best = dx * dx + dy * dy;
+            nearest = cell;
+          }
+        }
+        if (pack.cells.h[nearest] < 20) return true;
+      }
+      return false;
+    };
+    const shortcutPairs = pairs.filter(pair => pair.layer === "shortcut");
+    const shortcutWater = shortcutPairs.filter(pair => crossesWater(pair.start, pair.end)).length;
+    const deferred = deferredLongLinks(400, 2);
+    const longWater = deferred.filter(([start, end]) => crossesWater(start, end)).length;
+    console.log(
+      `LAYER-DETAIL ${JSON.stringify({
+        seed,
+        shortcutPairs: shortcutPairs.length,
+        shortcutWater,
+        longLinkWater: longWater,
+        deferredLongLinkPairs: deferred.length
+      })}`
+    );
+
+    // the design's two counterfactuals, re-measured on this build so the band is read against them
+    const controls = controlPairs();
+    const controlRow = (name: string, pairSet: Pair[]) => {
+      const records = runPairs(pairSet);
+      const cells = new Set<number>();
+      for (const record of records) for (const cell of cellsOf(record)) cells.add(cell);
+      const entry = {
+        seed,
+        control: name,
+        pairs: pairSet.length,
+        records: records.length,
+        cells: cells.size,
+        length: Math.round(records.reduce((sum, record) => sum + drawnLength(record), 0)),
+        directness: round(directness(records, width).mean),
+        shadowing: roadCopies(records, surface).roadCopiesExpanded
+      };
+      console.log(`CONTROL ${JSON.stringify(entry)}`);
+      return entry;
+    };
+    controlRows.push(controlRow("subterranean-only", controls.subterraneanOnly), controlRow("backbone-mst", controls.backboneMst));
+    // the policy's own layers, each routed alone, so an over-firing layer is visible as itself
+    const layerPairs = (layer: string) => pairs.filter(pair => pair.layer === layer).map(pair => [pair.start, pair.end, pair.feature] as Pair);
+    for (const layer of ["backbone", "shortcut"])
+      controlRows.push(controlRow(`ours-${layer}`, layerPairs(layer)));
+    // the threshold sweep: the shortcut layer at a stricter ratio, with the other two layers untouched
+    for (const ratio of [1.75, 2, 2.5])
+      controlRows.push(
+        controlRow(
+          `ratio-${ratio}`,
+          dedupe([...layerPairs("backbone"), ...shortcutAt(ratio)])
+        )
+      );
+
+    // the marginal cost of each addition to the backbone, in the production routing order
+    const layersUpTo = (...names: string[]) =>
+      pairs.filter(pair => names.includes(pair.layer)).map(pair => [pair.start, pair.end, pair.feature] as Pair);
+    controlRows.push(
+      controlRow("ours-backbone+shortcut", layersUpTo("backbone", "shortcut")),
+      controlRow("ours-all", layersUpTo("backbone", "shortcut")),
+      // the deferred long-link layer, so the deferral's cost stays measured and reproducible
+      controlRow("backbone-transit", transitBackbone()),
+      controlRow("transit+shortcut", dedupe([...transitBackbone(), ...layerPairs("shortcut")])),
+      controlRow("deferred-long-link", deferred),
+      controlRow("deferred-all", dedupe([...layerPairs("backbone"), ...layerPairs("shortcut"), ...deferred]))
+    );
+
+    // layers do not alter routing: the pair set is order-independent, and one pair routes one chain
+    const reversed = selectUndergroundPairs(pack.burgs, createSurfacePathMeasure(pack.routes, pack), [
+      "shortcut",
+      "backbone"
+    ]);
+    const key = (pair: { start: number; end: number }) => (pair.start < pair.end ? `${pair.start}-${pair.end}` : `${pair.end}-${pair.start}`);
+    const sameSet =
+      pairs.length === reversed.length && pairs.every(pair => reversed.some(other => key(other) === key(pair)));
+    let chainDetail = "no pair to route";
+    let sameChain = true;
+    const sample = reversed.find(pair => pair.layer === "shortcut") ?? reversed[0];
+    if (sample) {
+      const module = Routes as unknown as { undergroundConnections: Set<string> };
+      const chainOf = () => {
+        module.undergroundConnections = new Set();
+        return findPath(
+          sample.start,
+          next => next === sample.end,
+          Routes.createUndergroundCost(sample.feature),
+          pack as never
+        );
+      };
+      const first = chainOf();
+      const second = chainOf(); // the same pair, admitted by another layer in the reversed order
+      sameChain = JSON.stringify(first) === JSON.stringify(second);
+      chainDetail = `pair ${key(sample)} as ${sample.layer}: ${first ? first.length : 0} cells`;
+    }
+    routingChecks.push({
+      seed,
+      identical: sameSet && sameChain,
+      detail: `pairs=${pairs.length} reversed=${reversed.length} ${chainDetail}`
+    });
+
+    // the same map's surface network with underground generation off: the routes step re-run, which
+    // is the archived unit test's own comparison, so the pipeline's run-to-run noise stays out of it
+    options.generation.underground = false;
+    Routes.generate([], SEEDS.indexOf(seed) + 1);
+    const withoutUnderground = JSON.stringify(
+      (pack.routes as unknown as CellRoute[]).filter(route => !route.underground).map(route => route.points)
+    );
+    surfaceDiffs.push({
+      seed,
+      identical: withoutUnderground === withUnderground,
+      detail: `${JSON.parse(withoutUnderground).length} surface records each way`
+    });
+    options.generation.underground = true;
+
+    const row = {
+      seed,
+      ms: Date.now() - elapsed,
+      records: tunnels.length,
+      cells: cells.size,
+      length: Math.round(length),
+      directness: round(direct.mean),
+      directnessMax: round(direct.max),
+      directnessRecords: direct.records,
+      shadowing: copies.roadCopiesExpanded,
+      same: copies.same,
+      viaBurg: copies.viaBurg,
+      surfaceRecords: copies.roads,
+      pairs: pairs.length,
+      junctions: report.boundaries.underground.junctions.length,
+      termini: report.boundaries.underground.termini.length,
+      backbone: byLayer.backbone,
+      shortcut: byLayer.shortcut,
+      longestPair: round(longest.distance),
+      longestLayer: longest.layer,
+      serviceViolations: report.violations.filter(violation => violation.rule === "service").length,
+      boundaryViolations: report.violations.filter(violation => violation.rule === "boundary").length,
+      repairs: report.repairs,
+      deepBurgs: covered.deep,
+      deepOwed: covered.owed,
+      deepUncovered: covered.uncovered,
+      surfaceIdentical: withoutUnderground === withUnderground
+    };
+    rows.push(row);
+    console.log(`ROW ${JSON.stringify(row)}`);
+    console.log(`DIST ${JSON.stringify({ seed, ...separations })}`);
+  }
+
+  const values = (key: string) => rows.map(row => row[key] as number);
+  const full = rows.length >= PROTOCOL_SEEDS;
+  const smokeNote = full ? "" : `smoke run over ${rows.length} seed(s): mean gates skipped; `;
+  const aggregate = {
+    seeds: rows.length,
+    records: round(mean(values("records")), 1),
+    cells: round(mean(values("cells")), 1),
+    length: Math.round(mean(values("length"))),
+    directness: round(mean(values("directness"))),
+    directnessMax: round(Math.max(...values("directnessMax"))),
+    shadowing: round(mean(values("shadowing")), 2),
+    shadowingMax: Math.max(...values("shadowing")),
+    pairs: round(mean(values("pairs")), 1),
+    junctions: round(mean(values("junctions")), 1),
+    backbone: round(mean(values("backbone")), 1),
+    shortcut: round(mean(values("shortcut")), 1),
+    longestPair: round(mean(values("longestPair")), 1),
+    serviceViolations: values("serviceViolations").reduce((a, b) => a + b, 0),
+    boundaryViolations: values("boundaryViolations").reduce((a, b) => a + b, 0),
+    repairs: values("repairs").reduce((a, b) => a + b, 0),
+    deepBurgs: round(mean(values("deepBurgs")), 1),
+    deepUncovered: values("deepUncovered").reduce((a, b) => a + b, 0)
+  };
+  console.log(`AGG ${JSON.stringify(aggregate)}`);
+  for (const name of [
+    "subterranean-only",
+    "backbone-mst",
+    "ours-backbone",
+    "ours-shortcut",
+    "ours-all",
+    "backbone-transit",
+    "transit+shortcut",
+    "deferred-long-link",
+    "deferred-all",
+    "ratio-2"
+  ]) {
+    const subset = controlRows.filter(row => row.control === name);
+    console.log(
+      `CONTROL-AGG ${JSON.stringify({
+        control: name,
+        seeds: subset.length,
+        pairs: round(mean(subset.map(row => row.pairs as number)), 1),
+        records: round(mean(subset.map(row => row.records as number)), 1),
+        cells: round(mean(subset.map(row => row.cells as number)), 1),
+        length: Math.round(mean(subset.map(row => row.length as number))),
+        directness: round(mean(subset.map(row => row.directness as number))),
+        shadowing: round(mean(subset.map(row => row.shadowing as number)), 2)
+      })}`
+    );
+  }
+
+  // ---- the integration claims this change has to hold
+
+  const coverageFailures = rows.filter(
+    row => row.serviceViolations || row.boundaryViolations || row.repairs || row.deepUncovered
+  );
+  check(
+    "integration / coverage across all eight seeds",
+    coverageFailures.length === 0,
+    coverageFailures.length
+      ? JSON.stringify(coverageFailures.map(row => ({ seed: row.seed, ...row })))
+      : `deep ${aggregate.deepBurgs}/seed, uncovered ${aggregate.deepUncovered}, service ${aggregate.serviceViolations}, boundary ${aggregate.boundaryViolations}, repairs ${aggregate.repairs}`
+  );
+
+  const shadowingFailures = rows.filter(
+    row => (row.shadowing as number) > (BASELINE_SHADOWING[row.seed as string] ?? 0) + BASELINE.shadowSlack
+  );
+  check(
+    "integration / shadowing does not regress",
+    (!full || aggregate.shadowing <= BASELINE.shadowMean) && shadowingFailures.length === 0,
+    `${smokeNote}mean ${aggregate.shadowing} (<= ${BASELINE.shadowMean}), per seed ${JSON.stringify(rows.map(row => [row.seed, row.shadowing]))}, over baseline ${JSON.stringify(shadowingFailures.map(row => row.seed))}`
+  );
+
+  const directnessFailures = rows.filter(row => (row.directness as number) > BASELINE.directnessMax);
+  check(
+    "integration / directness does not regress",
+    (!full || aggregate.directness <= BASELINE.directnessMean) && directnessFailures.length === 0,
+    `mean ${aggregate.directness} (<= ${BASELINE.directnessMean}), per seed ${JSON.stringify(rows.map(row => [row.seed, row.directness]))} (<= ${BASELINE.directnessMax}), worst record ${aggregate.directnessMax}`
+  );
+
+  const inBand = (value: number, [low, high]: number[]) => value >= low && value <= high;
+  check(
+    "integration / network shrinks toward the floor",
+    !full || (inBand(aggregate.records, BASELINE.records) && inBand(aggregate.cells, BASELINE.cells)),
+    `${smokeNote}records ${aggregate.records} in [${BASELINE.records}], cells ${aggregate.cells} in [${BASELINE.cells}]`
+  );
+
+  check(
+    "integration / surface network is untouched",
+    surfaceDiffs.every(diff => diff.identical),
+    surfaceDiffs.map(diff => `${diff.seed} ${diff.identical ? "identical" : "DIFFERS"}`).join(", ")
+  );
+
+  check(
+    "integration / layers do not alter routing",
+    routingChecks.every(entry => entry.identical),
+    routingChecks.map(entry => `${entry.seed} ${entry.detail}`).join("; ")
+  );
+
+  if (checks.length) throw new Error(`integration checks failed: ${checks.join(" | ")}`);
+  console.log("ALL INTEGRATION CHECKS PASSED");
+});

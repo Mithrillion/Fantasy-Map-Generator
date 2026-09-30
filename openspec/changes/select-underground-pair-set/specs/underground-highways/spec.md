@@ -40,23 +40,21 @@ A burg with below-level presence that is the only such burg on its landmass has 
 
 ## ADDED Requirements
 
-### Requirement: Underground highways are selected in three layers
+### Requirement: Underground highways are selected in two layers
 
-Pair selection SHALL be a stated policy with three layers, applied in order, over the burgs of each
+Pair selection SHALL be a stated policy with two layers, applied in order, over the burgs of each
 landmass. The layers SHALL NOT alter the routing cost, the water bound, the glacier gate, the separation
 term, or the plane rules; they decide only which burg pairs are routed.
 
 1. **Backbone.** One connected tree per landmass SHALL connect the fully subterranean burgs of that
-   landmass. Where a dual-identity burg lies between two backbone burgs, it SHALL be usable as a node
-   the tree passes through, so the backbone is not forced to route around settlements that need no
-   connection of their own.
+   landmass. A dual-identity burg that carries the path between two backbone burgs SHALL be kept as a
+   node the tree passes through, so the backbone is not forced to route around settlements that need no
+   connection of their own; a dual-identity burg SHALL NOT be attached as a leaf of the backbone, since
+   no highway is owed to it.
 2. **Shortcut.** A pair SHALL be admitted when the surface path between its two burgs is substantially
    longer than the straight-line distance between them, so that a tunnel appears where overland travel
    is expensive or absent. A pair whose surface path is no worse than the direct line SHALL NOT be
    admitted on this ground.
-3. **Long link.** A bounded number of pairs between geographically distant fully subterranean burgs
-   SHALL be admitted by a distance floor, so the network keeps some long, near-straight connections
-   rather than only local ones.
 
 The pair set SHALL NOT include a pair whose only justification is that both endpoints have below-level
 presence.
@@ -71,6 +69,11 @@ presence.
 - **WHEN** the shortest backbone connection between two fully subterranean burgs passes through a dual-identity burg's cell
 - **THEN** the chain may pass through that cell, and it is not required to terminate there
 
+#### Scenario: A dual-identity burg is not attached for its own sake
+
+- **WHEN** a dual-identity burg is the nearest neighbour of a backbone burg but carries no path between two backbone burgs
+- **THEN** no backbone pair is generated for it, and it keeps only what the shortcut layer admits on its own ground
+
 #### Scenario: A shortcut is admitted where overland travel is expensive
 
 - **WHEN** the surface path between two burgs is substantially longer than the straight line between them
@@ -78,10 +81,5 @@ presence.
 
 #### Scenario: No pair exists only to link two served burgs
 
-- **WHEN** two dual-identity burgs are neighbours in the geometric graph and no shortcut, long-link or backbone condition admits them
+- **WHEN** two dual-identity burgs are neighbours in the geometric graph and no shortcut or backbone condition admits them
 - **THEN** no pair is generated for them, and the network does not grow to connect them
-
-#### Scenario: Long links survive the selection
-
-- **WHEN** the three layers have been applied
-- **THEN** at least one admitted pair connects burgs separated by the distance floor, and the network is not reduced to local connections only
