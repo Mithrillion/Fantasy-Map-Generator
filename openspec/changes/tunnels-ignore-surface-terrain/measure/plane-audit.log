@@ -1,0 +1,30 @@
+npm warn Unknown env config "manage-package-manager-versions". This will error in a future major version of npm. See `npm help npmrc` for supported config options.
+npm notice run fantasy-map-generator@1.154.0 npx
+npm notice run 'vitest' run --config vitest.browser.config.ts generators/plane-integrity.dom.test.ts
+
+ RUN  v4.1.11 /mnt/Mega/TestSpace/Fantasy-Map-Generator
+
+stdout | src/generators/plane-integrity.dom.test.ts:64:1 > a clean generated map passes the real-map audit
+PLANES measure-a census surface=782 subterranean=44 underground=44 belowLevel=88 boundaries surface=1146 (1115j/31t) underground=122 (97j/25t) connected surface=854 underground=123 unconnectable=0 repairs=0 contact tunnelsOnSurfaceOnlyBurgs=49 tunnelsOnDualIdentityBurgs=30 tunnelCellsWithMultipleRecords=63 surfaceRoutesOnBelowLevelCells=28 (lower bound) violations=0
+stdout | src/generators/plane-integrity.dom.test.ts:64:1 > a clean generated map passes the real-map audit
+PLANES measure-b census surface=721 subterranean=40 underground=40 belowLevel=80 boundaries surface=1154 (1118j/36t) underground=102 (82j/20t) connected surface=788 underground=100 unconnectable=0 repairs=0 contact tunnelsOnSurfaceOnlyBurgs=36 tunnelsOnDualIdentityBurgs=24 tunnelCellsWithMultipleRecords=72 surfaceRoutesOnBelowLevelCells=27 (lower bound) violations=0
+stdout | src/generators/plane-integrity.dom.test.ts:64:1 > a clean generated map passes the real-map audit
+PLANES measure-c census surface=733 subterranean=41 underground=41 belowLevel=82 boundaries surface=1130 (1104j/26t) underground=90 (72j/18t) connected surface=800 underground=117 unconnectable=1 repairs=0 contact tunnelsOnSurfaceOnlyBurgs=50 tunnelsOnDualIdentityBurgs=27 tunnelCellsWithMultipleRecords=60 surfaceRoutesOnBelowLevelCells=26 (lower bound) violations=0
+stdout | src/generators/plane-integrity.dom.test.ts:64:1 > a clean generated map passes the real-map audit
+PLANES measure-d census surface=800 subterranean=44 underground=44 belowLevel=88 boundaries surface=1188 (1150j/38t) underground=112 (94j/18t) connected surface=865 underground=118 unconnectable=0 repairs=0 contact tunnelsOnSurfaceOnlyBurgs=49 tunnelsOnDualIdentityBurgs=25 tunnelCellsWithMultipleRecords=88 surfaceRoutesOnBelowLevelCells=21 (lower bound) violations=0
+stdout | src/generators/plane-integrity.dom.test.ts:64:1 > a clean generated map passes the real-map audit
+PLANES measure-e census surface=812 subterranean=45 underground=45 belowLevel=90 boundaries surface=1322 (1287j/35t) underground=132 (112j/20t) connected surface=880 underground=131 unconnectable=0 repairs=0 contact tunnelsOnSurfaceOnlyBurgs=53 tunnelsOnDualIdentityBurgs=33 tunnelCellsWithMultipleRecords=87 surfaceRoutesOnBelowLevelCells=23 (lower bound) violations=0
+stdout | src/generators/plane-integrity.dom.test.ts:64:1 > a clean generated map passes the real-map audit
+PLANES measure-f census surface=786 subterranean=44 underground=44 belowLevel=88 boundaries surface=1220 (1178j/42t) underground=114 (91j/23t) connected surface=863 underground=124 unconnectable=1 repairs=0 contact tunnelsOnSurfaceOnlyBurgs=50 tunnelsOnDualIdentityBurgs=30 tunnelCellsWithMultipleRecords=69 surfaceRoutesOnBelowLevelCells=33 (lower bound) violations=0
+stdout | src/generators/plane-integrity.dom.test.ts:64:1 > a clean generated map passes the real-map audit
+PLANES measure-g census surface=729 subterranean=41 underground=41 belowLevel=82 boundaries surface=1184 (1153j/31t) underground=86 (70j/16t) connected surface=792 underground=122 unconnectable=0 repairs=0 contact tunnelsOnSurfaceOnlyBurgs=60 tunnelsOnDualIdentityBurgs=21 tunnelCellsWithMultipleRecords=44 surfaceRoutesOnBelowLevelCells=22 (lower bound) violations=0
+stdout | src/generators/plane-integrity.dom.test.ts:64:1 > a clean generated map passes the real-map audit
+PLANES measure-h census surface=751 subterranean=42 underground=42 belowLevel=84 boundaries surface=1108 (1087j/21t) underground=106 (87j/19t) connected surface=819 underground=109 unconnectable=0 repairs=0 contact tunnelsOnSurfaceOnlyBurgs=40 tunnelsOnDualIdentityBurgs=27 tunnelCellsWithMultipleRecords=65 surfaceRoutesOnBelowLevelCells=26 (lower bound) violations=0
+ ✓ |chromium| src/generators/plane-integrity.dom.test.ts (1 test) 4011ms
+   ✓ a clean generated map passes the real-map audit  4010ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  01:49:35
+   Duration  7.76s (transform 0ms, setup 0ms, import 152ms, tests 4.01s, environment 0ms)
+

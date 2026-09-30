@@ -1,0 +1,662 @@
+/**
+ * TEMPORARY diagnostic harness for the `tunnels-ignore-surface-terrain` change.
+ * Not kept in src/: run it, record the numbers in measure/, delete it.
+ *
+ *   cp openspec/changes/tunnels-ignore-surface-terrain/harness/tunnels-ignore-surface-terrain.dom.test.ts.txt \
+ *      src/generators/tunnels-ignore-surface-terrain.dom.test.ts
+ *   CHROMIUM_PATH=/usr/bin/chromium npx vitest run --config vitest.browser.config.ts \
+ *      generators/tunnels-ignore-surface-terrain.dom.test.ts
+ *   VITE_MEASURE_SEEDS=measure-a   # smoke run on one seed
+ *
+ * The eight-seed protocol of the archived `select-underground-pair-set` run, carrying the readings
+ * this change needs on top of the standing gates: the admitted pair list and a surface fingerprint
+ * per seed (the invariant that keeps the pair-set baselines comparable), a glacier-exposure column
+ * per pair (does the direct corridor cross glacier cells, and how far does the chosen path fall short
+ * of the corridor's crest), and a bound-activity column (`pack.cells.t` histogram over water cells,
+ * plus the step candidates the crossing bound rejects).
+ *
+ * Two runs are archived: `measure/before.log` on the unchanged build, `measure/after.log` on the
+ * changed one. The `BEFORE` block below holds the before run's readings, which is what makes
+ * `protocol / pairs and surface are identical to the pre-change build` an assertion and not a note.
+ */
+import { it } from "vitest";
+import { distanceSquared } from "@/utils";
+import { findPath } from "@/utils/pathUtils";
+import "@/components/options-model"; // installs the `options` global in browser mode
+import { getClassification, hasBelowLevelPresence } from "./burg-classification";
+import "./index";
+import { GenerationPipeline } from "./generation-pipeline";
+import { auditPlanes } from "./plane-integrity";
+import { createSurfacePathMeasure, selectUndergroundPairs } from "./routes-generator";
+
+type Point = [number, number];
+type CellRoute = { points: number[][]; underground?: boolean; group?: string };
+type Burg = {
+  i: number;
+  removed?: boolean;
+  cell: number;
+  x: number;
+  y: number;
+  feature?: number;
+  underground?: boolean;
+  subterranean?: boolean;
+};
+
+/** the app loads public/libs/flatqueue.js as a plain script; browser-mode tests do not */
+class FlatQueue {
+  private ids: number[] = [];
+  private values: number[] = [];
+  get length() {
+    return this.ids.length;
+  }
+  push(id: number, value: number = id) {
+    this.ids.push(id);
+    this.values.push(value);
+    let index = this.ids.length - 1;
+    while (index > 0) {
+      const parent = (index - 1) >> 1;
+      if (this.values[parent] <= this.values[index]) break;
+      this.swap(index, parent);
+      index = parent;
+    }
+  }
+  pop() {
+    if (!this.ids.length) return undefined;
+    const id = this.ids[0];
+    const lastId = this.ids.pop() as number;
+    const lastValue = this.values.pop() as number;
+    if (this.ids.length) {
+      this.ids[0] = lastId;
+      this.values[0] = lastValue;
+      let index = 0;
+      for (;;) {
+        const left = index * 2 + 1;
+        const right = left + 1;
+        let smallest = index;
+        if (left < this.values.length && this.values[left] < this.values[smallest]) smallest = left;
+        if (right < this.values.length && this.values[right] < this.values[smallest]) smallest = right;
+        if (smallest === index) break;
+        this.swap(index, smallest);
+        index = smallest;
+      }
+    }
+    return id;
+  }
+  peekValue() {
+    return this.values[0];
+  }
+  private swap(a: number, b: number) {
+    [this.ids[a], this.ids[b]] = [this.ids[b], this.ids[a]];
+    [this.values[a], this.values[b]] = [this.values[b], this.values[a]];
+  }
+}
+
+const round = (value: number, digits = 3) => Number(value.toFixed(digits));
+const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
+const inBand = (value: number, [low, high]: number[]) => value >= low && value <= high;
+
+// ---------------------------------------------------------------- the recorded baselines
+
+/** the archived pair-set run's per-seed `roadCopiesExpanded` (select-underground-pair-set/measure/pairset-policy.log) */
+const BASELINE_SHADOWING: Record<string, number> = {
+  "measure-a": 7,
+  "measure-b": 3,
+  "measure-c": 4,
+  "measure-d": 7,
+  "measure-e": 8,
+  "measure-f": 9,
+  "measure-g": 3,
+  "measure-h": 0
+};
+/** the protocol's own length: a smoke run's means say nothing about the eight-seed gates */
+const PROTOCOL_SEEDS = 8;
+const BASELINE = {
+  shadowMean: 6.9, // <= this, per seed mean
+  shadowSlack: 1, // no seed more than this above its own baseline
+  directnessMean: 1.28,
+  directnessMax: 1.5,
+  records: [25.1, 67.3], // the subterranean-only counterfactual .. the tree over all below-level burgs
+  cells: [394, 458]
+};
+
+/**
+ * The `measure/before.log` run's own readings — the unchanged build, archived by task 1.2 and never
+ * touched again. Until the block is filled in, the identity and exposure checks report themselves as
+ * unarmed and only the columns are read by hand; with it present they are real assertions against the
+ * pre-change build. The pair lists are carried as a count and a checksum (`pairDigest`) rather than
+ * as lists, so the block stays readable.
+ */
+const BEFORE: {
+  pairs: Record<string, { count: number; hash: number }>;
+  surface: Record<string, { records: number; cells: number; checksum: number }>;
+  corridorGlacierPairs: number;
+  pathMaxGapSum: number;
+} | null = {
+  pairs: {
+    "measure-a": { count: 67, hash: 682709 },
+    "measure-b": { count: 59, hash: 66015 },
+    "measure-c": { count: 63, hash: 575637 },
+    "measure-d": { count: 71, hash: 757166 },
+    "measure-e": { count: 75, hash: 115847 },
+    "measure-f": { count: 70, hash: 185280 },
+    "measure-g": { count: 58, hash: 882936 },
+    "measure-h": { count: 68, hash: 393499 }
+  },
+  surface: {
+    "measure-a": { records: 573, cells: 5822, checksum: 394618 },
+    "measure-b": { records: 577, cells: 6466, checksum: 733069 },
+    "measure-c": { records: 565, cells: 4817, checksum: 414347 },
+    "measure-d": { records: 594, cells: 7139, checksum: 27615 },
+    "measure-e": { records: 661, cells: 7877, checksum: 677465 },
+    "measure-f": { records: 610, cells: 7265, checksum: 306877 },
+    "measure-g": { records: 592, cells: 7538, checksum: 263349 },
+    "measure-h": { records: 554, cells: 7976, checksum: 918405 }
+  },
+  corridorGlacierPairs: 7,
+  pathMaxGapSum: 239
+};
+
+const SEEDS = (import.meta.env.VITE_MEASURE_SEEDS as string | undefined)?.split(",") ?? [
+  "measure-a",
+  "measure-b",
+  "measure-c",
+  "measure-d",
+  "measure-e",
+  "measure-f",
+  "measure-g",
+  "measure-h"
+];
+
+// ---------------------------------------------------------------- metrics
+
+const cellsOf = (route: CellRoute) => route.points.map(point => point[2]);
+
+/** the record's drawn polyline length, in map units */
+const drawnLength = (route: CellRoute) => {
+  let sum = 0;
+  for (let i = 0; i < route.points.length - 1; i++)
+    sum += Math.sqrt(distanceSquared(route.points[i] as Point, route.points[i + 1] as Point));
+  return sum;
+};
+
+/** per record: drawn length over the straight line between its own drawn ends (the archived metric) */
+function directness(records: CellRoute[], width: number) {
+  const readings: number[] = [];
+  for (const record of records) {
+    const from = record.points[0] as Point;
+    const to = record.points.at(-1) as Point;
+    const direct = Math.sqrt(distanceSquared(from, to));
+    if (direct < width) continue;
+    readings.push(drawnLength(record) / direct);
+  }
+  return { mean: mean(readings), max: readings.length ? Math.max(...readings) : 0, records: readings.length };
+}
+
+/** cell width: the mean nearest-neighbour distance, so a threshold reads in cell units */
+function cellWidth(): number {
+  const { i, p, c } = pack.cells;
+  let sum = 0;
+  for (let cell = 0; cell < i.length; cell++) {
+    let nearest = Infinity;
+    for (const neighbour of c[cell] ?? []) nearest = Math.min(nearest, distanceSquared(p[cell], p[neighbour]));
+    if (nearest < Infinity) sum += Math.sqrt(nearest);
+  }
+  return sum / i.length;
+}
+
+/**
+ * The archived road-copy detector: a tunnel is a copy when a surface record connects the same source
+ * and destination. `same` compares the record's two end settlements; `viaBurg` adds the "pass under a
+ * surface-only burg that a road terminates at" reading. `roadCopiesExpanded` is both.
+ */
+function roadCopies(tunnelRecords: CellRoute[], surfaceRoutes: CellRoute[]) {
+  const burgAt = (cell: number): number => {
+    const burgId = pack.cells.burg[cell] ?? 0;
+    const burg = burgId ? (pack.burgs as unknown as Burg[])[burgId] : undefined;
+    return burg && !burg.removed ? burg.i : 0;
+  };
+  const connects = (cells: number[]) => {
+    const found = new Set<number>();
+    if (!cells.length) return found;
+    for (const cell of [cells[0], cells[cells.length - 1]]) {
+      const burg = burgAt(cell);
+      if (burg) found.add(burg);
+    }
+    return found;
+  };
+
+  const roads = surfaceRoutes
+    .map(route => route.points.map(point => point[2]))
+    .filter(cells => cells.length > 1)
+    .map((cells, index) => ({ index, cells, ends: connects(cells) }));
+  const terminiBurgs = new Set<number>();
+  for (const road of roads) for (const burg of road.ends) terminiBurgs.add(burg);
+
+  const counts = { same: 0, viaBurg: 0, roadCopies: 0, roadCopiesExpanded: 0 };
+  tunnelRecords.forEach(record => {
+    const cells = record.points.map(point => point[2]);
+    if (!cells.length) return;
+    const ends = connects(cells);
+    if (!ends.size) return;
+
+    const covers = (road: { ends: Set<number> }) => [...road.ends].every(burg => ends.has(burg));
+    let sameRoad = false;
+    for (const road of roads) if (road.ends.size && covers(road)) sameRoad = true;
+
+    let burgRoad = false;
+    if (!sameRoad) {
+      for (const cell of cells) {
+        const burgId = burgAt(cell);
+        if (!burgId || !terminiBurgs.has(burgId) || ends.has(burgId)) continue;
+        if (hasBelowLevelPresence((pack.burgs as unknown as Burg[])[burgId] as never)) continue;
+        for (const road of roads) {
+          if (!road.ends.has(burgId)) continue;
+          const other = [...road.ends].filter(id => id !== burgId);
+          if (other.some(id => ends.has(id))) burgRoad = true;
+        }
+      }
+    }
+
+    if (!sameRoad && !burgRoad) return;
+    if (sameRoad) counts.same++;
+    if (burgRoad) counts.viaBurg++;
+    if (sameRoad) counts.roadCopies++;
+    counts.roadCopiesExpanded++;
+  });
+
+  return { ...counts, records: tunnelRecords.length, roads: roads.length };
+}
+
+/** the narrowed contract: every fully subterranean burg that shares its landmass is on a record */
+function coverage() {
+  const connected = new Set<number>();
+  for (const route of pack.routes as unknown as CellRoute[]) {
+    if (!route.underground) continue;
+    for (const cell of cellsOf(route)) connected.add(cell);
+  }
+
+  const peers = new Map<number, number>();
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || burg.feature === undefined || !hasBelowLevelPresence(burg as never)) continue;
+    peers.set(burg.feature, (peers.get(burg.feature) ?? 0) + 1);
+  }
+
+  let deep = 0;
+  let owed = 0;
+  let uncovered = 0;
+  for (const burg of pack.burgs as unknown as Burg[]) {
+    if (!burg?.i || burg.removed || burg.feature === undefined) continue;
+    if (getClassification(burg as never) !== "underground") continue;
+    deep++;
+    if ((peers.get(burg.feature) ?? 0) < 2) continue; // the lone burg on its landmass is not owed one
+    owed++;
+    if (!connected.has(burg.cell)) uncovered++;
+  }
+  return { deep, owed, uncovered };
+}
+
+/** the nearest pack cell to a map point, which is how a corridor reads the cells it crosses */
+function nearestCell(x: number, y: number): number {
+  const { p } = pack.cells;
+  let nearest = 0;
+  let best = Infinity;
+  for (let cell = 0; cell < p.length; cell++) {
+    const dx = p[cell][0] - x;
+    const dy = p[cell][1] - y;
+    if (dx * dx + dy * dy < best) {
+      best = dx * dx + dy * dy;
+      nearest = cell;
+    }
+  }
+  return nearest;
+}
+
+/**
+ * The glacier-exposure column. The direct corridor is the straight line between the pair's burg
+ * cells, read at half-cell resolution; the sag is the corridor's highest cell minus the highest cell
+ * of the chosen path. A positive sag means the path never reaches the crest the straight line crosses
+ * — the detour the biome gate used to force — and it should fall toward zero as the gate goes.
+ */
+function glacierExposure(routes: CellRoute[], width: number) {
+  let corridors = 0;
+  let corridorGlacierPairs = 0;
+  let pathMaxGapSum = 0;
+  let pathMaxGapMax = 0;
+  let corridorGlacierCells = 0;
+
+  for (const route of routes) {
+    const cells = cellsOf(route);
+    if (cells.length < 2) continue;
+    const from = pack.cells.p[cells[0]];
+    const to = pack.cells.p[cells[cells.length - 1]];
+    const steps = Math.max(2, Math.ceil(Math.sqrt(distanceSquared(from as Point, to as Point)) / (width / 2)));
+    let corridorMax = -Infinity;
+    let glacier = false;
+    for (let step = 0; step <= steps; step++) {
+      const ratio = step / steps;
+      const cell = nearestCell(from[0] + (to[0] - from[0]) * ratio, from[1] + (to[1] - from[1]) * ratio);
+      const biome = pack.biomes[pack.cells.biome[cell]];
+      if (biome && biome.habitability === 0 && pack.cells.h[cell] >= 20) glacier = true;
+      corridorMax = Math.max(corridorMax, pack.cells.h[cell]);
+    }
+
+    let pathMax = -Infinity;
+    for (const cell of cells) pathMax = Math.max(pathMax, pack.cells.h[cell]);
+
+    corridors++;
+    if (glacier) corridorGlacierPairs++;
+    if (glacier) corridorGlacierCells += cells.length;
+    const gap = corridorMax - pathMax;
+    if (gap > 0) {
+      pathMaxGapSum += gap;
+      pathMaxGapMax = Math.max(pathMaxGapMax, gap);
+    }
+  }
+
+  return { corridors, corridorGlacierPairs, corridorGlacierCells, pathMaxGapSum, pathMaxGapMax };
+}
+
+/**
+ * The bound-activity column: where `pack.cells.t` sits over the water cells, and what the crossing
+ * bound actually rejects. `boundBlockedFromTunnel` counts the step candidates the bound turns down
+ * from a cell a tunnel could itself occupy, which is what separates "the bound is doing the work"
+ * from "the pack has no deep water cells to begin with".
+ */
+function boundActivity() {
+  const { h, t, c, i } = pack.cells;
+  const histogram: Record<string, number> = {};
+  let water = 0;
+  let candidateSteps = 0;
+  let boundBlocked = 0;
+  let boundBlockedFromTunnel = 0;
+
+  for (let cell = 0; cell < i.length; cell++) {
+    if (h[cell] >= 20) continue;
+    water++;
+    histogram[t[cell]] = (histogram[t[cell]] ?? 0) + 1;
+    for (const next of c[cell] ?? []) {
+      if (h[next] >= 20) continue;
+      candidateSteps++;
+      if (t[next] < -2) {
+        boundBlocked++;
+        if (h[cell] < 20 && t[cell] >= -2) boundBlockedFromTunnel++;
+      }
+    }
+  }
+
+  return {
+    water,
+    histogram: Object.fromEntries(Object.entries(histogram).sort((a, b) => Number(a[0]) - Number(b[0]))),
+    candidateSteps,
+    boundBlocked,
+    boundBlockedFromTunnel
+  };
+}
+
+/** the admitted pair list of a seed, carried as a count and a checksum so a baseline fits in a line */
+function pairDigest(pairList: string[]) {
+  let checksum = 0;
+  for (const pair of pairList) for (const code of pair) checksum = (checksum * 31 + code.charCodeAt(0)) % 1_000_003;
+  return { count: pairList.length, hash: checksum };
+}
+
+/** the surface fingerprint: the invariant that keeps the pair-set baselines comparable */
+function surfaceFingerprint(surface: CellRoute[]) {
+  const cells = surface.flatMap(route => cellsOf(route));
+  let checksum = 0;
+  for (const cell of cells) checksum = (checksum * 31 + cell + 1) % 1_000_003;
+  return { records: surface.length, cells: cells.length, checksum };
+}
+
+// ---------------------------------------------------------------- the run
+
+const checks: string[] = [];
+const check = (name: string, pass: boolean, detail: string) => {
+  console.log(`CHECK ${pass ? "pass" : "FAIL"} ${name} ${detail}`);
+  if (!pass) checks.push(`${name}: ${detail}`);
+};
+
+it("measures the tunnel terrain rules on the eight-seed protocol", { timeout: 3_600_000 }, async () => {
+  for (const flag of ["INFO", "TIME", "ERROR", "WARN", "DEBUG"]) (globalThis as Record<string, unknown>)[flag] = false;
+  (globalThis as unknown as { tip: () => void }).tip = () => {};
+  (globalThis as unknown as { FlatQueue: unknown }).FlatQueue = FlatQueue;
+  (globalThis as unknown as { window: { FlatQueue: unknown } }).window.FlatQueue = FlatQueue;
+  globalThis.grid = {} as never;
+  globalThis.pack = {} as never;
+
+  const rows: Array<Record<string, number | string | boolean>> = [];
+  const pairLists: Record<string, string[]> = {};
+  const fingerprints: Record<string, { records: number; cells: number; checksum: number }> = {};
+  const exposureRows: Array<Record<string, number | string>> = [];
+  const boundRows: Array<Record<string, number | string>> = [];
+
+  for (const seed of SEEDS) {
+    const elapsed = Date.now();
+    options.map.seed = seed;
+    options.generation.underground = true;
+    options.generation.template = "continents";
+    try {
+      await GenerationPipeline.run({});
+    } catch (error) {
+      console.log(`pipeline stopped: ${(error as Error).message}`);
+    }
+
+    const routes = pack.routes as unknown as CellRoute[];
+    const tunnels = routes.filter(route => route.underground);
+    const surface = routes.filter(route => !route.underground);
+    const withUnderground = JSON.stringify(surface.map(route => route.points));
+
+    const width = cellWidth();
+    const cells = new Set<number>();
+    for (const route of tunnels) for (const cell of cellsOf(route)) cells.add(cell);
+    const length = tunnels.reduce((sum, route) => sum + drawnLength(route), 0);
+    const direct = directness(tunnels, width);
+    const copies = roadCopies(tunnels, surface);
+    const report = auditPlanes(pack, pack.routes);
+    const covered = coverage();
+
+    // the admitted pair set, in the policy's own order: the identity assertion's first half
+    const pairs = selectUndergroundPairs(pack.burgs, createSurfacePathMeasure(pack.routes, pack));
+    const pairList = pairs.map(pair => `${pair.start}-${pair.end}`);
+    pairLists[seed] = pairList;
+    const fingerprint = surfaceFingerprint(surface);
+    fingerprints[seed] = fingerprint;
+    console.log(`PAIRS ${JSON.stringify({ seed, pairs: pairList })}`);
+
+    const exposure = glacierExposure(tunnels, width);
+    exposureRows.push({ seed, ...exposure });
+    console.log(`GLACIER-DETAIL ${JSON.stringify({ seed, ...exposure })}`);
+
+    const bound = boundActivity();
+    boundRows.push({ seed, ...bound });
+    console.log(`BOUND-DETAIL ${JSON.stringify({ seed, ...bound })}`);
+
+    // the same map's surface network with underground generation off: the routes step re-run, which
+    // is the archived unit test's own comparison, so the pipeline's run-to-run noise stays out of it
+    options.generation.underground = false;
+    Routes.generate([], SEEDS.indexOf(seed) + 1);
+    const withoutUnderground = JSON.stringify(
+      (pack.routes as unknown as CellRoute[]).filter(route => !route.underground).map(route => route.points)
+    );
+    const surfaceIdentical = withoutUnderground === withUnderground;
+    options.generation.underground = true;
+
+    const row = {
+      seed,
+      ms: Date.now() - elapsed,
+      records: tunnels.length,
+      cells: cells.size,
+      length: Math.round(length),
+      directness: round(direct.mean),
+      directnessMax: round(direct.max),
+      directnessRecords: direct.records,
+      shadowing: copies.roadCopiesExpanded,
+      same: copies.same,
+      viaBurg: copies.viaBurg,
+      surfaceRecords: fingerprint.records,
+      surfaceCells: fingerprint.cells,
+      surfaceChecksum: fingerprint.checksum,
+      glacierPairs: exposure.corridorGlacierPairs,
+      glacierCellPairs: round(exposure.corridorGlacierCells / Math.max(exposure.corridors, 1), 2),
+      pathMaxGapSum: exposure.pathMaxGapSum,
+      pathMaxGapMax: exposure.pathMaxGapMax,
+      boundBlocked: bound.boundBlocked,
+      boundBlockedFromTunnel: bound.boundBlockedFromTunnel,
+      waterCells: bound.water,
+      pairs: pairs.length,
+      junctions: report.boundaries.underground.junctions.length,
+      termini: report.boundaries.underground.termini.length,
+      serviceViolations: report.violations.filter(violation => violation.rule === "service").length,
+      boundaryViolations: report.violations.filter(violation => violation.rule === "boundary").length,
+      repairs: report.repairs,
+      deepBurgs: covered.deep,
+      deepOwed: covered.owed,
+      deepUncovered: covered.uncovered,
+      surfaceIdentical
+    };
+    rows.push(row);
+    console.log(`ROW ${JSON.stringify(row)}`);
+  }
+
+  const values = (key: string) => rows.map(row => row[key] as number);
+  const full = rows.length >= PROTOCOL_SEEDS;
+  const smokeNote = full ? "" : `smoke run over ${rows.length} seed(s): mean gates skipped; `;
+  const aggregate = {
+    seeds: rows.length,
+    records: round(mean(values("records")), 1),
+    cells: round(mean(values("cells")), 1),
+    length: Math.round(mean(values("length"))),
+    directness: round(mean(values("directness"))),
+    directnessMax: round(Math.max(...values("directnessMax"))),
+    shadowing: round(mean(values("shadowing")), 2),
+    shadowingMax: Math.max(...values("shadowing")),
+    pairs: round(mean(values("pairs")), 1),
+    junctions: round(mean(values("junctions")), 1),
+    ms: Math.round(mean(values("ms"))),
+    glacierPairs: values("glacierPairs").reduce((a, b) => a + b, 0),
+    pathMaxGapSum: values("pathMaxGapSum").reduce((a, b) => a + b, 0),
+    pathMaxGapMax: Math.max(...values("pathMaxGapMax")),
+    boundBlocked: values("boundBlocked").reduce((a, b) => a + b, 0),
+    boundBlockedFromTunnel: values("boundBlockedFromTunnel").reduce((a, b) => a + b, 0),
+    serviceViolations: values("serviceViolations").reduce((a, b) => a + b, 0),
+    boundaryViolations: values("boundaryViolations").reduce((a, b) => a + b, 0),
+    repairs: values("repairs").reduce((a, b) => a + b, 0),
+    deepBurgs: round(mean(values("deepBurgs")), 1),
+    deepUncovered: values("deepUncovered").reduce((a, b) => a + b, 0)
+  };
+  console.log(`AGG ${JSON.stringify(aggregate)}`);
+  console.log(`SURFACE-FINGERPRINT ${JSON.stringify(fingerprints)}`);
+  const exposureAggregate = {
+    seeds: exposureRows.length,
+    corridors: exposureRows.reduce((sum, row) => sum + (row.corridors as number), 0),
+    corridorGlacierPairs: exposureRows.reduce((sum, row) => sum + (row.corridorGlacierPairs as number), 0),
+    pathMaxGapSum: exposureRows.reduce((sum, row) => sum + (row.pathMaxGapSum as number), 0),
+    pathMaxGapMax: Math.max(...exposureRows.map(row => row.pathMaxGapMax as number)),
+    perSeed: exposureRows.map(row => [
+      row.seed,
+      `${row.corridorGlacierPairs}/${row.corridors}`,
+      row.pathMaxGapSum,
+      row.pathMaxGapMax
+    ])
+  };
+  console.log(`GLACIER-AGG ${JSON.stringify(exposureAggregate)}`);
+  const boundAggregate = {
+    seeds: boundRows.length,
+    waterCells: boundRows.reduce((sum, row) => sum + (row.water as number), 0),
+    candidateSteps: boundRows.reduce((sum, row) => sum + (row.candidateSteps as number), 0),
+    boundBlocked: boundRows.reduce((sum, row) => sum + (row.boundBlocked as number), 0),
+    boundBlockedFromTunnel: boundRows.reduce((sum, row) => sum + (row.boundBlockedFromTunnel as number), 0),
+    perSeed: boundRows.map(row => [row.seed, row.water, row.boundBlocked, row.boundBlockedFromTunnel])
+  };
+  console.log(`BOUND-AGG ${JSON.stringify(boundAggregate)}`);
+
+  // ---- the standing gates this change must hold
+
+  const coverageFailures = rows.filter(
+    row => row.serviceViolations || row.boundaryViolations || row.repairs || row.deepUncovered
+  );
+  check(
+    "protocol / coverage stays clean",
+    coverageFailures.length === 0,
+    coverageFailures.length
+      ? JSON.stringify(coverageFailures.map(row => ({ seed: row.seed, ...row })))
+      : `deep ${aggregate.deepBurgs}/seed owed ${round(mean(values("deepOwed")), 1)}, uncovered ${aggregate.deepUncovered}, ` +
+        `service ${aggregate.serviceViolations}, boundary ${aggregate.boundaryViolations}, repairs ${aggregate.repairs}`
+  );
+
+  const shadowingFailures = rows.filter(
+    row => (row.shadowing as number) > (BASELINE_SHADOWING[row.seed as string] ?? 0) + BASELINE.shadowSlack
+  );
+  check(
+    "protocol / shadowing does not regress",
+    (!full || aggregate.shadowing <= BASELINE.shadowMean) && shadowingFailures.length === 0,
+    `${smokeNote}mean ${aggregate.shadowing} (<= ${BASELINE.shadowMean}), per seed ${JSON.stringify(rows.map(row => [row.seed, row.shadowing]))}, over baseline ${JSON.stringify(shadowingFailures.map(row => row.seed))}`
+  );
+
+  const directnessFailures = rows.filter(row => (row.directness as number) > BASELINE.directnessMax);
+  check(
+    "protocol / directness does not regress",
+    (!full || aggregate.directness <= BASELINE.directnessMean) && directnessFailures.length === 0,
+    `mean ${aggregate.directness} (<= ${BASELINE.directnessMean}), per seed ${JSON.stringify(rows.map(row => [row.seed, row.directness]))} (<= ${BASELINE.directnessMax}), worst record ${aggregate.directnessMax}, records ${round(mean(values("directnessRecords")), 1)}/seed`
+  );
+
+  check(
+    "protocol / network size stays in band",
+    !full || (inBand(aggregate.records, BASELINE.records) && inBand(aggregate.cells, BASELINE.cells)),
+    `${smokeNote}records ${aggregate.records} in [${BASELINE.records}], cells ${aggregate.cells} in [${BASELINE.cells}], network length ${aggregate.length}`
+  );
+
+  check(
+    "protocol / surface is untouched by the tunnel pass",
+    rows.every(row => row.surfaceIdentical),
+    rows.map(row => `${row.seed} ${row.surfaceIdentical ? "identical" : "DIFFERS"}`).join(", ")
+  );
+
+  // ---- this change's own readings
+
+  if (!BEFORE) {
+    console.log("CHECK unarmed protocol / pairs and surface are identical to the pre-change build (no BEFORE block yet)");
+  } else {
+    const pairDiffs = SEEDS.filter(seed => {
+      const before = BEFORE.pairs[seed];
+      const now = pairDigest(pairLists[seed] ?? []);
+      return !before || before.count !== now.count || before.hash !== now.hash;
+    });
+    const surfaceDiffs = SEEDS.filter(
+      seed => JSON.stringify(BEFORE.surface[seed] ?? null) !== JSON.stringify(fingerprints[seed] ?? null)
+    );
+    check(
+      "protocol / pairs and surface are identical to the pre-change build",
+      pairDiffs.length === 0 && surfaceDiffs.length === 0,
+      pairDiffs.length || surfaceDiffs.length
+        ? `pairs differ on ${JSON.stringify(pairDiffs)}, surface differs on ${JSON.stringify(surfaceDiffs)}`
+        : `all ${SEEDS.length} seeds: ${aggregate.pairs} pairs/seed, surface fingerprint identical`
+    );
+  }
+
+  if (!BEFORE) {
+    console.log("CHECK unarmed protocol / glacier exposure per pair (no BEFORE block yet)");
+  } else {
+    check(
+      "protocol / glacier exposure per pair",
+      aggregate.pathMaxGapSum <= BEFORE.pathMaxGapSum &&
+        exposureAggregate.corridorGlacierPairs <= BEFORE.corridorGlacierPairs,
+      `corridors over glacier ${exposureAggregate.corridorGlacierPairs}/${exposureAggregate.corridors} (<= ${BEFORE.corridorGlacierPairs}), ` +
+        `crest sag total ${aggregate.pathMaxGapSum} (<= ${BEFORE.pathMaxGapSum}), worst pair ${aggregate.pathMaxGapMax}, ` +
+        `per seed [seed, glacierPairs/corridors, sag, sagMax] ${JSON.stringify(exposureAggregate.perSeed)}`
+    );
+  }
+
+  check(
+    "protocol / bound activity",
+    boundAggregate.waterCells > 0,
+    `water cells ${boundAggregate.waterCells}, candidate water steps ${boundAggregate.candidateSteps}, ` +
+      `bound-rejected ${boundAggregate.boundBlocked} (${boundAggregate.boundBlockedFromTunnel} of them from a cell a tunnel may occupy), ` +
+      `per seed [seed, water, blocked, blockedFromTunnel] ${JSON.stringify(boundAggregate.perSeed)}`
+  );
+
+  check("protocol / ms per seed", true, `${aggregate.ms} ms/seed mean over ${rows.length} seed(s)`);
+
+  if (checks.length) throw new Error(`integration checks failed: ${checks.join(" | ")}`);
+  console.log("ALL INTEGRATION CHECKS PASSED");
+});

@@ -244,12 +244,13 @@ to the steps that already read them:
   least `UNDERGROUND_SHORTCUT_RATIO` (1.5) times their straight line, measured through the generated
   surface records. The evaluator is `createUndergroundCost`, which closes over the pair's landmass so
   a crossing may run under a bay but never lands on a foreign shore, and prices through
-  `getUndergroundPathCost`: uninhabitable land
-  impassable; water passable only within the coast-indenting bound — a step onto water farther than
-  two cells from land is prohibitive — and priced by depth through the height term, so a shallow bay
-  costs less than a deep one; frozen water impassable by the sea-route temperature rule; high ground
-  cheaper than lowland; a bounded penalty on cells near the surface routes so a tunnel keeps clear of
-  the corridors it is an alternative to; and the discount drawn from the underground network alone.
+  `getUndergroundPathCost`: water passable only within the coast-indenting bound — a step onto water
+  farther than two cells from land is prohibitive — and priced by depth through the height term, so a
+  shallow bay costs less than a deep one; high ground cheaper than lowland; a bounded penalty on cells
+  near the surface routes so a tunnel keeps clear of the corridors it is an alternative to; and the
+  discount drawn from the underground network alone. A tunnel reads no biome and no water temperature:
+  uninhabitable land is the **surface** route's own gate — a road is built on the ground, a bore under
+  it — and frozen water, which stops a sea route, is no obstacle to a tunnel.
   A burg cell with below-level presence is cheaper than a plain one, but less so than on the surface:
   the tunnel attraction is 2 (`UNDERGROUND_BURG_ATTRACTION`) against the land cost's 3. A burg with
   ground-level presence only is priced as a plain cell, and a missing or removed record too, so a

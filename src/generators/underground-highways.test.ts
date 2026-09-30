@@ -147,13 +147,8 @@ function makePack(
       g: new Uint8Array(cellCount),
       routes: {} as Record<number, Record<number, number>>
     },
-    // biome 1 is habitable, biome 12 is not: `habitability: 0` is the gate the land cost uses
-    biomes: [
-      null,
-      { i: 1, habitability: 50 },
-      ...Array.from({ length: 10 }, (_, i) => ({ i: i + 2, habitability: 40 })),
-      { i: 12, habitability: 0 }
-    ],
+    // the biome table both fixtures read: 12 (water) and 41 (glacier) carry habitability 0
+    biomes: FIXTURE_BIOMES,
     features: bay ? [0, { i: 1 }, { i: 2 }, { i: 3 }] : [0, { i: 1 }, { i: 2 }],
     burgs,
     rivers: [],
@@ -164,12 +159,22 @@ function makePack(
 /** The grid stub the water gates read `grid.cells.temp` from: above `MIN_PASSABLE_SEA_TEMP` everywhere */
 const makeGrid = (cellCount = CELL_COUNT) => ({ cells: { temp: new Array(cellCount).fill(20) } });
 
-/** The biome table both fixtures read: biome 1 habitable, 12 (water) not */
+/**
+ * The biome table both fixtures read: biome 1 habitable, 12 (water) and 41 (glacier) not. Glacier
+ * keeps its own id so a test can ask for uninhabitable *land* without borrowing the water biome, and
+ * 42 is the same land in another colour, for the "the biome changes nothing" comparisons.
+ */
+const WATER_BIOME = 12;
+const GLACIER_BIOME = 41;
+const HABITABLE_BIOME = 42;
 const FIXTURE_BIOMES = [
   null,
   { i: 1, habitability: 50 },
   ...Array.from({ length: 10 }, (_, i) => ({ i: i + 2, habitability: 40 })),
-  { i: 12, habitability: 0 }
+  { i: WATER_BIOME, habitability: 0 },
+  ...Array.from({ length: 28 }, (_, i) => ({ i: i + 13, habitability: 40 })),
+  { i: GLACIER_BIOME, habitability: 0 },
+  { i: HABITABLE_BIOME, habitability: 50 }
 ];
 
 type FixtureBurg = { cell: number; name: string; classification?: "underground" | "subterranean" };
@@ -274,6 +279,42 @@ function makeRectPack({
         }) as Route
     )
   };
+}
+
+/**
+ * Lays a high, glacier-covered ridge astride the straight line between two cells of the current
+ * fixture: every cell whose column is within `halfWidth` of the line's midpoint column is raised to
+ * `h = 70` and set to the glacier biome, over all `rows`, except the `gaps` cells of the line's own
+ * row, which stay open lowland. The flanks past the ridge keep the fixture's own height, so the
+ * ridge is crossable without being skirtable at equal length.
+ */
+/** the dimensions of the fixture currently installed as `pack`, which the helpers below read */
+let fixtureShape = { columns: COLUMNS, rows: ROWS };
+
+/**
+ * Lays a high, glacier-covered ridge astride the straight line between two cells of the current
+ * fixture: every cell whose column is within `halfWidth` of the line's own midpoint column is raised
+ * to `h = 70` and set to the glacier biome, in every row, except the `gaps` columns of the line's own
+ * row, which stay open lowland. A one-column ridge crosses every row, so the only way past it is the
+ * long lowland detour around its extent.
+ */
+function ridgeAstride(from: number, to: number, { halfWidth = 1, gaps = [] as number[] } = {}) {
+  const { columns, rows } = fixtureShape;
+  const row = Math.floor(from / columns);
+  const middle = Math.floor((from + to) / 2) % columns; // both endpoints sit on one row
+  const cells: number[] = [];
+
+  for (let column = middle - halfWidth; column <= middle + halfWidth; column++) {
+    for (let r = 0; r < rows; r++) {
+      const cell = r * columns + column;
+      if (r === row && gaps.includes(column)) continue;
+      pack.cells.h[cell] = 70;
+      pack.cells.biome[cell] = GLACIER_BIOME;
+      cells.push(cell);
+    }
+  }
+
+  return cells;
 }
 
 /**
@@ -392,6 +433,9 @@ function reachable(from: number, to: number, canTraverse: (cell: number) => bool
 
 const endpoints = (route: Route) => [route.points[0][2], route.points.at(-1)?.[2]] as number[];
 
+/** the squared map distance between two cells: equal distance is what makes a cost comparison exact */
+const distances = (from: number, to: number) => distanceSquared(pack.cells.p[from], pack.cells.p[to]);
+
 /** The cell shape a tunnel leg may occupy: land, or water within the crossing bound */
 const isTunnelPassableCell = (cell: number) => pack.cells.h[cell] >= 20 || Math.abs(pack.cells.t[cell]) <= 2;
 
@@ -493,29 +537,40 @@ describe("underground highways", () => {
     expect(Routes.getUndergroundPathCost(cellAt(0, 4), cellAt(0, STRAIT))).toBe(Infinity);
   });
 
-  it("keeps frozen water impassable", () => {
+  it("lets a tunnel step under cold water pass, and keeps it a sea route's obstacle", () => {
     freshUndergroundState();
     const from = cellAt(1, 2);
+    const land = cellAt(1, 1);
     const frozen = cellAt(1, STRAIT);
     const control = cellAt(0, STRAIT);
     pack.cells.g[frozen] = 1; // the water leg reads its own grid temperature
     grid.cells.temp[1] = minPassableSeaTemp - 1;
 
-    expect(Routes.getUndergroundPathCost(from, frozen)).toBe(Infinity);
-    expect(Routes.getUndergroundPathCost(from, control)).toBeLessThan(Infinity); // the default temp is passable
+    // the bore passes under the ice: the climate above it is not a tunnelling statement
+    expect(Routes.getUndergroundPathCost(from, frozen)).toBeLessThan(Infinity);
+    expect(Routes.getUndergroundPathCost(from, frozen)).toBeLessThan(Routes.getUndergroundPathCost(from, control));
+    // while the ship still meets it
+    expect(Routes.getWaterPathCost(land, frozen)).toBe(Infinity);
+    expect(Routes.getWaterPathCost(land, control)).toBeLessThan(Infinity);
   });
 
-  it("refuses a land step onto a foreign landmass and keeps the glacier gate", () => {
+  it("refuses a land step onto a foreign landmass, whatever that shore's biome", () => {
     freshUndergroundState();
     const crossing = cellAt(1, STRAIT); // bound-passable water between the landmasses
     const foreignShore = cellAt(1, 4); // land of feature 2
     expect(Routes.createUndergroundCost(1)(crossing, foreignShore)).toBe(Infinity);
     expect(Routes.createUndergroundCost(2)(crossing, foreignShore)).toBeLessThan(Infinity);
 
+    // a glacier on that shore does not open it either: the rule is the landmass, not the biome
     const land = cellAt(1, 1);
+    const glacierForeign = cellAt(1, 4);
+    pack.cells.biome[glacierForeign] = GLACIER_BIOME;
+    pack.cells.h[glacierForeign] = 70;
+    expect(Routes.createUndergroundCost(1)(crossing, glacierForeign)).toBe(Infinity);
+    // and the pair's own glacier is no longer a wall
     const glacier = cellAt(1, 2);
-    pack.cells.biome[glacier] = 12; // habitability 0
-    expect(Routes.getUndergroundPathCost(land, glacier)).toBe(Infinity);
+    pack.cells.biome[glacier] = GLACIER_BIOME;
+    expect(Routes.getUndergroundPathCost(land, glacier)).toBeLessThan(Infinity);
   });
 
   it("makes a high-ground step cheaper than an equal-length low-ground step", () => {
@@ -640,14 +695,14 @@ describe("underground highways", () => {
   });
 
   it("prices a water step as a plain, burgless cell and keeps the separation term", () => {
-    // bare state: no surface network exists, so the water step is distance x 1.1 x 1.62 x 2 — the
-    // plain no-burg price, the depth term the only water-specific factor and no burg discount
+    // bare state: no surface network exists, so the water step is distance x 1.62 x 2 — the plain
+    // no-burg price, the depth term the only water-specific factor and no burg discount
     freshUndergroundState();
     const from = cellAt(1, 2);
     const water = cellAt(1, STRAIT);
     pack.cells.h[water] = 19; // shallow: the depth term at its gentlest
     const distance = distanceSquared(pack.cells.p[from], pack.cells.p[water]);
-    const plain = distance * 1.1 * 1.62 * 2; // the water biome's habitability 0, h 19, no burg on water
+    const plain = distance * 1.62 * 2; // h 19, no burg on water, and no biome term
 
     expect(Routes.getUndergroundPathCost(from, water)).toBeCloseTo(plain, 5);
 
@@ -987,8 +1042,8 @@ describe("underground highways", () => {
     /**
      * A surface burg sits on the gateway cell into Twinhall: the locked highway ends there from the
      * east, and the tunnel from Deephold reaches it from the west, so a stretch boundary lands on it.
-     * The plain way around the gateway is a glacier, so the settled cell stays the only crossing once
-     * it carries no attraction of its own.
+     * The plain way around the gateway runs into water past the crossing bound, so the settled cell
+     * stays the only crossing once it carries no attraction of its own.
      */
     const surfaceGatewayFixture = () => {
       const gateway = cellAt(1, 2);
@@ -997,8 +1052,11 @@ describe("underground highways", () => {
       burgAt(gateway, false);
       pack.cells.h[cellAt(0, 1)] = 21;
       pack.cells.h[cellAt(0, 2)] = 21;
-      pack.cells.biome[cellAt(0, 1)] = 12; // uninhabitable, so the way around the gateway is impassable
-      return { gateway, deep, twinhall };
+      // the wall a tunnel still refuses: water beyond the crossing bound, so the detour is prohibitive
+      const wall = cellAt(0, 1);
+      pack.cells.h[wall] = 5;
+      pack.cells.t[wall] = -3;
+      return { gateway, deep, twinhall, wall };
     };
 
     it("never begins or ends an underground highway on a surface burg's cell", () => {
@@ -1394,6 +1452,342 @@ describe("underground highways", () => {
       Routes.generate([handRoute(2, [12, 13])], 1);
       expect(cost(12, 13)).toBeGreaterThan(cost(9, 2));
       expect(cost(8, 9)).toBeLessThan(cost(12, 13));
+    });
+  });
+});
+
+/**
+ * The tunnel cost's terrain rules: the land biome is not read at all, the elevation preference is the
+ * only terrain term left, and frozen water gates a sea route without gating a bore. The rect fixture
+ * carries a glacier biome of its own, so "uninhabitable land" never has to borrow the water biome.
+ */
+/**
+ * The tunnel cost's terrain rules: the land biome is not read at all, the elevation preference is the
+ * only terrain term left, and frozen water gates a sea route without gating a bore. The rect fixture
+ * carries a glacier biome of its own, so "uninhabitable land" never has to borrow the water biome.
+ */
+describe("tunnel terrain rules", () => {
+  let Routes: any;
+  let minPassableSeaTemp: number;
+
+  beforeEach(async () => {
+    globalThis.TIME = false;
+    (globalThis as any).FlatQueue = TestFlatQueue;
+    vi.stubGlobal("Pack", { findCell: () => -1 });
+    globalThis.grid = makeGrid() as unknown as typeof grid;
+    globalThis.pack = makePack() as unknown as typeof pack;
+    globalThis.options.generation.underground = true;
+
+    await import("./index"); // the module graph installs the globals the cost functions read
+    await import("./river-generator"); // the water cost reads the Rivers global
+    ({ MIN_PASSABLE_SEA_TEMP: minPassableSeaTemp } = await import("./routes-generator"));
+    await import("./burgs-generator");
+    Routes = (globalThis as any).Routes;
+  });
+
+  afterEach(() => {
+    // not vi.unstubAllGlobals(): it would also drop test-setup's `window`, which the modules need
+    (globalThis as any).Pack = undefined;
+    globalThis.options.generation.underground = false;
+  });
+
+  const useRect = ({
+    columns,
+    rows,
+    burgs,
+    spacing,
+    isWater
+  }: {
+    columns: number;
+    rows: number;
+    burgs: FixtureBurg[];
+    spacing?: number;
+    isWater?: (row: number, column: number) => boolean;
+  }) => {
+    const fixture = makeRectPack({ columns, rows, burgs, spacing, isWater });
+    globalThis.pack = fixture as unknown as typeof pack;
+    globalThis.grid = makeGrid(fixture.cells.i.length) as unknown as typeof grid;
+    fixtureShape = { columns, rows };
+    Routes.surfaceDistances = undefined;
+    Routes.undergroundConnections = new Set();
+    return fixture;
+  };
+
+  const generate = (seed = 1) => Routes.generate([], seed);
+  const undergroundRoutes = () => pack.routes.filter(route => route.underground) as Route[];
+  const cost = (from: number, to: number) => Routes.getUndergroundPathCost(from, to);
+
+  describe("habitability", () => {
+    /** an all-land rect: cell 9 the reference burgless step, 10 and 11 its two identical neighbours */
+    const landFixture = () => useRect({ columns: 9, rows: 3, burgs: [] });
+
+    it("a glacier land step is passable", () => {
+      landFixture();
+      const from = 9;
+      const glacier = 10;
+
+      pack.cells.biome[glacier] = GLACIER_BIOME;
+      pack.cells.h[glacier] = 90;
+      pack.cells.h[11] = 90; // the twin: the same height, the same distance, a different biome
+      pack.cells.p[11] = [...pack.cells.p[glacier]];
+
+      const step = cost(from, glacier);
+      expect(Number.isFinite(step)).toBe(true);
+      // the biome is not read: the identical cell of another biome prices the same
+      expect(cost(from, 11)).toBeCloseTo(step, 5);
+    });
+
+    it("the biome does not price a tunnel step", () => {
+      landFixture();
+      const from = 9;
+      const glacier = 10;
+      const plain = 11;
+
+      for (const cell of [glacier, plain]) pack.cells.h[cell] = 30; // equal heights, so the biome is the difference
+      pack.cells.p[plain] = [...pack.cells.p[glacier]]; // and the same distance from the step's origin
+      pack.cells.biome[glacier] = GLACIER_BIOME;
+      pack.cells.biome[plain] = 1;
+
+      expect(cost(from, glacier)).toBeCloseTo(cost(from, plain), 5);
+    });
+
+    it("a water step is not priced by its biome", () => {
+      useRect({ columns: 9, rows: 3, burgs: [], isWater: row => row === 1 });
+      const water = 13; // row 1, column 4: a shore water cell, so the crossing bound passes it
+      expect(pack.cells.h[water]).toBeLessThan(20);
+      expect(pack.cells.biome[water]).toBe(WATER_BIOME);
+
+      pack.cells.h[water] = 10;
+      const asWater = cost(12, water) as number; // the fixture's habitability-0 water biome
+      pack.cells.biome[water] = HABITABLE_BIOME; // habitability 50, the same water otherwise
+      // this is the marine quirk's pin: the tunnel's water step used to pay 1.1 where a sea route's paid 1.0
+      expect(cost(12, water)).toBeCloseTo(asWater, 5);
+    });
+
+    it("the land cost keeps its gate", () => {
+      landFixture();
+      const from = 9;
+      const glacier = 10;
+      const plain = 11;
+
+      pack.cells.biome[glacier] = GLACIER_BIOME;
+      pack.cells.biome[plain] = 1;
+      pack.cells.p[plain] = [...pack.cells.p[glacier]];
+
+      expect(Routes.getLandPathCost(from, glacier)).toBe(Infinity);
+      // and the surface price is untouched: the biome still prices the step, it just cannot gate it
+      const asPlain = Routes.getLandPathCost(from, plain) as number;
+      expect(Number.isFinite(asPlain)).toBe(true);
+      pack.cells.biome[plain] = 2; // habitability 40: the price rises from 1.05 to 1.06
+      expect(Routes.getLandPathCost(from, plain) / asPlain).toBeCloseTo(1.06 / 1.05, 5);
+    });
+  });
+
+  describe("high ground", () => {
+    /**
+     * Two subterranean burgs at opposite ends of the top row, with a glacier ridge through the middle
+     * of the grid. The ridge spans every row of its column, so the only way past it is along row 2
+     * below or row 4 above — the lowland detour the elevation preference has to beat.
+     */
+    const ridgeFixture = () => {
+      const columns = 7;
+      const rows = 5;
+      const from = 0; // row 0, column 0
+      const to = columns - 1; // row 0, column 6
+      const fixture = useRect({
+        columns,
+        rows,
+        burgs: [
+          { cell: from, name: "Westdeep", classification: "underground" },
+          { cell: to, name: "Eastdeep", classification: "underground" }
+        ]
+      });
+      const ridge = ridgeAstride(from, to, { halfWidth: 0 }); // column 3, rows 0-4
+      return { fixture, ridge, from, to, columns, rows };
+    };
+
+    /** the cost of a hand-written cell list, read through the same evaluator the search uses */
+    const pathCost = (cells: number[]) => {
+      let total = 0;
+      for (let i = 0; i < cells.length - 1; i++) total += cost(cells[i], cells[i + 1]) as number;
+      return total;
+    };
+
+    it("a glacier ridge is crossed, not skirted", () => {
+      const { ridge, from, to, columns } = ridgeFixture();
+      expect(ridge).toEqual([3, 10, 17, 24, 31]); // column 3, rows 0-4
+      expect(ridge.every(cell => pack.cells.biome[cell] === GLACIER_BIOME)).toBe(true);
+
+      // the two ways past: straight over the crest along row 0, or down to row 2 and around
+      const crossing = Array.from({ length: columns }, (_, column) => column);
+      const skirting = [0, 7, 14, 15, 16, 17, 18, 19, 20, 13, 6].filter(cell => !ridge.includes(cell));
+      expect(skirting).toHaveLength(10); // one cell shorter than the crossing, and all lowland
+      expect(crossing.some(cell => ridge.includes(cell))).toBe(true);
+      expect(skirting.some(cell => ridge.includes(cell))).toBe(false);
+      // h 70 costs less per step than h 30, so the elevation term pays for the ridge's own crossing
+      expect(pathCost(crossing)).toBeLessThan(pathCost(skirting));
+
+      generate();
+
+      const highway = undergroundRoutes().find(
+        route => endpoints(route).includes(from) && endpoints(route).includes(to)
+      );
+      expect(highway).toBeDefined();
+      const path = highway!.points.map(point => point[2]);
+      expect(path.some(cell => ridge.includes(cell))).toBe(true); // the crest is crossed, not skirted
+    });
+
+    it("prices a glacier crest step below an equal-distance lowland step", () => {
+      ridgeFixture();
+      const crest = 17; // from cell 9: row 2, column 3, on the ridge at h 70
+      const lowland = 19; // from cell 11: row 2, column 5 — mirrored across the crest's own column, at h 30
+      const fromCrest = 9;
+      const fromLowland = 11;
+
+      expect(pack.cells.h[crest]).toBe(70);
+      expect(pack.cells.biome[crest]).toBe(GLACIER_BIOME);
+      expect(pack.cells.h[lowland]).toBe(30);
+      expect(pack.cells.biome[lowland]).toBe(1);
+      expect(distances(fromCrest, crest)).toBe(distances(fromLowland, lowland)); // 1000 each way
+      // and still cheaper: the height term reads how high the ground is and nothing else
+      expect(cost(fromCrest, crest)).toBeLessThan(cost(fromLowland, lowland));
+    });
+  });
+
+  describe("frozen water", () => {
+    /** a bay row, so land steps point at water and the sea route's own rules are reachable */
+    const waterFixture = () => {
+      useRect({ columns: 9, rows: 3, burgs: [], isWater: row => row === 1 });
+      // the temperature stub is indexed by the mapped grid cell, so the two probes need two of them
+      pack.cells.g[13] = 13;
+      pack.cells.g[14] = 14;
+      return { land: 0, shallow: 13, deep: 14 };
+    };
+
+    it("still impassable to a sea route", () => {
+      const { land, shallow, deep } = waterFixture();
+      grid.cells.temp[pack.cells.g[deep]] = minPassableSeaTemp - 1; // the deep probe is the chilled one
+
+      expect(Routes.getWaterPathCost(land, deep)).toBe(Infinity);
+      expect(Routes.getWaterPathCost(land, shallow)).toBeLessThan(Infinity); // the warm one still sails
+    });
+
+    it("a tunnel step under cold water is priced, not prohibited", () => {
+      const { land, shallow, deep } = waterFixture();
+      pack.cells.h[shallow] = 10;
+      pack.cells.h[deep] = 2; // deeper as well as colder: the depth price must still separate them
+      grid.cells.temp[pack.cells.g[deep]] = minPassableSeaTemp - 1;
+      const warm = cost(land, shallow);
+
+      const cold = cost(land, deep);
+      expect(Number.isFinite(cold)).toBe(true);
+      expect(cold).toBeGreaterThan(warm); // and it is still priced by its depth
+    });
+  });
+
+  describe("edge cases", () => {
+    /** the bay row again, with a warm sea, as the setting for the leak checks below */
+    const bayWater = () => {
+      useRect({ columns: 9, rows: 3, burgs: [], isWater: row => row === 1 });
+      for (let cell = 0; cell < pack.cells.i.length; cell++) grid.cells.temp[pack.cells.g[cell]] = 20;
+    };
+
+    it("does not leak into the bound: warm water beyond it stays prohibitive", () => {
+      bayWater();
+      const from = 12;
+      const beyond = 14;
+      expect(pack.cells.t[beyond]).toBe(-1); // a shore water cell: passable
+      expect(cost(from, beyond)).toBeLessThan(Infinity);
+
+      pack.cells.t[beyond] = -3; // the same cell, past the crossing bound
+      expect(cost(from, beyond)).toBe(Infinity);
+      // warm and burgless is not enough: the bound is the rule that turns it down
+      expect(grid.cells.temp[pack.cells.g[beyond]]).toBeGreaterThan(minPassableSeaTemp);
+      expect(pack.cells.burg[beyond]).toBe(0);
+    });
+
+    it("does not leak into the bound: a burg beyond it stays prohibitive", () => {
+      useRect({
+        columns: 9,
+        rows: 3,
+        burgs: [{ cell: 14, name: "Fardock", classification: "underground" }],
+        isWater: row => row === 1
+      });
+      const from = 12;
+      const beyond = 14;
+      expect(pack.cells.burg[beyond]).toBeGreaterThan(0); // the attraction is live on this cell
+      expect(cost(from, beyond)).toBeLessThan(Infinity);
+
+      pack.cells.t[beyond] = -3;
+      expect(cost(from, beyond)).toBe(Infinity); // the bound outranks the attraction
+    });
+
+    it("does not leak into the landmass rule: a glacier foreign shore stays prohibitive", () => {
+      bayWater();
+      // the bay's east half is the foreign landmass, so the shore across the crossing is foreign
+      for (let cell = 0; cell < 27; cell++) pack.cells.f[cell] = cell % 9 < 5 ? 1 : 2;
+      expect(pack.cells.f[14]).toBe(2);
+      const crossing = 13; // row 1, column 4: bound-passable water on the pair's own landmass
+      const foreignShore = 14; // row 1, column 5: land of feature 2
+      pack.cells.biome[foreignShore] = GLACIER_BIOME;
+      pack.cells.h[foreignShore] = 70;
+
+      expect(Routes.createUndergroundCost(1)(crossing, foreignShore)).toBe(Infinity);
+      expect(Routes.createUndergroundCost(2)(crossing, foreignShore)).toBeLessThan(Infinity);
+      // the reading survives the gate's removal: the rule is the landmass, not the biome
+      pack.cells.f[foreignShore] = 1;
+      expect(Routes.createUndergroundCost(1)(crossing, foreignShore)).toBeLessThan(Infinity);
+    });
+
+    it("does not discount ice: a glacier step is never cheaper than an identical plain one", () => {
+      useRect({ columns: 9, rows: 3, burgs: [] });
+      const from = 9;
+      const glacier = 10;
+      const plain = 11;
+      for (const cell of [glacier, plain]) pack.cells.h[cell] = 30;
+      pack.cells.p[plain] = [...pack.cells.p[glacier]];
+      pack.cells.biome[glacier] = GLACIER_BIOME;
+      pack.cells.biome[plain] = 1;
+
+      expect(cost(from, glacier)).toBeGreaterThanOrEqual(cost(from, plain));
+    });
+
+    it("cooling water does not flatten the depth price", () => {
+      bayWater();
+      const from = 10; // row 1, column 1
+      const deep = 1; // row 0, column 1: one cell north of the reference
+      const shallow = 11; // row 1, column 2: one cell east of it
+      pack.cells.h[shallow] = 19; // shallow: the depth term at its gentlest
+      pack.cells.h[deep] = 2; // deep: the term at its steepest
+      pack.cells.t[deep] = -1; // both bound-passable: only the depth can separate them
+      const dist = (cell: number) => distances(from, cell) as number;
+      expect(dist(shallow)).toBe(dist(deep)); // one cell north, one cell east: 100 each
+
+      for (const cell of [shallow, deep]) grid.cells.temp[pack.cells.g[cell]] = minPassableSeaTemp - 1;
+      expect(cost(from, deep)).toBeGreaterThan(cost(from, shallow));
+    });
+
+    it("serves a subterranean burg whose only land route crosses a glacier", () => {
+      useRect({
+        columns: 9,
+        rows: 5,
+        burgs: [
+          { cell: 18, name: "Westdeep", classification: "underground" },
+          { cell: 26, name: "Eastdeep", classification: "underground" }
+        ]
+      });
+      ridgeAstride(18, 26, { halfWidth: 1 });
+
+      generate();
+
+      const highways = undergroundRoutes();
+      expect(highways).toHaveLength(1); // nothing to repair: the pair is served on the first pass
+      expect(endpoints(highways[0]).sort()).toEqual([18, 26]);
+      expect(highways[0].points.some(([, , cell]) => pack.cells.biome[cell] === GLACIER_BIOME)).toBe(true);
+
+      const report = auditPlanes(pack, pack.routes);
+      expect(report.violations.filter(violation => violation.rule === "service")).toEqual([]);
+      expect(report.repairs).toBe(0);
     });
   });
 });
