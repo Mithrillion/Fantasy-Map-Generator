@@ -221,3 +221,30 @@ test("padding falls back to the route's own group style", () => {
   expect(getRouteBox(4)!.x).toBe(-0.7);
   expect(getRouteBox(5)!.x).toBe(-1);
 });
+
+test("the both state draws a tunnel through the crossing cell's centre, not an unconnected surface burg's icon", () => {
+  // the tunnel crosses cell 3, where a surface burg sits: generation anchored the recording point at
+  // the cell centre, and the renderer draws exactly what was stored, so the icon position reads as unused
+  globalThis.pack = {
+    routes: [
+      route(9, 0, "roads"),
+      {
+        i: 4,
+        group: "roads",
+        feature: 1,
+        underground: true,
+        points: [
+          [0, 10, 1],
+          [20, 10, 3], // cell centre; the surface burg's icon would sit at [23, 9]
+          [40, 50, 2]
+        ]
+      }
+    ]
+  } as never;
+  drawRoutes();
+
+  expect(document.querySelector("#tunnels > #route4")?.getAttribute("d")).toBe("M0,10L20,10L40,50");
+  for (const call of getPath.mock.calls.filter(call => (call[0] as { underground?: boolean }).underground)) {
+    for (const point of call[0].points) expect([point[0], point[1]]).not.toEqual([23, 9]);
+  }
+});

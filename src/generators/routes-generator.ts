@@ -13,6 +13,12 @@ import type { Point } from "./voronoi";
 const ROUTES_SHARP_ANGLE = 135;
 const ROUTES_VERY_SHARP_ANGLE = 115;
 
+/** Which burgs a pass may anchor at and price as burgs: the plane's endpoint-eligibility rule */
+const planePresence: Record<Plane, (burg: Burg) => boolean> = {
+  surface: hasGroundLevelPresence,
+  underground: hasBelowLevelPresence
+};
+
 export const MIN_PASSABLE_SEA_TEMP = -4;
 const RIVER_TYPE_MODIFIER = 1.5;
 /** how much dearer a tunnel step is on a surface route cell (the penalty decays over the next cells) */
@@ -619,7 +625,16 @@ class RoutesModule {
     return urquhartEdges(points);
   }
 
-  getLandPathCost(current: number, next: number) {
+  /**
+   * The surface land path cost. Its burg term is plane-governed: a burg of the surface pass's own
+   * plane discounts the step, a below-level burg is priced exactly as a plain cell. Every other term
+   * is untouched.
+   */
+  getLandPathCost(
+    current: number,
+    next: number,
+    hasPresence: (cellId: number) => boolean = this.presenceIn("surface")
+  ) {
     if (pack.cells.h[next] < 20) return Infinity; // ignore water cells
 
     const habitability = pack.biomes[pack.cells.biome[next]].habitability;
@@ -629,7 +644,7 @@ class RoutesModule {
     const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000; // [1, 1.1];
     const heightModifier = 1 + Math.max(pack.cells.h[next] - 25, 25) / 25; // [1, 3];
     const connectionModifier = this.connections.has(`${current}-${next}`) ? 0.5 : 1;
-    const burgModifier = pack.cells.burg[next] ? 1 : 3;
+    const burgModifier = hasPresence(next) ? 1 : 3;
 
     const pathCost = distanceCost * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
     return pathCost;
@@ -852,7 +867,7 @@ class RoutesModule {
     // only the chain's own cells are read, so this skips preparePointsArray's whole-map allocation
     return this.addMeandering(
       cells,
-      cells.map(cellId => this.getCellAnchor(cellId))
+      cells.map(cellId => this.getCellAnchor(cellId, this.presenceIn("surface")))
     );
   }
 
@@ -984,11 +999,12 @@ class RoutesModule {
       }
     }
 
-    const pointsArray = this.preparePointsArray();
+    const hasPresence = this.presenceIn("underground");
+    const pointsArray = this.preparePointsArray(hasPresence);
     for (const { feature, cells, merged } of this.mergeRoutes(highways)) {
       if (merged) continue;
-      const points = this.getPoints("roads", cells!, pointsArray);
-      const name = this.generateName({ group: "roads", points });
+      const points = this.getPoints("roads", cells!, pointsArray, hasPresence);
+      const name = this.generateName({ group: "roads", points, underground: true });
       routes.push({ i: routes.length, group: "roads", name, feature, points, underground: true });
     }
 
@@ -1072,7 +1088,8 @@ class RoutesModule {
     );
     if (!orphans.length) return 0;
 
-    const pointsArray = this.preparePointsArray();
+    const hasPresence = this.presenceIn("underground");
+    const pointsArray = this.preparePointsArray(hasPresence);
     let repairs = 0;
 
     for (const burg of orphans) {
@@ -1092,8 +1109,8 @@ class RoutesModule {
       );
       if (!pathCells || pathCells.length < 2) continue;
 
-      const points = this.getPoints("roads", pathCells, pointsArray);
-      const name = this.generateName({ group: "roads", points });
+      const points = this.getPoints("roads", pathCells, pointsArray, hasPresence);
+      const name = this.generateName({ group: "roads", points, underground: true });
       pack.routes.push({
         i: pack.routes.length,
         group: "roads",
@@ -1111,16 +1128,26 @@ class RoutesModule {
     return repairs;
   }
 
-  private preparePointsArray(): Point[] {
-    return pack.cells.p.map((_point, cellId) => this.getCellAnchor(cellId));
+  /** The pass's plane as a cell predicate: whether the cell carries a burg the pass can anchor at */
+  private presenceIn(plane: Plane): (cellId: number) => boolean {
+    const burgOf = planePresence[plane];
+    return (cellId: number) => {
+      const burgId = pack.cells.burg[cellId];
+      if (!burgId) return false;
+      const burg = pack.burgs[burgId];
+      return Boolean(burg && !burg.removed && burgOf(burg));
+    };
   }
 
-  /** The point a route passes through in a cell: the burg's position at a port, the cell centre otherwise */
-  private getCellAnchor(cellId: number): Point {
-    const { cells, burgs } = pack;
-    const burgId = cells.burg[cellId];
-    if (burgId) return [burgs[burgId].x, burgs[burgId].y];
-    const [x, y] = cells.p[cellId];
+  private preparePointsArray(hasPresence: (cellId: number) => boolean): Point[] {
+    return pack.cells.p.map((_point, cellId) => this.getCellAnchor(cellId, hasPresence));
+  }
+
+  /** The point a route passes through in a cell: the burg's position only for a burg of the pass's plane, the cell centre otherwise */
+  private getCellAnchor(cellId: number, hasPresence: (cellId: number) => boolean): Point {
+    const burg = hasPresence(cellId) ? pack.burgs[pack.cells.burg[cellId]] : undefined;
+    if (burg) return [burg.x, burg.y];
+    const [x, y] = pack.cells.p[cellId];
     return [x, y];
   }
 
@@ -1237,17 +1264,21 @@ class RoutesModule {
     return result;
   }
 
-  private getPoints(group: string, cells: number[], points: Point[]) {
+  /**
+   * Route geometry for a cell chain of one pass. Every read is plane-governed: burgs of the pass's
+   * own plane anchor the chain at their position, other planes' burgs price and smooth as plain cells.
+   */
+  private getPoints(group: string, cells: number[], points: Point[], hasPresence: (cellId: number) => boolean) {
     if (group === "searoutes") {
       const anchors = cells.map(cellId => points[cellId]);
       return this.addMeandering(cells, anchors);
     }
 
-    // resolve sharp angles
+    // resolve sharp angles; a burg of the pass's own plane stays anchored, a foreign one is smoothable
     const data = cells.map(cellId => [...points[cellId], cellId]);
     for (let i = 1; i < cells.length - 1; i++) {
       const cellId = cells[i];
-      if (pack.cells.burg[cellId]) continue;
+      if (hasPresence(cellId)) continue;
 
       const [prevX, prevY] = data[i - 1];
       const [currX, currY] = data[i];
@@ -1309,25 +1340,26 @@ class RoutesModule {
     const seaRoutes = this.generateSeaRoutes();
     const mainRoads = this.generateMainRoads();
     const trails = this.generateTrails();
-    const pointsArray = this.preparePointsArray();
+    const hasPresence = this.presenceIn("surface");
+    const pointsArray = this.preparePointsArray(hasPresence);
 
     for (const { feature, cells, merged } of this.mergeRoutes(mainRoads)) {
       if (merged) continue;
-      const points = this.getPoints("roads", cells!, pointsArray);
+      const points = this.getPoints("roads", cells!, pointsArray, hasPresence);
       const name = this.generateName({ group: "roads", points });
       routes.push({ i: routes.length, group: "roads", name, feature, points });
     }
 
     for (const { feature, cells, merged } of this.mergeRoutes(trails)) {
       if (merged) continue;
-      const points = this.getPoints("trails", cells!, pointsArray);
+      const points = this.getPoints("trails", cells!, pointsArray, hasPresence);
       const name = this.generateName({ group: "trails", points });
       routes.push({ i: routes.length, group: "trails", name, feature, points });
     }
 
     for (const { feature, cells, merged } of this.mergeRoutes(seaRoutes)) {
       if (merged) continue;
-      const points = this.getPoints("searoutes", cells!, pointsArray);
+      const points = this.getPoints("searoutes", cells!, pointsArray, hasPresence);
       const name = this.generateName({ group: "searoutes", points });
       routes.push({ i: routes.length, group: "searoutes", name, feature, points });
     }
@@ -1407,8 +1439,9 @@ class RoutesModule {
     const pathCells = findPath(cellId, isExit, getCost, pack);
     if (!pathCells) return;
 
-    const pointsArray = this.preparePointsArray();
-    const points = this.getPoints("trails", pathCells, pointsArray);
+    const hasPresence = this.presenceIn("surface");
+    const pointsArray = this.preparePointsArray(hasPresence);
+    const points = this.getPoints("trails", pathCells, pointsArray, hasPresence);
     const feature = pack.cells.f[cellId];
     const routeId = this.getNextId();
     const newRoute = { i: routeId, group: "trails", feature, points };
@@ -1513,12 +1546,26 @@ class RoutesModule {
     return connectivity;
   }
 
-  generateName({ group, points }: { group: string; points: number[][] }): string | undefined {
+  /**
+   * A route name derives only from burgs the record's plane can see: the anchor scan skips any cell
+   * whose burg lacks presence in the record's plane, exactly as if the cell had no burg.
+   */
+  generateName({
+    group,
+    points,
+    underground = false
+  }: {
+    group: string;
+    points: number[][];
+    underground?: boolean;
+  }): string | undefined {
     if (points.length < 4) return undefined;
+    const hasPresence = this.presenceIn(underground ? "underground" : "surface");
 
     function getBurgName() {
       const priority = [points.at(-1), points.at(0), points.slice(1, -1).reverse()];
       for (const [_x, _y, cellId] of priority as [number, number, number][]) {
+        if (!hasPresence(cellId)) continue;
         const burgId = pack.cells.burg[cellId];
         if (burgId) return getAdjective(pack.burgs[burgId].name!);
       }

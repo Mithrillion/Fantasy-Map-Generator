@@ -1,5 +1,26 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MIN_NAVIGABLE_FLUX } from "./river-generator";
+
+/** Queue stand-in for the shared A*, as the underground-highways fixtures supply it */
+const FlatQueueStub = class {
+  items: { id: number; priority: number }[] = [];
+  get length() {
+    return this.items.length;
+  }
+  push(id: number, priority: number) {
+    this.items.push({ id, priority });
+    this.items.sort((a, b) => a.priority - b.priority);
+  }
+  peekValue() {
+    return this.items[0]?.priority;
+  }
+  pop() {
+    return this.items.shift()?.id;
+  }
+  peek() {
+    return this.items[0]?.id;
+  }
+};
 
 describe("RoutesModule river-aware water cost", () => {
   let Routes: any;
@@ -630,5 +651,224 @@ describe("ensureRouteGroupStyles before a map exists", () => {
 
     expect(() => Routes.ensureRouteGroupStyles()).not.toThrow();
     expect(Object.keys((globalThis as any).styles.routes.groups)).toEqual(["roads"]);
+  });
+});
+
+/**
+ * A five-cell land row, burgs 1 and 2 (ground level, cells 1 and 3) and burg 3 fully subterranean on
+ * the cell (2) between them. The chained topology makes the buried burg's cell the only passage, so
+ * every surface record between the settlement pair crosses it.
+ */
+describe("RoutesModule surface route anchoring", () => {
+  let Routes: any;
+
+  beforeEach(async () => {
+    globalThis.TIME = false;
+    globalThis.window = globalThis.window || ({} as any);
+    (globalThis as any).window.FlatQueue = FlatQueueStub;
+    globalThis.grid = { cells: { temp: [20, 20, 20, 20, 20] } } as any;
+    globalThis.pack = {
+      cells: {
+        i: [0, 1, 2, 3, 4],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0],
+          [30, 0],
+          [40, 0]
+        ],
+        c: [[1], [0, 2], [1, 3], [2, 4], [3]],
+        h: [30, 30, 30, 30, 30],
+        f: [1, 1, 1, 1, 1],
+        biome: [1, 1, 1, 1, 1],
+        burg: [0, 1, 3, 2, 0],
+        t: [1, 1, 1, 1, 1],
+        g: [0, 0, 0, 0, 0],
+        r: [0, 0, 0, 0, 0],
+        fl: [0, 0, 0, 0, 0],
+        routes: {}
+      },
+      biomes: [null, { i: 1, habitability: 50 }] as never,
+      burgs: [
+        {},
+        { i: 1, cell: 1, x: 11, y: 1, name: "Westheights", feature: 1, capital: 1 },
+        { i: 2, cell: 3, x: 29, y: 1, name: "Eastheights", feature: 1, capital: 1 },
+        { i: 3, cell: 2, x: 21, y: -3, name: "Deepthorp", feature: 1, capital: 0, underground: true }
+      ],
+      rivers: [],
+      routes: []
+    } as any;
+    await import("./routes-generator");
+    Routes = (globalThis as any).Routes;
+  });
+
+  it("a surface road passes a fully subterranean burg at the cell centre", () => {
+    Routes.generate([], 1);
+    const roads = pack.routes.filter((route: any) => route.group === "roads");
+    expect(roads.length).toBeGreaterThan(0); // the settlement pair has a road to begin with
+
+    for (const road of roads) {
+      const middle = road.points.find((point: number[]) => point[2] === 2);
+      if (!middle) continue;
+      expect(middle.slice(0, 2)).toEqual([20, 0]); // not the buried burg's position [21, -3]
+    }
+    // and the buried burg's own cell is crossed by at least one record
+    expect(pack.routes.some((route: any) => route.points.some((point: number[]) => point[2] === 2))).toBe(true);
+  });
+
+  it("a surface road still anchors at a ground-level settlement", () => {
+    Routes.generate([], 1);
+
+    for (const route of pack.routes as any[]) {
+      for (const point of route.points) {
+        if (point[2] === 1) expect(point.slice(0, 2)).toEqual([11, 1]); // burg 1
+        if (point[2] === 3) expect(point.slice(0, 2)).toEqual([29, 1]); // burg 2
+      }
+    }
+  });
+
+  it("a road keeps every burg cell it touches anchored, so endpoints are unchanged", () => {
+    const before = Routes.generate([], 1);
+    const after = Routes.generate([], 1);
+    expect(JSON.stringify(after)).toBe(JSON.stringify(before)); // anchors are deterministic per seed
+  });
+});
+
+/**
+ * The sharp-angle gate is keyed on the same pass predicate as the anchors: a burg of the pass's own
+ * plane keeps its position, a foreign one is smoothable exactly like a plain cell. `Pack.findCell`
+ * is stubbed to always hand the kink's cell back, so an admissible move is always applied.
+ */
+describe("RoutesModule plane-governed sharp-angle smoothing", () => {
+  let Routes: any;
+  let Pack: any;
+
+  beforeEach(async () => {
+    globalThis.TIME = false;
+    globalThis.window = globalThis.window || ({} as any);
+    globalThis.pack = {
+      cells: {
+        p: [
+          [0, 0],
+          [10, 10],
+          [30, 0]
+        ],
+        burg: [] as number[]
+      },
+      burgs: [] as any[]
+    } as any;
+    globalThis.grid = { cells: { temp: [20] } } as any;
+    await import("./routes-generator");
+    Routes = (globalThis as any).Routes;
+    Pack = globalThis.Pack;
+    (globalThis as any).Pack = { findCell: () => 1 };
+    pack.cells.burg = pack.cells.burg || ([] as number[]);
+  });
+
+  afterEach(() => {
+    (globalThis as any).Pack = Pack;
+  });
+
+  /** the gate's own smallest surface: a three-cell chain with a 90° kink at cell 1, read through one pass */
+  const kinkChain = (
+    burgClassification: "surface" | "subterranean" | "underground",
+    plane: "surface" | "underground"
+  ) => {
+    const burg = { i: 1, cell: 1, x: 13, y: 7, name: "Kinkberg", feature: 1 };
+    if (burgClassification === "subterranean") (burg as any).subterranean = true;
+    if (burgClassification === "underground") (burg as any).underground = true;
+    pack.burgs = [{} as any, burg as any];
+    (pack.cells as any).burg = [0, 1, 0];
+    // the pass's own pointsArray: the same predicate builds it and gates the smoothing
+    return Routes.preparePointsArray(Routes.presenceIn(plane));
+  };
+
+  it("tunnels resolve the kink on a ground-level settlement's cell", () => {
+    const anchors = kinkChain("surface", "underground");
+    const data = Routes.getPoints("roads", [0, 1, 2], anchors, Routes.presenceIn("underground"));
+    expect(data[1].slice(0, 2)).toEqual([13.33, 3.33]); // the very sharp angle's move
+  });
+
+  it("tunnels keep a below-level settlement's position at the kink", () => {
+    const anchors = kinkChain("underground", "underground");
+    const data = Routes.getPoints("roads", [0, 1, 2], anchors, Routes.presenceIn("underground"));
+    expect(data[1].slice(0, 2)).toEqual([13, 7]); // the burg's position, un-smoothed
+  });
+
+  it("roads resolve the kink on a fully subterranean settlement's cell", () => {
+    const anchors = kinkChain("underground", "surface");
+    const data = Routes.getPoints("roads", [0, 1, 2], anchors, Routes.presenceIn("surface"));
+    expect(data[1].slice(0, 2)).toEqual([13.33, 3.33]);
+  });
+
+  it("roads keep a ground-level settlement's position at the kink", () => {
+    const anchors = kinkChain("surface", "surface");
+    const data = Routes.getPoints("roads", [0, 1, 2], anchors, Routes.presenceIn("surface"));
+    expect(data[1].slice(0, 2)).toEqual([13, 7]);
+  });
+
+  it("a foreign burg's moved anchor is read by the pass's other records (shared array intact)", () => {
+    const anchors = kinkChain("surface", "underground");
+    Routes.getPoints("roads", [0, 1, 2], anchors, Routes.presenceIn("underground"));
+    expect(anchors[1][0]).toBe(13.33); // the shared pointsArray is where the pass reads from
+  });
+});
+
+describe("RoutesModule route naming", () => {
+  let Routes: any;
+
+  beforeEach(async () => {
+    globalThis.TIME = false;
+    globalThis.window = globalThis.window || ({} as any);
+    globalThis.pack = { cells: { burg: [0, 0, 0, 0, 1] as number[] }, burgs: [] as any[] } as any;
+    await import("./routes-generator");
+    Routes = (globalThis as any).Routes;
+  });
+
+  const way = () => [
+    [0, 0, 1],
+    [1, 0, 2],
+    [2, 0, 3],
+    [3, 0, 4]
+  ];
+
+  const burgAtEnd = (classification: "buried" | "surface", name: string) => {
+    const burg = { i: 1, cell: 4, x: 0, y: 0, name, feature: 1 } as any;
+    if (classification === "buried") burg.underground = true;
+    pack.burgs = [{} as any, burg as any];
+  };
+
+  it("a surface record is not named after a buried settlement", () => {
+    burgAtEnd("buried", "Deepthorp");
+    for (let attempt = 0; attempt < 60; attempt++) {
+      expect(String(Routes.generateName({ group: "roads", points: way() })).includes("Deepthor")).toBe(false);
+    }
+  });
+
+  it("a tunnel is not named after a surface settlement", () => {
+    burgAtEnd("surface", "Oakhurst");
+    for (let attempt = 0; attempt < 60; attempt++) {
+      expect(String(Routes.generateName({ group: "roads", points: way(), underground: true })).includes("Oak")).toBe(
+        false
+      );
+    }
+  });
+
+  it("a settlement of the record's own plane names the record", () => {
+    burgAtEnd("surface", "Gradthouse");
+    let named = false;
+    for (let attempt = 0; attempt < 60 && !named; attempt++) {
+      named = String(Routes.generateName({ group: "roads", points: way() })).includes("Gradthous");
+    }
+    expect(named).toBe(true); // the scan finds the burg whose plane it can see
+
+    burgAtEnd("buried", "Gradthouse");
+    let tunnelNamed = false;
+    for (let attempt = 0; attempt < 60 && !tunnelNamed; attempt++) {
+      tunnelNamed = String(Routes.generateName({ group: "roads", points: way(), underground: true })).includes(
+        "Gradthous"
+      );
+    }
+    expect(tunnelNamed).toBe(true); // below-level presence names a tunnel too
   });
 });

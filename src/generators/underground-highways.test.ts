@@ -1080,6 +1080,39 @@ describe("underground highways", () => {
       expect(undergroundRoutes().some(route => endpoints(route).some(cell => cell === gateway))).toBe(false);
     });
 
+    it("a tunnel passes a surface burg at the cell centre, and anchors at a below-level settlement", () => {
+      const { gateway, deep, twinhall } = surfaceGatewayFixture();
+      // off-centre icons, so a burg's position can never be confused with its cell centre
+      const shift = (cell: number, dx: number, dy: number) => {
+        const burg = (pack.burgs[pack.cells.burg[cell]] as Burg)!;
+        burg.x += dx;
+        burg.y += dy;
+        return burg;
+      };
+      shift(gateway, 3, -1);
+      const twinhallBurg = shift(twinhall, -2, 1);
+      const deepBurg = shift(deep, 1, 2);
+
+      const locked = pinned([twinhall, cellAt(2, 2)]);
+      Routes.generate([locked], 1);
+
+      const tunnels = undergroundRoutes().filter(route => route !== locked);
+      const pointAt = (cell: number) =>
+        tunnels.flatMap(route => route.points).find(point => point[2] === cell) as number[] | undefined;
+
+      // the gateway's burg has ground-level presence only: the tunnel reads the cell centre
+      const centre = [...pack.cells.p[gateway]];
+      const gatewayPoint = pointAt(gateway);
+      expect(gatewayPoint).toBeDefined();
+      expect(gatewayPoint!.slice(0, 2)).toEqual(centre);
+
+      // Twinhall and Deephold are the tunnel pass's own settlements: their positions, not the centres
+      const twinPoint = pointAt(twinhall);
+      expect(twinPoint!.slice(0, 2)).toEqual([twinhallBurg.x, twinhallBurg.y]);
+      const deepPoint = pointAt(deep);
+      expect(deepPoint!.slice(0, 2)).toEqual([deepBurg.x, deepBurg.y]);
+    });
+
     it("keeps a highway whose boundary is a junction, so an interior burg stays connected", () => {
       const junction = cellAt(1, 2);
       const interior = burgAt(cellAt(1, 1), true);
@@ -1175,6 +1208,10 @@ describe("underground highways", () => {
 
     it("keeps every cell of a surface path when the boundary moves", () => {
       const classified = (pack.burgs[1] as Burg).cell;
+      // the settled cell's plain price no longer pulls the path through, so leave it the only land
+      // passage between Twinhall and Surfacetown: the crossing, and every cell of it, still exist
+      pack.cells.h[classified - COLUMNS] = 5;
+      pack.cells.h[classified + COLUMNS] = 5;
       generate();
 
       const surfaceCells = new Set(
@@ -1198,11 +1235,11 @@ describe("underground highways", () => {
       const from = classified - COLUMNS;
       generate();
 
-      // the land cost keeps its own attraction: a burg cell costs exactly a third of a plain one, so
-      // the weaker underground attraction below cannot be read as a surface change
-      const burgStep = Routes.getLandPathCost(from, classified);
+      // the land cost keeps its own attraction: a below-level burg's cell now prices exactly as a
+      // plain one, so clearing the id cannot be read as a surface price change of the step
+      const deepStep = Routes.getLandPathCost(from, classified);
       pack.cells.burg[classified] = 0;
-      expect(Routes.getLandPathCost(from, classified)).toBeCloseTo(burgStep * 3, 5);
+      expect(Routes.getLandPathCost(from, classified)).toBeCloseTo(deepStep, 5);
     });
     /**
      * Both plane costs read the *destination* cell's burg: the term is what makes a tunnel prefer the
@@ -1259,11 +1296,13 @@ describe("underground highways", () => {
       }
     };
 
-    /** the probe's cost surfaces: a pass that merges nothing, then the option back on for the cost */
+    /** the probe's cost surfaces: a pass that merges nothing, its fields as on a fresh module, then the option back on */
     const primeAttractionProbe = () => {
       globalThis.options.generation.underground = false;
       generate();
       pack.routes = [];
+      Routes.connections = new Map();
+      freshUndergroundState();
       globalThis.options.generation.underground = true;
     };
 
@@ -1306,11 +1345,35 @@ describe("underground highways", () => {
       expect(probeQuotient("removed")).toBeCloseTo(1, 5); // and a record the map has retired
     });
 
-    it("leaves the surface network's own burg attraction at three", () => {
+    /** the surface discount's quotient: a plain land step against the step onto the probe's burg cell */
+    const landQuotient = (record?: "underground" | "subterranean" | "surface" | "removed") => {
+      let quotient = 0;
       withAttractionProbe(({ from, burgCell, plainCell }) => {
-        const ratio = Routes.getLandPathCost(from, plainCell) / Routes.getLandPathCost(from, burgCell);
-        expect(ratio).toBeCloseTo(3, 5);
-      });
+        quotient = Routes.getLandPathCost(from, plainCell) / Routes.getLandPathCost(from, burgCell);
+      }, record);
+      return quotient;
+    };
+
+    it("prices a below-level burg's cell as a plain one on the surface path", () => {
+      primeAttractionProbe();
+
+      // the discount follows the record, not the id: it is withdrawn for a burg without ground-level
+      // presence, whatever the map's burg id at the cell says
+      expect(landQuotient("underground")).toBeCloseTo(1, 5);
+      expect(landQuotient()).toBeCloseTo(1, 5); // an id with no record
+      expect(landQuotient("removed")).toBeCloseTo(1, 5); // and a record the map has retired
+    });
+
+    it("a dual burg's cell keeps the surface discount", () => {
+      primeAttractionProbe();
+
+      expect(landQuotient("subterranean")).toBeCloseTo(3, 5); // ground-level presence, own factor
+    });
+
+    it("keeps a ground-level burg's surface discount exactly as before", () => {
+      primeAttractionProbe();
+
+      expect(landQuotient("surface")).toBeCloseTo(3, 5); // the factor is unchanged by the rule
     });
 
     it("a tunnel between two below-level burgs prefers a plain detour to a surface-only burg's cell", () => {

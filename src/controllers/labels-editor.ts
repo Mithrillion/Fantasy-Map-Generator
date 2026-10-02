@@ -423,8 +423,11 @@ const nameGenerators: Record<LabelType, (label: LabelData) => string> = {
     return Rivers.getName(cellId);
   },
   route: label => {
-    const points = pack.routes.find(route => route.i === label.entityId)?.points ?? [];
-    return Routes.generateName({ group: label.group, points }) || UNNAMED_ROUTE;
+    const route = pack.routes.find(route => route.i === label.entityId);
+    const points = route?.points ?? [];
+    return (
+      Routes.generateName({ group: label.group, points, underground: Boolean(route?.underground) }) || UNNAMED_ROUTE
+    );
   }
 };
 
