@@ -62,8 +62,9 @@ an otherwise equal step onto land, so that a crossing is chosen for the geometry
 for its cheapness, and its cost SHALL rise with the depth of the water, so that a shallow bay costs
 less than a deep one. A water step beyond the crossing bound SHALL be prohibitive every time: the
 bound is the distance to the nearest land cell, so no underground highway crosses a sea arm wider
-than the bound, however cheap the direct line would be. Frozen water SHALL be impassable, by the
-same passable-sea temperature rule that sea routes already use.
+than the bound, however cheap the direct line would be. The temperature of the water SHALL NOT gate
+a water step: the passable-sea temperature rule continues to govern sea routes, where ice is an
+obstacle on the surface, and SHALL NOT make a tunnel step prohibitive.
 
 The landmass constraint is unchanged: an underground highway SHALL NOT cross from one landmass to
 another, and with water legs present SHALL NOT step onto land belonging to another landmass. The
@@ -98,9 +99,17 @@ confers no water transport on it.
 
 #### Scenario: Frozen water is impassable
 
-- **WHEN** the generation cost of an underground highway step onto colder-than-passable water is
-  evaluated, by the temperature rule sea routes use
-- **THEN** the cost is prohibitive
+- **WHEN** a sea route's step onto colder-than-passable water is evaluated, by the passable-sea
+  temperature rule
+- **THEN** the cost is prohibitive, exactly as it was before this change, because the rule outlives
+  this requirement as a sea-route rule
+
+#### Scenario: Frozen water does not gate a tunnel step
+
+- **WHEN** the generation cost of an underground highway step onto water colder than the
+  passable-sea temperature is evaluated
+- **THEN** the cost is finite, because a tunnel's passability depends on the water it passes under
+  and not on the climate above it
 
 #### Scenario: No crossing steps onto a foreign landmass
 
@@ -122,12 +131,17 @@ confers no water transport on it.
 
 ### Requirement: Underground highways prefer high ground
 
-The generation cost of an underground highway SHALL favour high-elevation terrain over low-elevation terrain, so that the resulting network preferentially runs beneath mountains and highlands.
+The generation cost of an underground highway SHALL favour high-elevation terrain over low-elevation terrain, so that the resulting network preferentially runs beneath mountains and highlands. No land cell SHALL be impassable to an underground highway on account of its biome, so the preference is exercised over every cell of the range, including the ground a surface ice sheet covers.
 
 #### Scenario: A route across a mountain is cheaper than around it
 
 - **WHEN** a path over high ground and a path of equal length over low ground connect the same pair of subterranean-capable burgs
 - **THEN** the high-ground path is the one selected
+
+#### Scenario: A glacier-covered crest does not block the crossing
+
+- **WHEN** a path over a high cell whose biome is a glacier and a path around it of equal length connect the same pair of subterranean-capable burgs
+- **THEN** the high-ground path over the glacier is the one selected, because the cell is passable and priced by its elevation alone
 
 ### Requirement: Connectivity governs generation only, never traversal
 
@@ -228,7 +242,7 @@ The generation cost of an underground highway SHALL be raised on cells that lie 
 
 #### Scenario: The penalty never blocks a passable step
 
-- **WHEN** a step is passable under the water and habitability gates
+- **WHEN** a step is passable under the water crossing bound
 - **THEN** the separation penalty leaves it passable, whatever its distance to a surface route
 
 #### Scenario: Underground highways do not repel each other
@@ -372,3 +386,27 @@ terrain preference.
 
 - **WHEN** the land path cost of a step onto a cell whose burg has ground-level presence is compared with the same step onto a comparable cell with no burg
 - **THEN** their ratio is the surface network's own burg factor, which this rule does not change
+
+### Requirement: Underground highways ignore land habitability
+
+The generation cost of an underground highway step SHALL NOT depend on the biome of the cell it steps onto. A land cell SHALL NOT be impassable on account of its biome, whatever that biome's habitability, and the cell's biome SHALL NOT change the cost of the step. A water step SHALL be priced the same way: no biome term SHALL apply to it. This rule SHALL NOT alter the crossing bound, the depth price, the landmass constraint, the elevation preference, the corridor separation, the underground discount or the burg attraction, and it SHALL NOT alter the surface network: the land path cost keeps its own habitability gate and its own habitability price, and surface route pathfinding is otherwise unchanged.
+
+#### Scenario: A step onto uninhabitable land is passable
+
+- **WHEN** the generation cost of an underground highway step onto a land cell whose biome habitability is zero is evaluated
+- **THEN** the cost is finite
+
+#### Scenario: Biome habitability does not price a tunnel step
+
+- **WHEN** the generation cost of a step onto a land cell is compared with the same step onto a cell identical but for its biome habitability
+- **THEN** the two costs are equal
+
+#### Scenario: A water step pays no biome price
+
+- **WHEN** the biome of the destination cell of an underground highway water step is replaced by a biome of habitability zero
+- **THEN** the step's cost is unchanged
+
+#### Scenario: The surface land cost keeps its own habitability rule
+
+- **WHEN** the land path cost of a surface route step onto a land cell whose biome habitability is zero is evaluated
+- **THEN** the cost is prohibitive, exactly as it was before this change
